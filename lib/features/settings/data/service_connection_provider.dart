@@ -1,5 +1,7 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:async';
 
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/core/api/api_client.dart';
 import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
@@ -97,3 +99,112 @@ final serviceConnectionProvider =
       final settings = ref.watch(currentSettingsProvider);
       return _checkService(service, settings);
     });
+
+/// Performs the same health check as [_checkService] but surfaces a
+/// human-readable [detail] describing the failure.
+///
+/// [detail] is `HTTP <code>` for a non-2xx response, or
+/// `<ExceptionType>: <message>` (truncated to 140 chars) on error. Secrets
+/// and credential-bearing URLs are redacted from the message.
+Future<({bool ok, String detail})> testServiceConnection(
+  ServiceKey service,
+  SettingsModel settings,
+) async {
+  if (!settings.isServiceConfigured(service)) {
+    return (ok: false, detail: 'Not configured');
+  }
+
+  if (service == ServiceKey.qbittorrent) {
+    final client = QbittorrentClient(
+      url: settings.qbittorrentUrl,
+      username: settings.qbittorrentUsername,
+      password: settings.qbittorrentPassword,
+    );
+    try {
+      await client.authenticate().timeout(const Duration(seconds: 5));
+      await client.getVersion().timeout(const Duration(seconds: 5));
+      return (ok: true, detail: '');
+    } catch (e) {
+      final code = _httpStatusCode(e);
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      client.close();
+    }
+  }
+
+  final url = settings.urlFor(service);
+  final apiKey = settings.apiKeyFor(service);
+
+  final client = ApiClient(baseUrl: url, auth: ApiKeyHeaderAuth(apiKey));
+  try {
+    final response = await client
+        .get(_healthEndpoint(service))
+        .timeout(const Duration(seconds: 5));
+    final statusCode = response.statusCode ?? 0;
+    if (statusCode >= 200 && statusCode < 300) {
+      return (ok: true, detail: '');
+    }
+    return (ok: false, detail: 'HTTP $statusCode');
+  } catch (e) {
+    final code = _httpStatusCode(e);
+    if (code != null) {
+      return (ok: false, detail: 'HTTP $code');
+    }
+    return (ok: false, detail: _errorDetail(e, settings, service));
+  } finally {
+    client.close();
+  }
+}
+
+int? _httpStatusCode(Object e) {
+  if (e is DioException) {
+    return e.response?.statusCode;
+  }
+  return null;
+}
+
+String _errorDetail(Object e, SettingsModel settings, ServiceKey service) {
+  final type = e.runtimeType.toString();
+  var message = _messageOf(e);
+  message = _scrub(message, settings, service);
+  final combined = '$type: $message';
+  return combined.length <= 140 ? combined : combined.substring(0, 140);
+}
+
+String _messageOf(Object e) {
+  if (e is DioException) {
+    return e.message ?? e.toString();
+  }
+  if (e is TimeoutException) {
+    return e.message ?? e.toString();
+  }
+  final s = e.toString();
+  final prefix = '${e.runtimeType}: ';
+  if (s.startsWith(prefix)) {
+    return s.substring(prefix.length);
+  }
+  return s;
+}
+
+String _scrub(String text, SettingsModel settings, ServiceKey service) {
+  var out = text;
+  final secrets = <String>[];
+  if (service == ServiceKey.qbittorrent) {
+    secrets.addAll([
+      settings.qbittorrentUrl,
+      settings.qbittorrentUsername,
+      settings.qbittorrentPassword,
+    ]);
+  } else {
+    secrets.addAll([settings.urlFor(service), settings.apiKeyFor(service)]);
+  }
+  for (final secret in secrets) {
+    if (secret.isNotEmpty) {
+      out = out.replaceAll(secret, '[redacted]');
+    }
+  }
+  return out;
+}

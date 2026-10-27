@@ -29,6 +29,8 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   late final TextEditingController _usernameController;
   late final TextEditingController _passwordController;
 
+  String? _testDetail;
+
   bool get isQbittorrent => widget.service == ServiceKey.qbittorrent;
 
   @override
@@ -112,6 +114,15 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
             _buildTestConnectionButton(),
             const SizedBox(height: AppSpacing.sm),
             _buildConnectionStatus(),
+            if (_testDetail != null && _testDetail!.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.sm),
+              SelectableText(
+                _testDetail!,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -120,8 +131,13 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
 
   Widget _buildTestConnectionButton() {
     return OutlinedButton.icon(
-      onPressed: () =>
-          ref.invalidate(serviceConnectionProvider(widget.service)),
+      onPressed: () async {
+        final current = ref.read(currentSettingsProvider);
+        final updated = _updateServiceSettings(current);
+        final result = await testServiceConnection(widget.service, updated);
+        if (!mounted) return;
+        setState(() => _testDetail = result.detail);
+      },
       icon: const Icon(Icons.network_check_rounded),
       label: const Text('Test Connection'),
     );
