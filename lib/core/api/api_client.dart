@@ -20,6 +20,8 @@ class ApiClient {
           ),
         ) {
     // TEMP-DIAG: temporary redacted HTTP logging for live session (revert after).
+    // DIAGNOSTIC: app-level OIDC auth interceptor (slice 1) — injects Bearer
+    // when session active + per-service map allows; 401 triggers refresh once.
     _dio.interceptors.add(
       LogInterceptor(
         request: true,

@@ -54,3 +54,4 @@
 	</array>
 </dict>
 </plist>
+URL types: seekarr (iOS Info.plist / Runner-Info.plist) — added entry for seekarr://oauth/callback handling

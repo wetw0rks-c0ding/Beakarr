@@ -57,6 +57,8 @@ class SettingsService {
   static const _kRegion = 'region';
   static const _kThemeMode = 'theme_mode';
   static const _kOnboardingComplete = 'onboarding_complete';
+  static const _kOidcIssuer = 'oidc_issuer';
+  static const _kOidcClientId = 'oidc_client_id';
 
   static const Map<ServiceKey, _ServiceStorageKeys> _serviceStorageKeys = {
     ServiceKey.seerr: _ServiceStorageKeys(
@@ -185,6 +187,8 @@ class SettingsService {
     await _prefs.remove(_kThemeMode);
     await _prefs.remove(_kOnboardingComplete);
     await _prefs.remove('hidden_tabs');
+    await _prefs.remove(_kOidcIssuer);
+    await _prefs.remove(_kOidcClientId);
   }
 
   Future<SettingsModel> loadSettings() async {
@@ -211,6 +215,8 @@ class SettingsService {
       bazarrApiKey: serviceSettings[ServiceKey.bazarr]!.$2,
       region: _loadRegion(),
       themeMode: AppThemeMode.fromName(_prefs.getString(_kThemeMode)),
+      oidcIssuer: _prefs.getString(_kOidcIssuer) ?? '',
+      oidcClientId: _prefs.getString(_kOidcClientId) ?? 'seekarr',
     );
   }
 
@@ -220,6 +226,8 @@ class SettingsService {
     await _saveServiceUrls(settings);
     await _prefs.setString(_kRegion, normalizedRegion);
     await _prefs.setString(_kThemeMode, settings.themeMode.name);
+    await _prefs.setString(_kOidcIssuer, settings.oidcIssuer);
+    await _prefs.setString(_kOidcClientId, settings.oidcClientId);
     await _prefs.remove('hidden_tabs');
 
     await _saveServiceApiKeys(settings);

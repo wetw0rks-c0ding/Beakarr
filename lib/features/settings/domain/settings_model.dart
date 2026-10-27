@@ -45,6 +45,8 @@ class SettingsModel {
   final String bazarrApiKey;
   final String region;
   final AppThemeMode themeMode;
+  final String oidcIssuer; // empty = disabled; plain URL-like field (NOT secret)
+  final String oidcClientId; // default 'seekarr'
 
   static final Map<ServiceKey, _ServiceSettingsAccess> _serviceSettingsAccess =
       {
@@ -117,6 +119,8 @@ class SettingsModel {
     this.bazarrApiKey = '',
     this.region = 'US',
     this.themeMode = AppThemeMode.system,
+    this.oidcIssuer = '',
+    this.oidcClientId = 'seekarr',
   });
 
   SettingsModel copyWith({
@@ -137,6 +141,8 @@ class SettingsModel {
     String? bazarrApiKey,
     String? region,
     AppThemeMode? themeMode,
+    String? oidcIssuer,
+    String? oidcClientId,
   }) {
     return SettingsModel(
       seerrUrl: seerrUrl ?? this.seerrUrl,
@@ -156,6 +162,8 @@ class SettingsModel {
       bazarrApiKey: bazarrApiKey ?? this.bazarrApiKey,
       region: region ?? this.region,
       themeMode: themeMode ?? this.themeMode,
+      oidcIssuer: oidcIssuer ?? this.oidcIssuer,
+      oidcClientId: oidcClientId ?? this.oidcClientId,
     );
   }
 
