@@ -29,6 +29,7 @@ const _serviceColors = {
   ServiceKey.lidarr: Color(0xFFEC4899), // pink
   ServiceKey.qbittorrent: Color(0xFF2F67BA), // blue
   ServiceKey.prowlarr: Color(0xFFD63636), // Prowlarr red
+  ServiceKey.bazarr: Color(0xFF22D3EE), // Bazarr cyan
 };
 
 // ─── Health-check helper (mirrors serviceConnectionProvider logic) ──────────
