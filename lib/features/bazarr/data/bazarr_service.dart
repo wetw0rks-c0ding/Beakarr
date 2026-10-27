@@ -18,7 +18,7 @@ final bazarrServiceProvider = Provider<BazarrService>((ref) {
   return BazarrService(
     ApiClient(
       baseUrl: settings.bazarrUrl,
-      auth: BazarrApiKeyAuth(settings.bazarrApiKey),
+      auth: ApiKeyHeaderAuth(settings.bazarrApiKey),
     ),
   );
 });
@@ -81,16 +81,27 @@ class BazarrService {
 
   Future<List<BazarrSubtitle>> getEpisodeSubtitles({required int seriesId, required int season, required int episode}) async {
     try {
-      final response = await client.get('/api/series/$seriesId/episode/$season/$episode/subtitles');
+      // Subtitles returned within episode metadata via documented /api/series/{id}/episodes (https://github.com/morpheus65535/bazarr)
+      final response = await client.get('/api/series/$seriesId/episodes');
       final data = response.data;
-      if (data is List) return data.map((e) => BazarrSubtitle.fromJson(e as Map<String, dynamic>)).toList();
+      if (data is List) {
+        // Find matching episode by season/episode and extract subtitles
+        for (final item in data) {
+          final map = item as Map<String, dynamic>;
+          if (map['season'] == season && map['episode'] == episode) {
+            final subs = map['subtitles'] as List<dynamic>?;
+            if (subs != null) return subs.map((e) => BazarrSubtitle.fromJson(e as Map<String, dynamic>)).toList();
+          }
+        }
+      }
       return [];
     } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
   }
 
   Future<List<BazarrSubtitle>> searchEpisodeSubtitles({required int seriesId, required int season, required int episode, CancelToken? cancelToken}) async {
     try {
-      final response = await client.get('/api/series/$seriesId/episode/$season/$episode/subtitles/search', cancelToken: cancelToken);
+      // Bazarr subtitle search uses query params, not nested segments (see https://wiki.bazarr.media/ + https://github.com/morpheus65535/bazarr)
+      final response = await client.get('/api/subtitles/search', queryParameters: {'seriesid': seriesId, 'season': season, 'episode': episode}, cancelToken: cancelToken);
       final data = response.data;
       if (data is List) return data.map((e) => BazarrSubtitle.fromJson(e as Map<String, dynamic>)).toList();
       return [];
@@ -98,11 +109,11 @@ class BazarrService {
   }
 
   Future<void> downloadEpisodeSubtitle({required int seriesId, required int season, required int episode, required String language, required String provider}) async {
-    try { await client.post('/api/series/$seriesId/episode/$season/$episode/subtitles/download', data: {'language': language, 'provider': provider}); } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
+    try { await client.post('/api/subtitles/download', data: {'seriesid': seriesId, 'season': season, 'episode': episode, 'language': language, 'provider': provider}); } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
   }
 
   Future<void> deleteEpisodeSubtitle({required int seriesId, required int season, required int episode, required String language, required String provider}) async {
-    try { await client.delete('/api/series/$seriesId/episode/$season/$episode/subtitles', queryParameters: {'language': language, 'provider': provider}); } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
+    try { await client.delete('/api/subtitles/delete', queryParameters: {'seriesid': seriesId, 'season': season, 'episode': episode, 'language': language, 'provider': provider}); } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
   }
 
   Future<List<BazarrSubtitle>> getMovieSubtitles({required int movieId}) async {
@@ -116,7 +127,7 @@ class BazarrService {
 
   Future<List<BazarrSubtitle>> searchMovieSubtitles({required int movieId, CancelToken? cancelToken}) async {
     try {
-      final response = await client.get('/api/movies/$movieId/subtitles/search', cancelToken: cancelToken);
+      final response = await client.get('/api/subtitles/search', queryParameters: {'movieid': movieId}, cancelToken: cancelToken);
       final data = response.data;
       if (data is List) return data.map((e) => BazarrSubtitle.fromJson(e as Map<String, dynamic>)).toList();
       return [];
@@ -124,11 +135,11 @@ class BazarrService {
   }
 
   Future<void> downloadMovieSubtitle({required int movieId, required String language, required String provider}) async {
-    try { await client.post('/api/movies/$movieId/subtitles/download', data: {'language': language, 'provider': provider}); } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
+    try { await client.post('/api/subtitles/download', data: {'movieid': movieId, 'language': language, 'provider': provider}); } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
   }
 
   Future<void> deleteMovieSubtitle({required int movieId, required String language, required String provider}) async {
-    try { await client.delete('/api/movies/$movieId/subtitles', queryParameters: {'language': language, 'provider': provider}); } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
+    try { await client.delete('/api/subtitles/delete', queryParameters: {'movieid': movieId, 'language': language, 'provider': provider}); } catch (e) { if (e is DioException && e.type == DioExceptionType.cancel) rethrow; rethrow; }
   }
 
   Future<List<BazarrProvider>> getProviders() async {

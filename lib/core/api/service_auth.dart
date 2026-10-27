@@ -41,15 +41,6 @@ class BearerAuth implements ServiceAuth {
 /// Subsonic-style authentication via query params.
 /// Generates a fresh random salt per request and computes MD5(password + salt).
 /// Per Subsonic spec: t = md5(password + s) where s is the same value sent as parameter s.
-class BazarrApiKeyAuth implements ServiceAuth {
-  final String apiKey;
-  const BazarrApiKeyAuth(this.apiKey);
-  @override
-  Map<String, String> headers() => {'X-API-KEY': apiKey};
-  @override
-  Map<String, dynamic> queryParams() => {};
-}
-
 class SubsonicAuth implements ServiceAuth {
   final String username;
   final String password;

@@ -189,7 +189,7 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       final settings = ref.read(currentSettingsProvider);
       final client = createClient(
         baseUrl: settings.urlFor(service),
-        auth: BazarrApiKeyAuth(settings.apiKeyFor(service)),
+        auth: ApiKeyHeaderAuth(settings.apiKeyFor(service)),
       );
       int? count;
       try {
