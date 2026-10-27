@@ -1,5 +1,9 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 
 import 'package:seekarr/core/models/media_preview.dart';
 import 'package:seekarr/features/discover/data/seerr_service.dart';
@@ -7,6 +11,8 @@ import 'package:seekarr/features/movies/data/radarr_service.dart';
 import 'package:seekarr/features/movies/domain/models/radarr_movie.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/domain/models/lidarr_artist.dart';
+import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
+import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/search/presentation/global_search_provider.dart';
 import 'package:seekarr/features/series/data/sonarr_service.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_series.dart';
@@ -54,24 +60,43 @@ void main() {
           ),
         ],
       ),
+      prowlarr: _SearchProwlarrService(
+        results: const [
+          ProwlarrSearchResult(
+            indexer: 'TestIndexer',
+            indexerId: 40,
+            title: 'Dune.2024.2160p',
+            protocol: 'torrent',
+            size: 1000,
+            categories: ['Movies'],
+          ),
+        ],
+      ),
     );
     addTearDown(container.dispose);
     container.read(globalSearchQueryProvider.notifier).state = 'dune';
 
     final groups = await container.read(globalSearchResultsProvider.future);
 
-    // Global search covers the media services only; Prowlarr (indexers) and
-    // qBittorrent are intentionally not part of global media search even
-    // though ServiceKey.isSearchable may include them.
+    // Global search covers media services + Prowlarr releases;
+    // qBittorrent is intentionally not part of global media search even
+    // though ServiceKey.isSearchable may include it.
     expect(
       groups.map((group) => group.service),
-      [ServiceKey.seerr, ServiceKey.radarr, ServiceKey.sonarr, ServiceKey.lidarr],
+      [
+        ServiceKey.seerr,
+        ServiceKey.radarr,
+        ServiceKey.sonarr,
+        ServiceKey.lidarr,
+        ServiceKey.prowlarr,
+      ],
     );
     expect(groups.expand((group) => group.results).map((item) => item.title), [
       'Dune: Part Two',
       'Dune',
       'The Boys',
       'Charli XCX',
+      'Dune.2024.2160p',
     ]);
     expect(groups.first.results.single.route, '/services/seerr/movie/101');
     expect(groups[1].results.single.route, '/services/radarr/movie/10');
@@ -109,6 +134,7 @@ ProviderContainer _container({
   RadarrService? radarr,
   SonarrService? sonarr,
   LidarrService? lidarr,
+  ProwlarrService? prowlarr,
 }) {
   return ProviderContainer(
     overrides: [
@@ -122,6 +148,8 @@ ProviderContainer _container({
           sonarrApiKey: 'key',
           lidarrUrl: 'http://lidarr.local:8686',
           lidarrApiKey: 'key',
+          prowlarrUrl: 'http://prowlarr.local:9696',
+          prowlarrApiKey: 'key',
         ),
       ),
       seerrServiceProvider.overrideWith(
@@ -135,6 +163,9 @@ ProviderContainer _container({
       ),
       lidarrServiceProvider.overrideWith(
         (ref) => lidarr ?? _SearchLidarrService(),
+      ),
+      prowlarrServiceProvider.overrideWith(
+        (ref) => prowlarr ?? _SearchProwlarrService(),
       ),
     ],
   );
@@ -179,4 +210,22 @@ class _SearchLidarrService extends FakeLidarrService {
 
   @override
   Future<List<LidarrArtist>> lookupArtists(String term) async => results;
+}
+
+class _SearchProwlarrService extends ProwlarrService {
+  final List<ProwlarrSearchResult> results;
+
+  _SearchProwlarrService({this.results = const []})
+    : super(
+        ApiClient(
+          baseUrl: 'https://prowlarr.example.com',
+          auth: ApiKeyHeaderAuth('key'),
+        ),
+      );
+
+  @override
+  Future<List<ProwlarrSearchResult>> search(
+    String query, {
+    CancelToken? cancelToken,
+  }) async => results;
 }

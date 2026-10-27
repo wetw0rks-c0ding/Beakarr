@@ -22,10 +22,10 @@ void main() {
 
       expect(find.text('Services'), findsOneWidget);
       expect(find.byType(SettingsGroupCard), findsOneWidget);
-      expect(find.byType(SettingsCard), findsNWidgets(6)); // +1 for Prowlarr added in Phase 1
+      expect(find.byType(SettingsCard), findsNWidgets(7)); // +1 Prowlarr, +1 Bazarr
       expect(find.text('seerr.local'), findsOneWidget);
       expect(find.text('radarr.local:7878'), findsOneWidget);
-      expect(find.text('Not configured'), findsNWidgets(4)); // +1 for Prowlarr added in Phase 1
+      expect(find.text('Not configured'), findsNWidgets(5)); // +1 Prowlarr, +1 Bazarr
       expect(_textColor(tester, 'radarr.local:7878'), isNot(AppColors.radarr));
     });
 
