@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/core/utils/url_utils.dart';
 import 'package:seekarr/core/widgets/section_header.dart';
+import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
@@ -106,9 +108,83 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
               const SizedBox(height: AppSpacing.lg),
               _buildPasswordField(),
             ],
+            const SizedBox(height: AppSpacing.lg),
+            _buildTestConnectionButton(),
+            const SizedBox(height: AppSpacing.sm),
+            _buildConnectionStatus(),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTestConnectionButton() {
+    return OutlinedButton.icon(
+      onPressed: () =>
+          ref.invalidate(serviceConnectionProvider(widget.service)),
+      icon: const Icon(Icons.network_check_rounded),
+      label: const Text('Test Connection'),
+    );
+  }
+
+  Widget _buildConnectionStatus() {
+    final colorScheme = Theme.of(context).colorScheme;
+    final asyncStatus = ref.watch(serviceConnectionProvider(widget.service));
+
+    final (Widget icon, String text, Color color) = asyncStatus.when(
+      loading: () => (
+        const SizedBox(
+          width: 16,
+          height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2),
+        ),
+        'Testing connection…',
+        colorScheme.onSurfaceVariant,
+      ),
+      error: (_, __) => (
+        Icon(Icons.cloud_off_rounded, size: 16, color: colorScheme.error),
+        'Connection failed — check URL, credentials and network',
+        colorScheme.error,
+      ),
+      data: (status) => switch (status) {
+        ServiceConnectionStatus.connected => (
+            Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
+            'Connected',
+            AppColors.success,
+          ),
+        ServiceConnectionStatus.disconnected => (
+            Icon(Icons.cloud_off_rounded, size: 16, color: colorScheme.error),
+            'Connection failed — check URL, credentials and network',
+            colorScheme.error,
+          ),
+        ServiceConnectionStatus.checking => (
+            const SizedBox(
+              width: 16,
+              height: 16,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            'Testing connection…',
+            colorScheme.onSurfaceVariant,
+          ),
+        ServiceConnectionStatus.notConfigured => (
+            Icon(Icons.info_outline_rounded, size: 16, color: colorScheme.onSurfaceVariant),
+            'Enter the server details above, then test',
+            colorScheme.onSurfaceVariant,
+          ),
+      },
+    );
+
+    return Row(
+      children: [
+        icon,
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            text,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(color: color),
+          ),
+        ),
+      ],
     );
   }
 
