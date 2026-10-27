@@ -151,10 +151,6 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
     );
   }
 
-  void _toggleIndexerEnabled(ProwlarrIndexer indexer) {
-    // This would call the service API to toggle enable/disable
-  }
-
   Widget _EmptyState() {
     return Center(
       child: Column(
