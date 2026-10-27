@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
@@ -155,11 +156,34 @@ class ResultCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
-                      Text(
-                        '${_formatSize(result.size)} ${_formatAge(result.age)}',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                      Row(
+                        children: [
+                          Text(
+                            _formatSize(result.size),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          if (result.seeders != null) ...[
+                            const SizedBox(width: 8),
+                            Text(
+                              '▲ ${result.seeders}',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: (result.seeders ?? 0) > 0
+                                    ? AppColors.success
+                                    : colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                          ] else
+                            const SizedBox(width: 8),
+                          Text(
+                            _formatAge(result.age),
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),

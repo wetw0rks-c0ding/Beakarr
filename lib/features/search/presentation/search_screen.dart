@@ -488,13 +488,31 @@ class _SearchResultCard extends ConsumerWidget {
                   ).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 3),
-                Text(
-                  result.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        result.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ),
+                    if (result.service == ServiceKey.prowlarr &&
+                        result.seeders != null) ...[
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        '▲ ${result.seeders}',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: (result.seeders ?? 0) > 0
+                              ? AppColors.success
+                              : colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Wrap(
