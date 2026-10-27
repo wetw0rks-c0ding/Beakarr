@@ -171,7 +171,10 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       } finally {
         client.close();
       }
-      return count ?? 0;
+      if (count == null) {
+        throw StateError('Prowlarr indexer count unavailable');
+      }
+      return count;
   }
 }
 
