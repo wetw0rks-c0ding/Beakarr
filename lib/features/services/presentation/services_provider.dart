@@ -10,6 +10,7 @@ import 'package:seekarr/features/movies/data/radarr_service.dart';
 import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/presentation/music_provider.dart';
+import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/series/data/sonarr_service.dart';
 import 'package:seekarr/features/series/presentation/series_provider.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
@@ -191,6 +192,24 @@ final servicesRequestsProvider = requestsProvider;
 final servicesMoviesProvider = moviesProvider;
 final servicesSeriesProvider = seriesProvider;
 final servicesMusicProvider = musicProvider;
+
+// Prowlarr providers (UI only, no service-layer changes)
+final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer>>(
+  (ref) async {
+    final service = ref.watch(prowlarrServiceProvider);
+    if (service == null) return const [];
+
+    try {
+      return await service.getIndexers();
+    } catch (_) {
+      return const [];
+    }
+  },
+).nullable;
+
+final prowlarrSearchResultsProvider = StreamProvider<List<ProwlarrSearchResult>>.value(
+  value: [],
+);
 
 final radarrQueuedMovieIdsProvider = FutureProvider<Set<int>>((ref) async {
   return _loadQueuedIds(
