@@ -14,6 +14,10 @@ import 'package:seekarr/features/movies/presentation/movie_detail_provider.dart'
 import 'package:seekarr/features/movies/presentation/movie_detail_view_model.dart';
 import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
+import 'package:seekarr/features/bazarr/presentation/subtitles_section.dart';
+import 'package:seekarr/features/bazarr/presentation/movie_sheet.dart';
+import 'package:seekarr/features/bazarr/presentation/bazarr_providers.dart';
+import 'package:seekarr/features/bazarr/data/bazarr_service.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 
 /// Detail screen for a Radarr movie with M3 styling.
@@ -216,6 +220,46 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen>
         ),
         const SizedBox(height: AppSpacing.lg),
       ],
+      // Bazarr subtitles graft
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const MediaDetailSectionHeader(title: 'Subtitles'),
+            Consumer(builder: (context, ref, _) {
+              final async = ref.watch(bazarrMovieSubtitlesProvider(movieId));
+              return SubtitlesSection(
+                subtitles: async.asData?.value ?? [],
+                isLoading: async.isLoading,
+                error: async.hasError ? async.error.toString() : null,
+                onDownload: (sub) async {
+                  try {
+                    await ref.read(bazarrServiceProvider).downloadMovieSubtitle(movieId: movieId, language: sub.language, provider: sub.provider);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded')));
+                  } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
+                },
+                onDelete: (sub) async {
+                  try {
+                    await ref.read(bazarrServiceProvider).deleteMovieSubtitle(movieId: movieId, language: sub.language, provider: sub.provider);
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle deleted')));
+                  } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
+                },
+                onSearch: () {
+                  // open sheet
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                    builder: (_) => MovieSheet(movieId: movieId, title: viewModel.title),
+                  );
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+      const SizedBox(height: AppSpacing.lg),
     ];
   }
 

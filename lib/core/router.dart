@@ -37,6 +37,7 @@ import 'package:seekarr/features/onboarding/presentation/onboarding_screen.dart'
 import 'package:seekarr/features/qbittorrent/presentation/qbittorrent_screen.dart';
 import 'package:seekarr/features/qbittorrent/presentation/torrent_detail_screen.dart';
 import 'package:seekarr/features/qbittorrent/presentation/widgets/qbittorrent_actions_bar.dart';
+import 'package:seekarr/features/bazarr/presentation/bazarr_screen.dart' as bz;
 import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
 import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
 
@@ -343,6 +344,19 @@ GoRoute _qbittorrentRoutes({required String path}) {
   );
 }
 
+GoRoute _bazarrRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.bazarr,
+        child: const bz.BazarrScreen(),
+      ),
+    ),
+  );
+}
+
 GoRoute _prowlarrRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -437,6 +451,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               _seriesRoutes(path: 'sonarr'),
               _musicRoutes(path: 'lidarr'),
               _qbittorrentRoutes(path: 'qbittorrent'),
+              _bazarrRoutes(path: 'bazarr'),
               _prowlarrRoutes(path: 'prowlarr'),
             ],
           ),

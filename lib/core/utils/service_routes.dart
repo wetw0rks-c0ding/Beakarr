@@ -7,6 +7,7 @@ class ServiceRoutes {
   static const sonarr = '$services/sonarr';
   static const lidarr = '$services/lidarr';
   static const qbittorrent = '$services/qbittorrent';
+  static const bazarr = '$services/bazarr';
   static const prowlarr = '$services/prowlarr';
 
   static const seerrRequests = '$seerr/requests';
