@@ -22,6 +22,7 @@ import 'package:seekarr/features/services/presentation/services_screen.dart';
 import 'package:seekarr/features/discover/presentation/discover_detail_screen.dart';
 import 'package:seekarr/features/discover/presentation/discover_see_all_screen.dart';
 import 'package:seekarr/features/settings/presentation/settings_appearance_screen.dart';
+import 'package:seekarr/features/settings/presentation/auth_settings_screen.dart';
 import 'package:seekarr/features/settings/presentation/settings_home_screen.dart';
 import 'package:seekarr/features/settings/presentation/settings_region_screen.dart';
 import 'package:seekarr/features/settings/presentation/settings_services_screen.dart';
@@ -521,6 +522,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'region',
                 pageBuilder: (context, state) =>
                     _settingsSubpage(state, const SettingsRegionScreen()),
+              ),
+              GoRoute(
+                path: 'auth',
+                pageBuilder: (context, state) =>
+                    _settingsSubpage(state, const AuthSettingsScreen()),
               ),
               GoRoute(
                 path: 'service/:service',

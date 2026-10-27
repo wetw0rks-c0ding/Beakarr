@@ -99,6 +99,13 @@ class SettingsHomeScreen extends ConsumerWidget {
             accentColor: colorScheme.primary,
             onTap: () => context.push('/settings/services'),
           ),
+          SettingsCard.grouped(
+            leading: const Icon(Icons.lock_rounded),
+            title: 'Authentication',
+            subtitle: 'Single sign-on',
+            accentColor: colorScheme.primary,
+            onTap: () => context.push('/settings/auth'),
+          ),
         ],
       ),
     ];
