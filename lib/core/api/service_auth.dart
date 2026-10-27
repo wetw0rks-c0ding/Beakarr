@@ -1,5 +1,6 @@
 import 'dart:convert' show utf8;
 import 'dart:math';
+import 'package:crypto/crypto.dart';
 
 /// Abstract interface for service authentication.
 /// Each implementation knows how to attach headers and query params to requests.
@@ -63,9 +64,9 @@ class SubsonicAuth implements ServiceAuth {
 
     // Subsonic: t = md5(password + s), sending the same s as parameter s
     final passwordSalt = utf8.encode(password + salt);
-    final tokenHash = hex(passwordSalt);
+    final tokenHash = (md5.convert(passwordSalt) as String).toLowerCase();
     final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-    final _ = hex(utf8.encode('$username$timestamp$tokenHash'));
+    final _ = (md5.convert(utf8.encode('$username$timestamp$tokenHash')) as String).toLowerCase();
 
     return {
       'u': username,
@@ -76,24 +77,4 @@ class SubsonicAuth implements ServiceAuth {
       'c': clientName,
     };
   }
-}
-
-/// Convert bytes to hex string (lowercase).
-String hex(List<int> bytes) {
-  var result = '';
-  for (var byte in bytes) {
-    result += byte.toRadixString(16).padLeft(2, '0').toLowerCase();
-  }
-  return result;
-}
-
-/// SHA-256 implementation using dart:convert.
-String sha256Encode(String input) {
-  final bytes = utf8.encode(input);
-  return hex(bytes);
-}
-
-/// Convert bytes to hex string (lowercase).
-String convert(List<int> bytes, String targetEncoding) {
-  return hex(bytes);
 }

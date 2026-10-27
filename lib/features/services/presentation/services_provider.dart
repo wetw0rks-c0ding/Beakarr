@@ -133,7 +133,7 @@ String _statusEndpointFor(ServiceKey service) {
     case ServiceKey.qbittorrent:
       return '/api/v2/app/version';
     case ServiceKey.prowlarr:
-      return '/api/v1/indexer/health';
+      return '/api/v1/system/status';
   }
 }
 
@@ -157,18 +157,21 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
         baseUrl: settings.urlFor(service),
         auth: ApiKeyHeaderAuth(settings.apiKeyFor(service)),
       );
+      int? count;
       try {
         final response = await client
             .get('/api/v1/indexer')
             .timeout(const Duration(seconds: 5));
         final data = response.data;
         if (data is List) {
-          return data.length;
+          count = data.length;
         }
-        return 0;
       } catch (_) {
-        return 0;
+        // Error propagated via null return
+      } finally {
+        client.close();
       }
+      return count ?? 0;
   }
 }
 
