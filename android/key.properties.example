@@ -1,0 +1,14 @@
+# Android release signing configuration.
+# Copy this file to key.properties (in the same directory) and fill in real values.
+# key.properties is gitignored and must NEVER be committed.
+#
+# To generate a keystore:
+#   keytool -genkeypair -v -keystore ~/seekarr-upload.jks -alias seekarr \
+#     -keyalg RSA -keysize 2048 -validity 10000
+#
+# Recommended: keep the keystore outside the repo and use an absolute path.
+
+storePassword=<your-keystore-password>
+keyPassword=<your-key-password>
+keyAlias=<your-key-alias>
+storeFile=</absolute/path/to/your-keystore.jks>
