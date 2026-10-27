@@ -1,19 +1,24 @@
 import 'package:dio/dio.dart';
 
+import 'service_auth.dart';
+
 class ApiClient {
   final Dio _dio;
+  final ServiceAuth auth;
 
-  ApiClient({required String baseUrl, required String apiKey})
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          headers: {
-            'X-Api-Key': apiKey,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          },
-        ),
-      );
+  ApiClient({
+    required String baseUrl,
+    required this.auth,
+  }) : _dio = Dio(
+          BaseOptions(
+            baseUrl: baseUrl,
+            headers: {
+              ...auth.headers(),
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+            },
+          ),
+        );
 
   Future<Response> get(
     String path, {
@@ -22,7 +27,7 @@ class ApiClient {
   }) {
     return _dio.get(
       path,
-      queryParameters: queryParameters,
+      queryParameters: {...auth.queryParams(), ...queryParameters ?? {}},
       cancelToken: cancelToken,
     );
   }
@@ -32,7 +37,11 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
   }) {
-    return _dio.post(path, data: data, queryParameters: queryParameters);
+    return _dio.post(
+      path,
+      data: data,
+      queryParameters: {...auth.queryParams(), ...queryParameters ?? {}},
+    );
   }
 
   Future<Response> put(
@@ -40,7 +49,11 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
   }) {
-    return _dio.put(path, data: data, queryParameters: queryParameters);
+    return _dio.put(
+      path,
+      data: data,
+      queryParameters: {...auth.queryParams(), ...queryParameters ?? {}},
+    );
   }
 
   Future<Response> delete(
@@ -48,7 +61,11 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
   }) {
-    return _dio.delete(path, data: data, queryParameters: queryParameters);
+    return _dio.delete(
+      path,
+      data: data,
+      queryParameters: {...auth.queryParams(), ...queryParameters ?? {}},
+    );
   }
 
   void close({bool force = false}) {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:seekarr/core/theme.dart';
 
-enum ServiceKey { seerr, radarr, sonarr, lidarr, qbittorrent }
+enum ServiceKey { seerr, radarr, sonarr, lidarr, qbittorrent, prowlarr }
 
 extension ServiceKeyExtension on ServiceKey {
   String get title {
@@ -17,6 +17,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'Lidarr';
       case ServiceKey.qbittorrent:
         return 'qBittorrent';
+      case ServiceKey.prowlarr:
+        return 'Prowlarr';
     }
   }
 
@@ -32,6 +34,8 @@ extension ServiceKeyExtension on ServiceKey {
         return Icons.music_note_rounded;
       case ServiceKey.qbittorrent:
         return Icons.download_rounded;
+      case ServiceKey.prowlarr:
+        return Icons.dns_rounded;
     }
   }
 
@@ -47,11 +51,13 @@ extension ServiceKeyExtension on ServiceKey {
         return AppColors.lidarr;
       case ServiceKey.qbittorrent:
         return AppColors.qbittorrent;
+      case ServiceKey.prowlarr:
+        return AppColors.prowlarr;
     }
   }
 
   bool get usesApiKey {
-    return this != ServiceKey.qbittorrent;
+    return this != ServiceKey.qbittorrent || this == ServiceKey.prowlarr;
   }
 
   bool get isSearchable {
@@ -68,6 +74,7 @@ extension ServiceKeyExtension on ServiceKey {
     switch (this) {
       case ServiceKey.seerr:
       case ServiceKey.lidarr:
+      case ServiceKey.prowlarr:
         return 'v1';
       case ServiceKey.radarr:
       case ServiceKey.sonarr:
@@ -89,6 +96,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'artists';
       case ServiceKey.qbittorrent:
         return 'torrents';
+      case ServiceKey.prowlarr:
+        return 'indexers';
     }
   }
 
@@ -100,6 +109,7 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.sonarr:
       case ServiceKey.lidarr:
       case ServiceKey.qbittorrent:
+      case ServiceKey.prowlarr:
         return name;
     }
   }

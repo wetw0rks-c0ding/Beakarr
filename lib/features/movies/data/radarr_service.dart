@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/api/base_arr_service.dart';
 import 'package:seekarr/features/movies/domain/models/radarr_movie.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
@@ -12,7 +13,10 @@ final radarrServiceProvider = Provider<RadarrService>((ref) {
     throw Exception('Radarr not configured');
   }
   return RadarrService(
-    ApiClient(baseUrl: settings.radarrUrl, apiKey: settings.radarrApiKey),
+    ApiClient(
+      baseUrl: settings.radarrUrl,
+      auth: ApiKeyHeaderAuth(settings.radarrApiKey),
+    ),
   );
 });
 

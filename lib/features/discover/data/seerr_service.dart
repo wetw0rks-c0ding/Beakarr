@@ -1,5 +1,6 @@
 import 'dart:isolate';
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/discover/domain/models/seerr_request.dart';
 import 'package:seekarr/core/models/media_preview.dart';
@@ -11,7 +12,7 @@ final seerrServiceProvider = Provider<SeerrService>((ref) {
     throw Exception('Seerr not configured');
   }
   return SeerrService(
-    ApiClient(baseUrl: settings.seerrUrl, apiKey: settings.seerrApiKey),
+    ApiClient(baseUrl: settings.seerrUrl, auth: ApiKeyHeaderAuth(settings.seerrApiKey)),
   );
 });
 

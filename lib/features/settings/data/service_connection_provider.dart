@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
@@ -26,6 +27,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/v1/system/status';
     case ServiceKey.qbittorrent:
       return '/api/v2/app/version';
+    case ServiceKey.prowlarr:
+      return '/api/v1/indexer/health';
   }
 }
 
@@ -63,7 +66,7 @@ Future<ServiceConnectionStatus> _checkService(
   final url = settings.urlFor(service);
   final apiKey = settings.apiKeyFor(service);
 
-  final client = ApiClient(baseUrl: url, apiKey: apiKey);
+  final client = ApiClient(baseUrl: url, auth: ApiKeyHeaderAuth(apiKey));
   try {
     final statusCode =
         (await client

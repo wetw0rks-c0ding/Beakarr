@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/api/base_arr_service.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_episode.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_series.dart';
@@ -13,7 +14,10 @@ final sonarrServiceProvider = Provider<SonarrService>((ref) {
     throw Exception('Sonarr not configured');
   }
   return SonarrService(
-    ApiClient(baseUrl: settings.sonarrUrl, apiKey: settings.sonarrApiKey),
+    ApiClient(
+      baseUrl: settings.sonarrUrl,
+      auth: ApiKeyHeaderAuth(settings.sonarrApiKey),
+    ),
   );
 });
 

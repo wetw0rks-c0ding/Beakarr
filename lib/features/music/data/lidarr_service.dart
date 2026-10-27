@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/api/base_arr_service.dart';
 import 'package:seekarr/features/music/domain/models/lidarr_album.dart';
 import 'package:seekarr/features/music/domain/models/lidarr_artist.dart';
@@ -14,7 +15,10 @@ final lidarrServiceProvider = Provider<LidarrService>((ref) {
     throw Exception('Lidarr not configured');
   }
   return LidarrService(
-    ApiClient(baseUrl: settings.lidarrUrl, apiKey: settings.lidarrApiKey),
+    ApiClient(
+      baseUrl: settings.lidarrUrl,
+      auth: ApiKeyHeaderAuth(settings.lidarrApiKey),
+    ),
   );
 });
 

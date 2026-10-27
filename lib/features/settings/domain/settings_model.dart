@@ -39,6 +39,8 @@ class SettingsModel {
   final String qbittorrentUrl;
   final String qbittorrentUsername;
   final String qbittorrentPassword;
+  final String prowlarrUrl;
+  final String prowlarrApiKey;
   final String region;
   final AppThemeMode themeMode;
 
@@ -76,6 +78,12 @@ class SettingsModel {
             qbittorrentPassword: apiKey,
           ),
         ),
+        ServiceKey.prowlarr: _ServiceSettingsAccess(
+          url: (settings) => settings.prowlarrUrl,
+          apiKey: (settings) => settings.prowlarrApiKey,
+          update: (settings, {url, apiKey}) =>
+              settings.copyWith(prowlarrUrl: url, prowlarrApiKey: apiKey),
+        ),
       };
 
   static String normalizeRegion(String? region) {
@@ -95,6 +103,8 @@ class SettingsModel {
     this.qbittorrentUrl = '',
     this.qbittorrentUsername = '',
     this.qbittorrentPassword = '',
+    this.prowlarrUrl = '',
+    this.prowlarrApiKey = '',
     this.region = 'US',
     this.themeMode = AppThemeMode.system,
   });
@@ -111,6 +121,8 @@ class SettingsModel {
     String? qbittorrentUrl,
     String? qbittorrentUsername,
     String? qbittorrentPassword,
+    String? prowlarrUrl,
+    String? prowlarrApiKey,
     String? region,
     AppThemeMode? themeMode,
   }) {
@@ -126,6 +138,8 @@ class SettingsModel {
       qbittorrentUrl: qbittorrentUrl ?? this.qbittorrentUrl,
       qbittorrentUsername: qbittorrentUsername ?? this.qbittorrentUsername,
       qbittorrentPassword: qbittorrentPassword ?? this.qbittorrentPassword,
+      prowlarrUrl: prowlarrUrl ?? this.prowlarrUrl,
+      prowlarrApiKey: prowlarrApiKey ?? this.prowlarrApiKey,
       region: region ?? this.region,
       themeMode: themeMode ?? this.themeMode,
     );
@@ -168,6 +182,16 @@ class SettingsModel {
     );
   }
 
+  SettingsModel copyWithProwlarr({
+    String? url,
+    String? apiKey,
+  }) {
+    return copyWith(
+      prowlarrUrl: url,
+      prowlarrApiKey: apiKey,
+    );
+  }
+
   String usernameFor(ServiceKey service) {
     if (service == ServiceKey.qbittorrent) return qbittorrentUsername;
     return '';
@@ -175,12 +199,16 @@ class SettingsModel {
 
   String passwordFor(ServiceKey service) {
     if (service == ServiceKey.qbittorrent) return qbittorrentPassword;
+    if (service == ServiceKey.prowlarr) return prowlarrApiKey;
     return '';
   }
 
   bool isServiceConfigured(ServiceKey service) {
     if (service == ServiceKey.qbittorrent) {
       return qbittorrentUrl.isNotEmpty;
+    }
+    if (service == ServiceKey.prowlarr) {
+      return prowlarrUrl.isNotEmpty && prowlarrApiKey.isNotEmpty;
     }
     return urlFor(service).isNotEmpty && apiKeyFor(service).isNotEmpty;
   }

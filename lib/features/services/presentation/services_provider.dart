@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/utils/arr_activity_display.dart';
 import 'package:seekarr/core/utils/dynamic_map_utils.dart';
 import 'package:seekarr/features/discover/data/seerr_service.dart';
@@ -25,12 +26,12 @@ final serviceSummaryProvider =
     });
 
 typedef ServiceStatusClientFactory =
-    ApiClient Function({required String baseUrl, required String apiKey});
+    ApiClient Function({required String baseUrl, required ServiceAuth auth});
 
 final serviceStatusClientFactoryProvider = Provider<ServiceStatusClientFactory>(
   (ref) =>
-      ({required String baseUrl, required String apiKey}) =>
-          ApiClient(baseUrl: baseUrl, apiKey: apiKey),
+      ({required String baseUrl, required ServiceAuth auth}) =>
+          ApiClient(baseUrl: baseUrl, auth: auth),
 );
 
 Future<ServiceSummary> _loadServiceSummary(
@@ -103,7 +104,7 @@ Future<String?> _loadVersion(
   final createClient = ref.watch(serviceStatusClientFactoryProvider);
   final client = createClient(
     baseUrl: settings.urlFor(service),
-    apiKey: settings.apiKeyFor(service),
+    auth: ApiKeyHeaderAuth(settings.apiKeyFor(service)),
   );
 
   try {
@@ -131,6 +132,8 @@ String _statusEndpointFor(ServiceKey service) {
       return '/api/v1/system/status';
     case ServiceKey.qbittorrent:
       return '/api/v2/app/version';
+    case ServiceKey.prowlarr:
+      return '/api/v1/indexer/health';
   }
 }
 
@@ -146,6 +149,8 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       return (await ref.watch(lidarrServiceProvider).getArtists()).length;
     case ServiceKey.qbittorrent:
       return (await ref.watch(qbittorrentServiceProvider).getTorrents()).length;
+    case ServiceKey.prowlarr:
+      return 0; // No count endpoint - report as unknown
   }
 }
 
@@ -294,6 +299,7 @@ Future<List<ServiceQueueItem>> _loadServiceQueueItems(
     final items = switch (service) {
       ServiceKey.radarr => await ref.watch(radarrServiceProvider).getQueue(),
       ServiceKey.sonarr => await ref.watch(sonarrServiceProvider).getQueue(),
+      ServiceKey.prowlarr => const <dynamic>[], // No queue endpoint yet
       ServiceKey.seerr ||
       ServiceKey.lidarr ||
       ServiceKey.qbittorrent => const <dynamic>[],
@@ -335,6 +341,7 @@ String _queueTypeLabel(ServiceKey service) {
     ServiceKey.radarr => 'Movie',
     ServiceKey.sonarr => 'Series',
     ServiceKey.lidarr => 'Music',
+    ServiceKey.prowlarr => 'Indexer',
     ServiceKey.seerr || ServiceKey.qbittorrent => service.title,
   };
 }

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
@@ -27,6 +28,7 @@ const _serviceColors = {
   ServiceKey.sonarr: Color(0xFF8B5CF6), // purple
   ServiceKey.lidarr: Color(0xFFEC4899), // pink
   ServiceKey.qbittorrent: Color(0xFF2F67BA), // blue
+  ServiceKey.prowlarr: Color(0xFFD63636), // Prowlarr red
 };
 
 // ─── Health-check helper (mirrors serviceConnectionProvider logic) ──────────
@@ -41,6 +43,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/v1/system/status';
     case ServiceKey.qbittorrent:
       return '/api/v2/app/version';
+    case ServiceKey.prowlarr:
+      return '/api/v1/indexer/health';
   }
 }
 
@@ -71,7 +75,7 @@ Future<ServiceConnectionStatus> _verifyService(
   if (url.trim().isEmpty || apiKey.trim().isEmpty) {
     return ServiceConnectionStatus.notConfigured;
   }
-  final client = ApiClient(baseUrl: url.trim(), apiKey: apiKey.trim());
+  final client = ApiClient(baseUrl: url.trim(), auth: ApiKeyHeaderAuth(apiKey.trim()));
   try {
     final code =
         (await client
