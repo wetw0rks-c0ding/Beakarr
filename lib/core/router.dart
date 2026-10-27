@@ -5,8 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/core/utils/route_utils.dart';
 import 'package:seekarr/features/movies/domain/models/radarr_movie.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_series.dart';
-import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
-import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
 import 'package:seekarr/features/shell/presentation/shell_screen.dart';
 import 'package:seekarr/features/discover/presentation/discover_screen.dart';
 import 'package:seekarr/features/activity/presentation/activity_screen.dart';
@@ -338,25 +336,6 @@ GoRoute _qbittorrentRoutes({required String path}) {
             child: TorrentDetailScreen(hash: hash),
           );
         },
-      ),
-    ],
-  );
-}
-
-GoRoute _prowlarrRoutes({required String path}) {
-  return GoRoute(
-    path: path,
-    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
-      key: state.pageKey,
-      child: ServiceDashboardScreen(
-        service: ServiceKey.prowlarr,
-        child: const p.IndexersScreen(),
-      ),
-    ),
-    routes: [
-      GoRoute(
-        path: 'search',
-        builder: (context, state) => const ps.SearchScreen(),
       ),
     ],
   );

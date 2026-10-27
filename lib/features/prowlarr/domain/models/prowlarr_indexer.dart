@@ -28,8 +28,20 @@ class ProwlarrIndexer {
       enable: json['enable'] ?? false,
       supportsRss: json['supportsRss'] ?? false,
       supportsSearch: json['supportsSearch'] ?? false,
-      message: json['message'],
+      message: _messageFrom(json['message']),
     );
+  }
+
+  static String? _messageFrom(dynamic value) {
+    if (value == null) return null;
+    if (value is String) return value;
+    if (value is Map) {
+      final nested = value['message'];
+      if (nested is String) return nested;
+      if (nested != null) return nested.toString();
+      return null;
+    }
+    return value.toString();
   }
 
   @override

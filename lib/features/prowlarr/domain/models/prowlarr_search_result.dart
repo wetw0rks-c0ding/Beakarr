@@ -34,12 +34,28 @@ class ProwlarrSearchResult {
       age: (json['age'] as num?)?.toDouble(),
       seeders: json['seeders'],
       leechers: json['leechers'],
-      categories: List<String>.from(
-        (json['categories'] ?? [])
-            .map((c) => c is String ? c : null)
-            .where((s) => s != null && s!.isNotEmpty),
-      ),
+      categories: _categoriesFrom(json['categories']),
     );
+  }
+
+  static List<String> _categoriesFrom(dynamic value) {
+    final result = <String>[];
+    if (value is List) {
+      for (final entry in value) {
+        String? name;
+        if (entry is String) {
+          name = entry;
+        } else if (entry is Map) {
+          name = entry['name']?.toString();
+        } else {
+          name = entry?.toString();
+        }
+        if (name != null && name.isNotEmpty) {
+          result.add(name);
+        }
+      }
+    }
+    return result;
   }
 
   @override

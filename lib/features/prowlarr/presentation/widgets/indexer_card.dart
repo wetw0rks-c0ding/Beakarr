@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/theme.dart';
-import 'package:seekarr/core/widgets/status_badge.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
 
 class IndexerCard extends StatelessWidget {
@@ -46,7 +45,7 @@ class IndexerCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                InfoBadge(label: 'Protocol:', value: indexer.protocol ?? 'N/A'),
+                InfoBadge(label: 'Protocol:', value: indexer.protocol.isEmpty ? 'N/A' : indexer.protocol),
                 const Spacer(),
               ],
             ),
@@ -87,13 +86,11 @@ class Badge extends StatelessWidget {
                 ),
           ),
           const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.onSurfaceDark,
-                  ),
-            ),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.onSurfaceDark,
+                ),
           ),
         ],
       ),
@@ -129,13 +126,11 @@ class InfoBadge extends StatelessWidget {
                 ),
           ),
           const SizedBox(width: 4),
-          Expanded(
-            child: Text(
-              value,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.onSurfaceDark,
-                  ),
-            ),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.onSurfaceDark,
+                ),
           ),
         ],
       ),

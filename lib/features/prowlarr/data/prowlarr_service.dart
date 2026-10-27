@@ -4,6 +4,7 @@ import 'package:seekarr/core/api/api_client.dart';
 import 'package:dio/dio.dart';
 import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_health_item.dart';
+import 'package:seekarr/features/prowlarr/domain/models/prowlarr_history_record.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
@@ -31,7 +32,7 @@ class ProwlarrService {
   Future<List<ProwlarrIndexer>> getIndexers() async {
     try {
       final response = await client.get('/api/v1/indexer');
-      final data = response.data as List<dynamic>;
+      final data = response.data;
       return (data as List).map((e) => ProwlarrIndexer.fromJson(e as Map<String, dynamic>)).toList();
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) {
@@ -56,18 +57,27 @@ class ProwlarrService {
     }
   }
 
-  /// Fetches the health status of Prowlarr.
-  Future<ProwlarrHealthItem> getHealth() async {
+  /// Fetches health-check records from Prowlarr.
+  Future<List<ProwlarrHealthItem>> getHealth() async {
     try {
-      final response = await client.get('/api/v1/system/status');
-      return ProwlarrHealthItem.fromJson(response.data as Map<String, dynamic>);
-    } catch (_) {
+      final response = await client.get('/api/v1/health');
+      final data = response.data;
+      if (data is List) {
+        return data
+            .map((e) => ProwlarrHealthItem.fromJson(e as Map<String, dynamic>))
+            .toList();
+      }
+      return [];
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        rethrow;
+      }
       rethrow;
     }
   }
 
-  /// Fetches history records.
-  Future<List<ProwlarrIndexer>> getHistory({
+  /// Fetches history records (paged response).
+  Future<List<ProwlarrHistoryRecord>> getHistory({
     int page = 1,
     int pageSize = 20,
   }) async {
@@ -79,9 +89,19 @@ class ProwlarrService {
           'pageSize': pageSize,
         },
       );
-      // History returns indexer info, map to ProwlarrIndexer
-      if (response.data is List) {
-        return (response.data as List).map((e) => ProwlarrIndexer.fromJson(e as Map<String, dynamic>)).toList();
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final records = data['records'];
+        if (records is List) {
+          return records
+              .map((e) => ProwlarrHistoryRecord.fromJson(e as Map<String, dynamic>))
+              .toList();
+        }
+      }
+      if (data is List) {
+        return data
+            .map((e) => ProwlarrHistoryRecord.fromJson(e as Map<String, dynamic>))
+            .toList();
       }
       return [];
     } catch (e) {

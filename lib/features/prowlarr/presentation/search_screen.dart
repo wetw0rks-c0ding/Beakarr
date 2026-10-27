@@ -4,9 +4,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
+import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
 import 'package:seekarr/features/services/presentation/services_provider.dart';
-import 'package:seekarr/features/settings/data/settings_provider.dart';
-import 'package:seekarr/features/settings/domain/service_key.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -44,6 +43,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             hintText: 'Search for movies, TV shows, comics...',
             onQueryChanged: (query) {
               _searchController.text = query;
+              ref.read(prowlarrSearchQueryProvider.notifier).state = query;
             },
           ),
           const SizedBox(height: AppSpacing.md),
@@ -72,7 +72,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _searchAndShow() {
-    // Search is handled by provider
+    final query = _searchController.text.trim();
+    ref.read(prowlarrSearchQueryProvider.notifier).state = query;
   }
 }
 
@@ -83,8 +84,8 @@ class ResultCard extends StatelessWidget {
 
   String _formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} MB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} GB';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KiB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MiB';
   }
 
   String _formatAge(dynamic age) {
@@ -124,7 +125,7 @@ class ResultCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    result.title ?? '',
+                    result.title,
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w600,
                     ),
@@ -159,7 +160,7 @@ class ResultCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        result.indexer ?? '',
+                        result.indexer,
                         style: theme.textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurfaceVariant,
                         ),
@@ -217,74 +218,108 @@ class ResultCard extends StatelessWidget {
   }
 
   void _showGrabDialog(BuildContext context, ProwlarrSearchResult result) {
+    bool isGrabbing = false;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    result.title ?? '',
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                TextButton.icon(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close),
-                  label: const Text('Cancel'),
-                ),
-              ],
-            ),
-            const Divider(height: 24),
-            ListTile(
-              leading: CircleAvatar(
-                backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                child: const Icon(Icons.download_outlined),
-              ),
-              title: Text(
-                result.title ?? '',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setState) => Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (result.seeders != null)
-                    Text('Seeders: ${result.seeders ?? 0}', style: Theme.of(context).textTheme.bodySmall),
-                  if (result.leechers != null)
-                    Text('Leechers: ${result.leechers ?? 0}', style: Theme.of(context).textTheme.bodySmall),
+                  Expanded(
+                    child: Text(
+                      result.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                    label: const Text('Cancel'),
+                  ),
                 ],
               ),
-            ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: () => _confirmGrab(context, result),
-              icon: const Icon(Icons.check),
-              label: const Text('Grab for me'),
-            ),
-          ],
+              const Divider(height: 24),
+              ListTile(
+                leading: CircleAvatar(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  child: const Icon(Icons.download_outlined),
+                ),
+                title: Text(
+                  result.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (result.seeders != null)
+                      Text('Seeders: ${result.seeders ?? 0}', style: Theme.of(context).textTheme.bodySmall),
+                    if (result.leechers != null)
+                      Text('Leechers: ${result.leechers ?? 0}', style: Theme.of(context).textTheme.bodySmall),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: isGrabbing
+                    ? null
+                    : () async {
+                        setState(() => isGrabbing = true);
+                        await _confirmGrab(context, result);
+                        if (context.mounted) {
+                          setState(() => isGrabbing = false);
+                        }
+                      },
+                icon: isGrabbing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.check),
+                label: Text(isGrabbing ? 'Grabbing...' : 'Grab for me'),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  void _confirmGrab(BuildContext context, ProwlarrSearchResult result) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Grab request sent for this release'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+  Future<void> _confirmGrab(BuildContext context, ProwlarrSearchResult result) async {
+    if (result.guid == null) {
+      return;
+    }
+    try {
+      final service = ProviderScope.containerOf(context).read(prowlarrServiceProvider);
+      await service.grabRelease(guid: result.guid!, indexerId: result.indexerId);
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Grab request sent for this release'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to grab release: $e'),
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
   }
 }

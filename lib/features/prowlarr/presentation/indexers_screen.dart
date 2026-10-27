@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
-import 'package:seekarr/core/theme.dart';
-import 'package:seekarr/core/widgets/status_badge.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
 import 'package:seekarr/features/prowlarr/presentation/widgets/indexer_card.dart';
@@ -91,9 +89,43 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
       ),
       builder: (context) => Padding(
         padding: const EdgeInsets.all(16),
-        child: Text(
-          'Search history placeholder',
-          style: Theme.of(context).textTheme.bodyMedium,
+        child: Consumer(
+          builder: (context, ref, _) {
+            final asyncHistory = ref.watch(prowlarrHistoryProvider);
+            return asyncHistory.when(
+              data: (records) {
+                if (records.isEmpty) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Text(
+                      'No history records',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  );
+                }
+                return ListView.separated(
+                  shrinkWrap: true,
+                  itemCount: records.length,
+                  separatorBuilder: (_, __) => const Divider(),
+                  itemBuilder: (context, index) {
+                    final record = records[index];
+                    return ListTile(
+                      title: Text(record.eventType),
+                      subtitle: Text(
+                        '${record.indexerId} • ${record.date ?? ''}',
+                      ),
+                      trailing: Icon(
+                        record.successful ? Icons.check : Icons.close,
+                        color: record.successful ? Colors.green : Colors.red,
+                      ),
+                    );
+                  },
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (error, _) => Center(child: Text('Error: $error')),
+            );
+          },
         ),
       ),
     );
@@ -121,7 +153,7 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
             const SizedBox(height: 16),
             _InfoRow(label: 'Name', value: indexer.name),
             const Divider(),
-            _InfoRow(label: 'Protocol', value: indexer.protocol ?? 'N/A'),
+            _InfoRow(label: 'Protocol', value: indexer.protocol.isEmpty ? 'N/A' : indexer.protocol),
             const Divider(),
             _InfoRow(label: 'Enabled', value: indexer.enable ? 'Yes' : 'No'),
             const Divider(),
@@ -153,25 +185,5 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
     );
   }
 
-  Widget _EmptyState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.cloud_queue_outlined,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'No indexers loaded',
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
+
 }

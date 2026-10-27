@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+// ignore: implementation_imports
+import 'package:flutter_riverpod/legacy.dart';
+import 'package:dio/dio.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
 import 'package:seekarr/core/api/service_auth.dart';
@@ -11,6 +14,7 @@ import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/presentation/music_provider.dart';
 import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
+import 'package:seekarr/features/prowlarr/domain/models/prowlarr_history_record.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/series/data/sonarr_service.dart';
@@ -195,13 +199,11 @@ final servicesMoviesProvider = moviesProvider;
 final servicesSeriesProvider = seriesProvider;
 final servicesMusicProvider = musicProvider;
 
-// Prowlarr providers (UI only, no service-layer changes)
+// Prowlarr providers
 final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer>>(
   (ref) async {
-    final service = ref.watch(prowlarrServiceProvider);
-    if (service == null) return const [];
-
     try {
+      final service = ref.watch(prowlarrServiceProvider);
       return await service.getIndexers();
     } catch (_) {
       return const [];
@@ -209,8 +211,47 @@ final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer
   },
 );
 
-final prowlarrSearchResultsProvider = StreamProvider<List<ProwlarrSearchResult>>((ref) async* {
-  yield [];
+/// Current search query for the Prowlarr search screen.
+final prowlarrSearchQueryProvider = StateProvider<String>((ref) => '');
+
+/// Holds the cancel token for the in-flight Prowlarr search.
+final prowlarrSearchCancelTokenProvider = StateProvider<CancelToken?>((ref) => null);
+
+/// Search results driven by [prowlarrSearchQueryProvider].
+final prowlarrSearchResultsProvider = FutureProvider<List<ProwlarrSearchResult>>((
+  ref,
+) async {
+  final query = ref.watch(prowlarrSearchQueryProvider).trim();
+  if (query.isEmpty) {
+    return const [];
+  }
+
+  CancelToken? token;
+  try {
+    final service = ref.read(prowlarrServiceProvider);
+    final previous = ref.read(prowlarrSearchCancelTokenProvider);
+    previous?.cancel('new search');
+    token = CancelToken();
+    ref.read(prowlarrSearchCancelTokenProvider.notifier).state = token;
+    return await service.search(query, cancelToken: token);
+  } on DioException catch (e) {
+    if (e.type == DioExceptionType.cancel) {
+      return const [];
+    }
+    rethrow;
+  }
+});
+
+/// History records for the Prowlarr indexers screen.
+final prowlarrHistoryProvider = FutureProvider.autoDispose<List<ProwlarrHistoryRecord>>((
+  ref,
+) async {
+  try {
+    final service = ref.watch(prowlarrServiceProvider);
+    return await service.getHistory();
+  } catch (_) {
+    return const [];
+  }
 });
 
 final radarrQueuedMovieIdsProvider = FutureProvider<Set<int>>((ref) async {
