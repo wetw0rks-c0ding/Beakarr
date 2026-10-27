@@ -15,6 +15,7 @@ import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/search/domain/global_search_result.dart';
 import 'package:seekarr/features/search/presentation/global_search_provider.dart';
+import 'package:seekarr/features/services/presentation/services_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 
 class SearchScreen extends ConsumerWidget {
@@ -287,18 +288,23 @@ class _SearchSection extends StatelessWidget {
   }
 }
 
-class _SearchResultCard extends StatelessWidget {
+class _SearchResultCard extends ConsumerWidget {
   final GlobalSearchResult result;
 
   const _SearchResultCard({required this.result});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
     final service = result.service;
 
     return AppCard.outlined(
-      onTap: () => context.push(result.route, extra: result.routeExtra),
+      onTap: () {
+        if (result.service == ServiceKey.prowlarr && result.query != null) {
+          ref.read(prowlarrSearchQueryProvider.notifier).state = result.query!;
+        }
+        context.push(result.route, extra: result.routeExtra);
+      },
       backgroundColor: colorScheme.surfaceContainer,
       borderColor: colorScheme.outlineVariant,
       borderRadius: AppRadius.borderRadiusMd,

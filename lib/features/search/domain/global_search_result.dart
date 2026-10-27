@@ -10,7 +10,8 @@ class GlobalSearchResult {
   final List<String> tags;
   final String route;
   final Object? routeExtra;
-
+  final String? query;
+ 
   const GlobalSearchResult({
     required this.service,
     required this.id,
@@ -21,6 +22,7 @@ class GlobalSearchResult {
     required this.tags,
     required this.route,
     this.routeExtra,
+    this.query,
   });
 }
 
