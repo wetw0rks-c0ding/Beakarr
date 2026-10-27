@@ -13,7 +13,7 @@ class PkcePair {
 
 PkcePair generatePkce() {
   final rng = Random.secure();
-  final v = base64Url.encode(List.generate(32, (_) => rng.nextInt(256)));
+  final v = base64Url.encode(List.generate(32, (_) => rng.nextInt(256))).replaceAll('=', '');
   final hash = sha256.convert(utf8.encode(v)).bytes;
   final c = base64Url.encode(hash).replaceAll('=', '');
   return PkcePair(v, c);

@@ -1,4 +1,6 @@
 import 'package:dio/dio.dart';
+import 'package:seekarr/features/auth/data/oidc_session_service.dart';
+import 'package:seekarr/core/interceptor/oidc_auth_interceptor.dart';
 
 import 'service_auth.dart';
 
@@ -9,6 +11,10 @@ class ApiClient {
   ApiClient({
     required String baseUrl,
     required this.auth,
+    String? serviceKey,
+    OidcSessionService? session,
+    String? issuerUrl,
+    String? clientId,
   }) : _dio = Dio(
           BaseOptions(
             baseUrl: baseUrl,
@@ -50,6 +56,14 @@ class ApiClient {
         },
       ),
     );
+    if (session != null && issuerUrl != null && issuerUrl.isNotEmpty && clientId != null) {
+      _dio.interceptors.add(OidcAuthInterceptor(
+        session,
+        issuerUrl: issuerUrl,
+        clientId: clientId,
+        serviceKey: serviceKey,
+      ));
+    }
   }
 
   Future<Response> get(
