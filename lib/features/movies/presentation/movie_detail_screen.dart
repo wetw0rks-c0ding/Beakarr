@@ -235,13 +235,13 @@ class _MovieDetailScreenState extends ConsumerState<MovieDetailScreen>
                 error: async.hasError ? async.error.toString() : null,
                 onDownload: (sub) async {
                   try {
-                    await ref.read(bazarrServiceProvider).downloadMovieSubtitle(movieId: movieId, language: sub.language, provider: sub.provider);
+                    await ref.read(bazarrServiceProvider).downloadMovieSubtitle(radarrId: movieId, language: sub.code2, forced: sub.forced ? 'True' : 'False', hi: sub.hi ? 'True' : 'False');
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded')));
                   } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
                 },
                 onDelete: (sub) async {
                   try {
-                    await ref.read(bazarrServiceProvider).deleteMovieSubtitle(movieId: movieId, language: sub.language, provider: sub.provider);
+                    await ref.read(bazarrServiceProvider).deleteMovieSubtitle(radarrId: movieId, language: sub.code2, path: sub.path ?? '');
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle deleted')));
                   } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
                 },

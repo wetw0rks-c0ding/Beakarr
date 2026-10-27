@@ -242,20 +242,20 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen>
           children: [
             const MediaDetailSectionHeader(title: 'Subtitles'),
             Consumer(builder: (context, ref, _) {
-              final async = ref.watch(bazarrEpisodeSubtitlesProvider((seriesId: seriesId, season: 1, episode: 1)));
+              final async = ref.watch(bazarrEpisodeSubtitlesProvider((seriesId: seriesId, episodeId: 1)));
               return SubtitlesSection(
                 subtitles: async.asData?.value ?? [],
                 isLoading: async.isLoading,
                 error: async.hasError ? async.error.toString() : null,
                 onDownload: (sub) async {
                   try {
-                    await ref.read(bazarrServiceProvider).downloadEpisodeSubtitle(seriesId: seriesId, season: 1, episode: 1, language: sub.language, provider: sub.provider);
+                    await ref.read(bazarrServiceProvider).downloadEpisodeSubtitle(seriesId: seriesId, episodeId: 1, language: sub.code2, forced: sub.forced ? 'True' : 'False', hi: sub.hi ? 'True' : 'False');
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded')));
                   } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
                 },
                 onDelete: (sub) async {
                   try {
-                    await ref.read(bazarrServiceProvider).deleteEpisodeSubtitle(seriesId: seriesId, season: 1, episode: 1, language: sub.language, provider: sub.provider);
+                    await ref.read(bazarrServiceProvider).deleteEpisodeSubtitle(seriesId: seriesId, episodeId: 1, language: sub.code2, path: sub.path ?? '');
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle deleted')));
                   } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
                 },
