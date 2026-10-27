@@ -205,8 +205,8 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
           return 0;
         }
 
-        final ep = await client.get('/api/episodes/wanted').timeout(const Duration(seconds: 5));
-        final mv = await client.get('/api/movies/wanted').timeout(const Duration(seconds: 5));
+        final ep = await client.get('/api/episodes/wanted', queryParameters: {'start': 0, 'length': 1}).timeout(const Duration(seconds: 5));
+        final mv = await client.get('/api/movies/wanted', queryParameters: {'start': 0, 'length': 1}).timeout(const Duration(seconds: 5));
         count = wantedCount(ep.data) + wantedCount(mv.data);
       } catch (_) {
         // Error propagated via null return
