@@ -193,11 +193,21 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       );
       int? count;
       try {
-        final ep = await client.get('/api/wanted/episodes').timeout(const Duration(seconds: 5));
-        final mv = await client.get('/api/wanted/movies').timeout(const Duration(seconds: 5));
-        int epCount = (ep.data is List) ? (ep.data as List).length : 0;
-        int mvCount = (mv.data is List) ? (mv.data as List).length : 0;
-        count = epCount + mvCount;
+        int wantedCount(dynamic data) {
+          if (data is Map) {
+            final total = data['total'];
+            if (total is int) return total;
+            final items = data['data'];
+            if (items is List) return items.length;
+            return 0;
+          }
+          if (data is List) return data.length;
+          return 0;
+        }
+
+        final ep = await client.get('/api/episodes/wanted').timeout(const Duration(seconds: 5));
+        final mv = await client.get('/api/movies/wanted').timeout(const Duration(seconds: 5));
+        count = wantedCount(ep.data) + wantedCount(mv.data);
       } catch (_) {
         // Error propagated via null return
       } finally {
