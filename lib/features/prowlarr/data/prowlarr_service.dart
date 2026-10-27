@@ -32,11 +32,12 @@ class ProwlarrService {
     try {
       final response = await client.get('/api/v1/indexer');
       final data = response.data as List<dynamic>;
-      return (data as List<Map<String, dynamic>>).map((json) {
-        return ProwlarrIndexer.fromJson(json);
-      }).toList();
-    } catch (_) {
-      return [];
+      return (data as List).map((e) => ProwlarrIndexer.fromJson(e as Map<String, dynamic>)).toList();
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        rethrow;
+      }
+      rethrow;
     }
   }
 
@@ -61,12 +62,12 @@ class ProwlarrService {
       final response = await client.get('/api/v1/system/status');
       return ProwlarrHealthItem.fromJson(response.data as Map<String, dynamic>);
     } catch (_) {
-      throw Exception('Prowlarr connection check failed');
+      rethrow;
     }
   }
 
   /// Fetches history records.
-  Future<List<Map<String, dynamic>>> getHistory({
+  Future<List<ProwlarrIndexer>> getHistory({
     int page = 1,
     int pageSize = 20,
   }) async {
@@ -78,44 +79,44 @@ class ProwlarrService {
           'pageSize': pageSize,
         },
       );
-      return (response.data as Map<String, dynamic>)['records'] ?? [];
-    } catch (_) {
-      return [];
-    }
-  }
-
-  /// Searches for releases.
-  Future<List<ProwlarrSearchResult>> search(String query, {CancelToken? cancelToken}) async {
-    try {
-      final response = await client.post('/api/v1/indexer/search', data: {
-        'query': query,
-      }, cancelToken: cancelToken);
-
-      if (response.data is List<dynamic>) {
-        return (response.data as List<dynamic>)
-            .map((item) => ProwlarrSearchResult.fromJson(item))
-            .toList();
-      } else if (response.data is Map<String, dynamic>) {
-        final releases = response.data['releases'] ??
-            (response.data['data'] as List<dynamic>);
-        return (releases as List<Map<String, dynamic>>).map((json) {
-          return ProwlarrSearchResult.fromJson(json);
-        }).toList();
+      // History returns indexer info, map to ProwlarrIndexer
+      if (response.data is List) {
+        return (response.data as List).map((e) => ProwlarrIndexer.fromJson(e as Map<String, dynamic>)).toList();
       }
       return [];
-    } catch (_) {
-      return [];
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        rethrow;
+      }
+      rethrow;
     }
   }
 
-  /// Triggers a release grab for the given GUID and indexer ID.
+  /// Searches for releases using Prowlarr v1 API: GET /api/v1/search with query parameter.
+  Future<List<ProwlarrSearchResult>> search(String query, {CancelToken? cancelToken}) async {
+    try {
+      final response = await client.get('/api/v1/search', queryParameters: {'query': query}, cancelToken: cancelToken);
+
+      if (response.data is List) {
+        return (response.data as List).map((e) => ProwlarrSearchResult.fromJson(e as Map<String, dynamic>)).toList();
+      }
+      return [];
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) {
+        rethrow;
+      }
+      rethrow;
+    }
+  }
+
+  /// Triggers a release grab using Prowlarr v1 API: POST /api/v1/search with guid and indexerId.
   Future<void> grabRelease({
     required String guid,
     required int indexerId,
   }) async {
     try {
       await client.post(
-        '/api/v1/release',
+        '/api/v1/search',
         data: {
           'guid': guid,
           'indexerId': indexerId,

@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'package:seekarr/core/app_colors.dart';
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/widgets/status_badge.dart';
+import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
+import 'package:seekarr/features/prowlarr/presentation/widgets/indexer_card.dart';
+import 'package:seekarr/features/services/presentation/services_provider.dart';
 
 class IndexersScreen extends ConsumerStatefulWidget {
   const IndexersScreen({super.key});
@@ -41,18 +44,17 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
           SearchBarHeader(
             hintText: 'Search indexers...',
             onQueryChanged: (query) {
-              _searchController.text = query;
+              setState(() {
+                _searchController.text = query;
+              });
             },
-            onSubmitted: (_) {},
           ),
           const SizedBox(height: AppSpacing.md),
           Expanded(
-            child: AsyncValueWidget<List<ProwlarrIndexer>>(
-              value: asyncIndexers,
+            child: asyncIndexers.when(
               data: (indexers) => _buildIndexersList(indexers),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (error, stack) => Center(child: Text('Error: $error')),
-              empty: (_) => _EmptyState(),
             ),
           ),
         ],
@@ -119,7 +121,7 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
             const SizedBox(height: 16),
             _InfoRow(label: 'Name', value: indexer.name),
             const Divider(),
-            _InfoRow(label: 'Protocol', value: indexer.protocol),
+            _InfoRow(label: 'Protocol', value: indexer.protocol ?? 'N/A'),
             const Divider(),
             _InfoRow(label: 'Enabled', value: indexer.enable ? 'Yes' : 'No'),
             const Divider(),
@@ -169,76 +171,6 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
                 ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class IndexerCard extends StatelessWidget {
-  final ProwlarrIndexer indexer;
-  final VoidCallback onTap;
-
-  const IndexerCard({
-    super.key,
-    required this.indexer,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: const BorderRadius.all(Radius.circular(12)),
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        decoration: BoxDecoration(
-          border: Border.all(color: AppColors.blue100),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    indexer.name,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (indexer.message != null) ...[
-                  const SizedBox(width: 8),
-                  StatusBadge(message: indexer.message!),
-                ],
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.blue50,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Text('Protocol:', style: TextStyle(fontSize: 12)),
-                      const SizedBox(width: 4),
-                      Text(indexer.implementationName, style: const TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

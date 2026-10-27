@@ -350,13 +350,13 @@ GoRoute _prowlarrRoutes({required String path}) {
       key: state.pageKey,
       child: ServiceDashboardScreen(
         service: ServiceKey.prowlarr,
-        child: const IndexersScreen(),
+        child: const p.IndexersScreen(),
       ),
     ),
     routes: [
       GoRoute(
         path: 'search',
-        builder: (context, state) => const SearchScreen(),
+        builder: (context, state) => const ps.SearchScreen(),
       ),
     ],
   );

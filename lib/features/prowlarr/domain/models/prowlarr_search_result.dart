@@ -31,12 +31,12 @@ class ProwlarrSearchResult {
       title: json['title'] ?? '',
       protocol: json['protocol'] ?? '',
       size: json['size'] ?? 0,
-      age: json['age'],
+      age: (json['age'] as num?)?.toDouble(),
       seeders: json['seeders'],
       leechers: json['leechers'],
       categories: List<String>.from(
         (json['categories'] ?? [])
-            .cast<String>()
+            .map((c) => c is String ? c : null)
             .where((s) => s != null && s!.isNotEmpty),
       ),
     );

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'package:seekarr/core/app_colors.dart';
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/widgets/status_badge.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
 
@@ -12,7 +12,7 @@ class IndexerCard extends StatelessWidget {
   const IndexerCard({
     super.key,
     required this.indexer,
-    this.onTap,
+    required this.onTap,
   });
 
   @override
@@ -23,7 +23,7 @@ class IndexerCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(AppSpacing.md),
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.blue100),
+          border: Border.all(color: AppColors.surfaceContainerHighDark),
           borderRadius: BorderRadius.circular(12),
         ),
         child: Column(
@@ -31,7 +31,7 @@ class IndexerCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                Expanded(
+                Flexible(
                   child: Text(
                     indexer.name,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -41,16 +41,12 @@ class IndexerCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (indexer.message != null) ...[
-                  const SizedBox(width: 8),
-                  StatusBadge(message: indexer.message!),
-                ],
               ],
             ),
             const SizedBox(height: 8),
             Row(
               children: [
-                Badge(label: 'Protocol:', value: indexer.implementationName, color: AppColors.blue50),
+                InfoBadge(label: 'Protocol:', value: indexer.protocol ?? 'N/A'),
                 const Spacer(),
               ],
             ),
@@ -78,7 +74,7 @@ class Badge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: color ?? AppColors.blue50,
+        color: color ?? AppColors.surfaceContainerHighDark,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -87,7 +83,7 @@ class Badge extends StatelessWidget {
           Text(
             label,
             style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: AppColors.blue700,
+                  color: AppColors.onSurfaceDark,
                 ),
           ),
           const SizedBox(width: 4),
@@ -95,7 +91,49 @@ class Badge extends StatelessWidget {
             child: Text(
               value,
               style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: AppColors.blue700,
+                    color: AppColors.onSurfaceDark,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class InfoBadge extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const InfoBadge({
+    super.key,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainerHighDark,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: AppColors.onSurfaceDark,
+                ),
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: AppColors.onSurfaceDark,
                   ),
             ),
           ),

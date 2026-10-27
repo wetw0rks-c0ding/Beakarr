@@ -10,6 +10,8 @@ import 'package:seekarr/features/movies/data/radarr_service.dart';
 import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/presentation/music_provider.dart';
+import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
+import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/series/data/sonarr_service.dart';
 import 'package:seekarr/features/series/presentation/series_provider.dart';
@@ -205,11 +207,11 @@ final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer
       return const [];
     }
   },
-).nullable;
-
-final prowlarrSearchResultsProvider = StreamProvider<List<ProwlarrSearchResult>>.value(
-  value: [],
 );
+
+final prowlarrSearchResultsProvider = StreamProvider<List<ProwlarrSearchResult>>((ref) async* {
+  yield [];
+});
 
 final radarrQueuedMovieIdsProvider = FutureProvider<Set<int>>((ref) async {
   return _loadQueuedIds(
