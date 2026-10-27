@@ -15,14 +15,6 @@ class SearchScreen extends ConsumerStatefulWidget {
 }
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
-  final TextEditingController _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final asyncResults = ref.watch(prowlarrSearchResultsProvider);
@@ -43,7 +35,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             initialQuery: ref.watch(prowlarrSearchQueryProvider),
             hintText: 'Search for movies, TV shows, comics...',
             onQueryChanged: (query) {
-              _searchController.text = query;
               ref.read(prowlarrSearchQueryProvider.notifier).state = query;
             },
           ),
@@ -73,8 +64,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   }
 
   void _searchAndShow() {
-    final query = _searchController.text.trim();
-    ref.read(prowlarrSearchQueryProvider.notifier).state = query;
+    ref.invalidate(prowlarrSearchResultsProvider);
   }
 }
 
