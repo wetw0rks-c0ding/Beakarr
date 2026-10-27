@@ -37,6 +37,8 @@ import 'package:seekarr/features/onboarding/presentation/onboarding_screen.dart'
 import 'package:seekarr/features/qbittorrent/presentation/qbittorrent_screen.dart';
 import 'package:seekarr/features/qbittorrent/presentation/torrent_detail_screen.dart';
 import 'package:seekarr/features/qbittorrent/presentation/widgets/qbittorrent_actions_bar.dart';
+import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
+import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -341,6 +343,25 @@ GoRoute _qbittorrentRoutes({required String path}) {
   );
 }
 
+GoRoute _prowlarrRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.prowlarr,
+        child: const p.IndexersScreen(),
+      ),
+    ),
+    routes: [
+      GoRoute(
+        path: 'search',
+        builder: (context, state) => const ps.SearchScreen(),
+      ),
+    ],
+  );
+}
+
 String? _redirectLegacyDiscover(GoRouterState state) {
   final path = state.uri.path;
   if (path == '/discover') return '/services';
@@ -416,6 +437,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               _seriesRoutes(path: 'sonarr'),
               _musicRoutes(path: 'lidarr'),
               _qbittorrentRoutes(path: 'qbittorrent'),
+              _prowlarrRoutes(path: 'prowlarr'),
             ],
           ),
           GoRoute(
