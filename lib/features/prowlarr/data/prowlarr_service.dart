@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:dio/dio.dart';
 import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_health_item.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
@@ -84,11 +85,11 @@ class ProwlarrService {
   }
 
   /// Searches for releases.
-  Future<List<ProwlarrSearchResult>> search(String query) async {
+  Future<List<ProwlarrSearchResult>> search(String query, {CancelToken? cancelToken}) async {
     try {
       final response = await client.post('/api/v1/indexer/search', data: {
         'query': query,
-      });
+      }, cancelToken: cancelToken);
 
       if (response.data is List<dynamic>) {
         return (response.data as List<dynamic>)

@@ -36,11 +36,13 @@ class ApiClient {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
   }) {
     return _dio.post(
       path,
       data: data,
       queryParameters: {...auth.queryParams(), ...queryParameters ?? {}},
+      cancelToken: cancelToken,
     );
   }
 
