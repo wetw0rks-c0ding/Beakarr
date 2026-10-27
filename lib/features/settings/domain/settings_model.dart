@@ -41,6 +41,8 @@ class SettingsModel {
   final String qbittorrentPassword;
   final String prowlarrUrl;
   final String prowlarrApiKey;
+  final String bazarrUrl;
+  final String bazarrApiKey;
   final String region;
   final AppThemeMode themeMode;
 
@@ -84,6 +86,12 @@ class SettingsModel {
           update: (settings, {url, apiKey}) =>
               settings.copyWith(prowlarrUrl: url, prowlarrApiKey: apiKey),
         ),
+        ServiceKey.bazarr: _ServiceSettingsAccess(
+          url: (settings) => settings.bazarrUrl,
+          apiKey: (settings) => settings.bazarrApiKey,
+          update: (settings, {url, apiKey}) =>
+              settings.copyWith(bazarrUrl: url, bazarrApiKey: apiKey),
+        ),
       };
 
   static String normalizeRegion(String? region) {
@@ -105,6 +113,8 @@ class SettingsModel {
     this.qbittorrentPassword = '',
     this.prowlarrUrl = '',
     this.prowlarrApiKey = '',
+    this.bazarrUrl = '',
+    this.bazarrApiKey = '',
     this.region = 'US',
     this.themeMode = AppThemeMode.system,
   });
@@ -123,6 +133,8 @@ class SettingsModel {
     String? qbittorrentPassword,
     String? prowlarrUrl,
     String? prowlarrApiKey,
+    String? bazarrUrl,
+    String? bazarrApiKey,
     String? region,
     AppThemeMode? themeMode,
   }) {
@@ -140,6 +152,8 @@ class SettingsModel {
       qbittorrentPassword: qbittorrentPassword ?? this.qbittorrentPassword,
       prowlarrUrl: prowlarrUrl ?? this.prowlarrUrl,
       prowlarrApiKey: prowlarrApiKey ?? this.prowlarrApiKey,
+      bazarrUrl: bazarrUrl ?? this.bazarrUrl,
+      bazarrApiKey: bazarrApiKey ?? this.bazarrApiKey,
       region: region ?? this.region,
       themeMode: themeMode ?? this.themeMode,
     );

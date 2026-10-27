@@ -141,6 +141,8 @@ String _statusEndpointFor(ServiceKey service) {
       return '/api/v2/app/version';
     case ServiceKey.prowlarr:
       return '/api/v1/system/status';
+    case ServiceKey.bazarr:
+      return '/api/system/status';
   }
 }
 
@@ -182,6 +184,26 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
         throw StateError('Prowlarr indexer count unavailable');
       }
       return count;
+    case ServiceKey.bazarr:
+      final createClient = ref.watch(serviceStatusClientFactoryProvider);
+      final settings = ref.read(currentSettingsProvider);
+      final client = createClient(
+        baseUrl: settings.urlFor(service),
+        auth: BazarrApiKeyAuth(settings.apiKeyFor(service)),
+      );
+      int? count;
+      try {
+        final ep = await client.get('/api/wanted/episodes').timeout(const Duration(seconds: 5));
+        final mv = await client.get('/api/wanted/movies').timeout(const Duration(seconds: 5));
+        int epCount = (ep.data is List) ? (ep.data as List).length : 0;
+        int mvCount = (mv.data is List) ? (mv.data as List).length : 0;
+        count = epCount + mvCount;
+      } catch (_) {
+        // Error propagated via null return
+      } finally {
+        client.close();
+      }
+      return count ?? 0;
   }
 }
 
@@ -401,7 +423,8 @@ Future<List<ServiceQueueItem>> _loadServiceQueueItems(
       ServiceKey.prowlarr => const <dynamic>[], // No queue endpoint yet
       ServiceKey.seerr ||
       ServiceKey.lidarr ||
-      ServiceKey.qbittorrent => const <dynamic>[],
+      ServiceKey.qbittorrent ||
+      ServiceKey.bazarr => const <dynamic>[],
     };
     return items
         .whereType<Map>()
@@ -441,6 +464,7 @@ String _queueTypeLabel(ServiceKey service) {
     ServiceKey.sonarr => 'Series',
     ServiceKey.lidarr => 'Music',
     ServiceKey.prowlarr => 'Indexer',
+    ServiceKey.bazarr => 'Subtitle',
     ServiceKey.seerr || ServiceKey.qbittorrent => service.title,
   };
 }

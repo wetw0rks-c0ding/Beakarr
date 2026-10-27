@@ -93,6 +93,11 @@ class SettingsService {
       legacyApiKey: 'prowlarr_api_key',
       secureApiKey: 'secure_prowlarr_api_key',
     ),
+    ServiceKey.bazarr: _ServiceStorageKeys(
+      url: 'bazarr_url',
+      legacyApiKey: 'bazarr_api_key',
+      secureApiKey: 'secure_bazarr_api_key',
+    ),
   };
 
   final SharedPreferences _prefs;
@@ -202,6 +207,8 @@ class SettingsService {
       qbittorrentPassword: qbPassword,
       prowlarrUrl: serviceSettings[ServiceKey.prowlarr]!.$1,
       prowlarrApiKey: serviceSettings[ServiceKey.prowlarr]!.$2,
+      bazarrUrl: serviceSettings[ServiceKey.bazarr]!.$1,
+      bazarrApiKey: serviceSettings[ServiceKey.bazarr]!.$2,
       region: _loadRegion(),
       themeMode: AppThemeMode.fromName(_prefs.getString(_kThemeMode)),
     );
