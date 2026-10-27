@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
-import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/services/presentation/services_provider.dart';
@@ -75,30 +74,24 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   void _searchAndShow() {
     // Search is handled by provider
   }
-
-  Widget _EmptyState() {
-    return const SizedBox.shrink();
-  }
 }
 
 class ResultCard extends StatelessWidget {
   final ProwlarrSearchResult result;
 
-  const ResultCard({
-    super.key,
-    required this.result,
-  });
+  const ResultCard({super.key, required this.result});
 
-  static String _formatSize(int bytes) {
+  String _formatSize(int bytes) {
     if (bytes < 1024) return '$bytes B';
     if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} MB';
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} GB';
   }
 
-  static String _formatAge(dynamic age) {
+  String _formatAge(dynamic age) {
     if (age == null) return '';
     final now = DateTime.now();
-    final millisecondsSinceEpoch = now.millisecondsSinceEpoch - (((age as num?)?.toDouble() ?? 0) * 24 * 60 * 60 * 1000);
+    final millisecondsSinceEpoch =
+        now.millisecondsSinceEpoch - (((age as num?)?.toDouble() ?? 0) * 24 * 60 * 60 * 1000);
     final target = DateTime.fromMillisecondsSinceEpoch(millisecondsSinceEpoch.toInt());
     final diff = now.difference(target);
 
@@ -112,7 +105,8 @@ class ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return InkWell(
       onTap: () => _showGrabDialog(context, result),
@@ -131,9 +125,9 @@ class ResultCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     result.title ?? '',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -144,25 +138,16 @@ class ResultCard extends StatelessWidget {
             Row(
               children: [
                 if (result.seeders != null && result.seeders! > 0) ...[
-                  _buildBadge(
-                    'Seeders:',
-                    '${result.seeders ?? 0}',
-                    colorScheme.primaryContainer,
-                  ),
+                  _buildBadge('Seeders:', '${result.seeders ?? 0}', colorScheme.primaryContainer, theme),
                   const SizedBox(width: 8),
                 ],
                 if (result.leechers != null && result.leechers! > 0) ...[
-                  _buildBadge(
-                    'Leechers:',
-                    '${result.leechers ?? 0}',
-                    colorScheme.errorContainer,
-                  ),
+                  _buildBadge('Leechers:', '${result.leechers ?? 0}', colorScheme.errorContainer, theme),
                   const SizedBox(width: 8),
                 ],
-                // Category chips
                 if (result.categories.isNotEmpty) ...[
                   const SizedBox(width: 8),
-                  ...result.categories.map((cat) => _buildChip(cat)),
+                  ...result.categories.map((cat) => _buildChip(cat, theme)),
                 ],
               ],
             ),
@@ -175,18 +160,18 @@ class ResultCard extends StatelessWidget {
                     children: [
                       Text(
                         result.indexer ?? '',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${_formatSize(result.size)} ${_formatAge(result.age)}',
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ],
                   ),
@@ -199,25 +184,20 @@ class ResultCard extends StatelessWidget {
     );
   }
 
-  Widget _buildBadge(String label, String value, Color color) {
-    final theme = Theme.of(context);
+  Widget _buildBadge(String label, String value, Color color, ThemeData theme) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(12)),
       child: Text(
         '$label$value',
         style: theme.textTheme.bodySmall?.copyWith(
-              color: theme.colorScheme.onPrimary,
-            ),
+          color: theme.colorScheme.onPrimary,
+        ),
       ),
     );
   }
 
-  Widget _buildChip(String category) {
-    final theme = Theme.of(context);
+  Widget _buildChip(String category, ThemeData theme) {
     return Padding(
       padding: const EdgeInsets.only(right: 4),
       child: Container(
@@ -229,8 +209,8 @@ class ResultCard extends StatelessWidget {
         child: Text(
           category,
           style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onPrimary,
-              ),
+            color: theme.colorScheme.onPrimary,
+          ),
         ),
       ),
     );
@@ -281,15 +261,9 @@ class ResultCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (result.seeders != null)
-                    Text(
-                      'Seeders: ${result.seeders ?? 0}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text('Seeders: ${result.seeders ?? 0}', style: Theme.of(context).textTheme.bodySmall),
                   if (result.leechers != null)
-                    Text(
-                      'Leechers: ${result.leechers ?? 0}',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    Text('Leechers: ${result.leechers ?? 0}', style: Theme.of(context).textTheme.bodySmall),
                 ],
               ),
             ),
