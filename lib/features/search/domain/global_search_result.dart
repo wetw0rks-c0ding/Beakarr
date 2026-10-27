@@ -11,7 +11,10 @@ class GlobalSearchResult {
   final String route;
   final Object? routeExtra;
   final String? query;
- 
+  final int? seeders;
+  final int? size;
+  final double? age;
+
   const GlobalSearchResult({
     required this.service,
     required this.id,
@@ -23,6 +26,9 @@ class GlobalSearchResult {
     required this.route,
     this.routeExtra,
     this.query,
+    this.seeders,
+    this.size,
+    this.age,
   });
 }
 

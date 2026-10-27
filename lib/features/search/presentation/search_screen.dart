@@ -208,16 +208,21 @@ class _SearchResultsList extends StatelessWidget {
   }
 }
 
-class _SearchSection extends StatelessWidget {
+class _SearchSection extends ConsumerWidget {
   final GlobalSearchServiceResults group;
 
   const _SearchSection({required this.group});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final service = group.service;
     final colorScheme = Theme.of(context).colorScheme;
-    final count = group.results.length;
+    final isProwlarr = service == ServiceKey.prowlarr;
+    final sort = isProwlarr ? ref.watch(prowlarrSortProvider) : null;
+    final results = isProwlarr && sort != null
+        ? _sortProwlarrResults(group.results, sort)
+        : group.results;
+    final count = results.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,6 +261,74 @@ class _SearchSection extends StatelessWidget {
                   color: colorScheme.onSurfaceVariant,
                 ),
               ),
+              if (isProwlarr) ...[
+                const Spacer(),
+                PopupMenuButton<ProwlarrSort>(
+                  icon: const Icon(Icons.sort_rounded),
+                  onSelected: (value) {
+                    ref.read(prowlarrSortProvider.notifier).state = value;
+                  },
+                  itemBuilder: (context) {
+                    final current = ref.read(prowlarrSortProvider);
+                    return [
+                      _sortMenuItem(
+                        context,
+                        const ProwlarrSort(
+                          field: ProwlarrSortField.seeds,
+                          ascending: false,
+                        ),
+                        'Seeds ↓',
+                        current,
+                      ),
+                      _sortMenuItem(
+                        context,
+                        const ProwlarrSort(
+                          field: ProwlarrSortField.seeds,
+                          ascending: true,
+                        ),
+                        'Seeds ↑',
+                        current,
+                      ),
+                      _sortMenuItem(
+                        context,
+                        const ProwlarrSort(
+                          field: ProwlarrSortField.size,
+                          ascending: false,
+                        ),
+                        'Size ↓',
+                        current,
+                      ),
+                      _sortMenuItem(
+                        context,
+                        const ProwlarrSort(
+                          field: ProwlarrSortField.size,
+                          ascending: true,
+                        ),
+                        'Size ↑',
+                        current,
+                      ),
+                      _sortMenuItem(
+                        context,
+                        const ProwlarrSort(
+                          field: ProwlarrSortField.age,
+                          ascending: true,
+                        ),
+                        'Age ↓',
+                        current,
+                      ),
+                      _sortMenuItem(
+                        context,
+                        const ProwlarrSort(
+                          field: ProwlarrSortField.age,
+                          ascending: false,
+                        ),
+                        'Age ↑',
+                        current,
+                      ),
+                    ];
+                  },
+                ),
+              ],
             ],
           ),
         ),
@@ -275,7 +348,7 @@ class _SearchSection extends StatelessWidget {
                 )
               : Column(
                   children: [
-                    for (final result in group.results)
+                    for (final result in results)
                       Padding(
                         padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                         child: _SearchResultCard(result: result),
@@ -286,6 +359,76 @@ class _SearchSection extends StatelessWidget {
       ],
     );
   }
+}
+
+PopupMenuItem<ProwlarrSort> _sortMenuItem(
+  BuildContext context,
+  ProwlarrSort value,
+  String label,
+  ProwlarrSort current,
+) {
+  final active = value == current;
+  return PopupMenuItem<ProwlarrSort>(
+    value: value,
+    child: Row(
+      children: [
+        Text(label),
+        if (active) ...[
+          const Spacer(),
+          Icon(
+            Icons.check_rounded,
+            size: 20,
+            color: Theme.of(context).colorScheme.primary,
+          ),
+        ],
+      ],
+    ),
+  );
+}
+
+List<GlobalSearchResult> _sortProwlarrResults(
+  List<GlobalSearchResult> results,
+  ProwlarrSort sort,
+) {
+  final indexed = results.asMap().entries.toList();
+  indexed.sort((a, b) {
+    int cmp = 0;
+    switch (sort.field) {
+      case ProwlarrSortField.seeds:
+        final aNull = a.value.seeders == null;
+        final bNull = b.value.seeders == null;
+        if (aNull || bNull) {
+          if (aNull && bNull) {
+            cmp = 0;
+          } else {
+            return aNull ? 1 : -1;
+          }
+        } else {
+          cmp = a.value.seeders!.compareTo(b.value.seeders!);
+        }
+        break;
+      case ProwlarrSortField.size:
+        cmp = (a.value.size ?? 0).compareTo(b.value.size ?? 0);
+        break;
+      case ProwlarrSortField.age:
+        final aNull = a.value.age == null;
+        final bNull = b.value.age == null;
+        if (aNull || bNull) {
+          if (aNull && bNull) {
+            cmp = 0;
+          } else {
+            return aNull ? 1 : -1;
+          }
+        } else {
+          cmp = a.value.age!.compareTo(b.value.age!);
+        }
+        break;
+    }
+    if (!sort.ascending) cmp = -cmp;
+    if (cmp != 0) return cmp;
+    return a.key.compareTo(b.key);
+  });
+  return indexed.map((e) => e.value).toList();
 }
 
 class _SearchResultCard extends ConsumerWidget {

@@ -213,5 +213,8 @@ GlobalSearchResult _prowlarrResult(ProwlarrSearchResult item, String query) {
     route: ServiceRoutes.prowlarrSearch,
     routeExtra: null,
     query: query,
+    seeders: item.seeders,
+    size: item.size,
+    age: item.age,
   );
 }

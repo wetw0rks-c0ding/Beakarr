@@ -210,6 +210,32 @@ final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer
 /// Current search query for the Prowlarr search screen.
 final prowlarrSearchQueryProvider = StateProvider<String>((ref) => '');
 
+/// Sort state for displayed Prowlarr search results (global search section).
+enum ProwlarrSortField { seeds, size, age }
+
+class ProwlarrSort {
+  final ProwlarrSortField field;
+  final bool ascending;
+
+  const ProwlarrSort({
+    this.field = ProwlarrSortField.seeds,
+    this.ascending = false,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProwlarrSort &&
+      other.field == field &&
+      other.ascending == ascending;
+
+  @override
+  int get hashCode => Object.hash(field, ascending);
+}
+
+final prowlarrSortProvider = StateProvider<ProwlarrSort>(
+  (ref) => const ProwlarrSort(),
+);
+
 /// Search results driven by [prowlarrSearchQueryProvider].
 final prowlarrSearchResultsProvider = FutureProvider<List<ProwlarrSearchResult>>((
   ref,
