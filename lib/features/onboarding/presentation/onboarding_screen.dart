@@ -45,6 +45,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/v2/app/version';
     case ServiceKey.prowlarr:
       return '/api/v1/system/status';
+    case ServiceKey.bazarr:
+      return '/api/system/status';
   }
 }
 
