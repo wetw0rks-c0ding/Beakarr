@@ -20,9 +20,8 @@ final bazarrWantedMoviesProvider = FutureProvider.autoDispose<List<BazarrWantedE
 final bazarrWantedEpisodesProvider = FutureProvider.autoDispose<List<BazarrWantedEntry>>((ref) async => ref.watch(bazarrServiceProvider).getWantedEpisodes());
 final bazarrProvidersProvider = FutureProvider.autoDispose<List<BazarrProvider>>((ref) async => ref.watch(bazarrServiceProvider).getProviders());
 
-final bazarrEpisodeSubtitlesProvider = FutureProvider.autoDispose.family<List<BazarrSubtitle>, ({int seriesId, int season, int episode})>((ref, p) async {
-  return ref.watch(bazarrServiceProvider).getEpisodeSubtitles(seriesId: p.seriesId, season: p.season, episode: p.episode);
+final bazarrEpisodeSubtitlesProvider = FutureProvider.autoDispose.family<List<BazarrSubtitle>, ({int seriesId, int episodeId})>((ref, p) async {
+  return ref.watch(bazarrServiceProvider).getEpisodeSubtitles(seriesId: p.seriesId, episodeId: p.episodeId);
 });
-final bazarrMovieSubtitlesProvider = FutureProvider.autoDispose.family<List<BazarrSubtitle>, int>((ref, movieId) async {
-  return ref.watch(bazarrServiceProvider).getMovieSubtitles(movieId: movieId);
-});
+// Movie subtitle endpoint removed from real Bazarr API (no /api/movies/$id/subtitles); subtitles embedded in /api/movies
+final bazarrMovieSubtitlesProvider = FutureProvider.autoDispose.family<List<BazarrSubtitle>, int>((ref, movieId) async => <BazarrSubtitle>[]);

@@ -48,8 +48,8 @@ class _MovieSheetState extends ConsumerState<MovieSheet> {
             const SizedBox(height: AppSpacing.sm),
             ..._searchResults.map((r) => ListTile(
               dense: true,
-              title: Text('${r.language.toUpperCase()} — ${r.provider}'),
-              subtitle: Text('HI: ${r.hearingImpaired} • Forced: ${r.forced}'),
+              title: Text('${(r.code2 ?? r.code3 ?? '').toUpperCase()} — ${r.name}'),
+              subtitle: Text('HI: ${r.hi} • Forced: ${r.forced}'),
               trailing: IconButton(icon: const Icon(Icons.download_rounded, size: 20), tooltip: 'Download', onPressed: () => _downloadResult(r)),
             )),
           ],
@@ -61,22 +61,23 @@ class _MovieSheetState extends ConsumerState<MovieSheet> {
   }
 
   void _download(BazarrSubtitle sub) async {
-    try { await ref.read(bazarrServiceProvider).downloadMovieSubtitle(movieId: widget.movieId, language: sub.language, provider: sub.provider); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded'))); } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
+    try { await ref.read(bazarrServiceProvider).downloadMovieSubtitle(radarrId: widget.movieId, language: sub.code2 ?? sub.code3 ?? '', forced: sub.forced ? 'True' : 'False', hi: sub.hi ? 'True' : 'False'); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded'))); } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
   }
 
   void _delete(BazarrSubtitle sub) async {
-    try { await ref.read(bazarrServiceProvider).deleteMovieSubtitle(movieId: widget.movieId, language: sub.language, provider: sub.provider); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle deleted'))); } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
+    try { await ref.read(bazarrServiceProvider).deleteMovieSubtitle(radarrId: widget.movieId, language: sub.code2 ?? sub.code3 ?? '', path: sub.path ?? ''); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle deleted'))); } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
   }
 
   void _triggerSearch() async {
     setState(() { _searching = true; _searchResults = []; });
     try {
-      final res = await ref.read(bazarrServiceProvider).searchMovieSubtitles(movieId: widget.movieId);
+      // Provider-picking impossible: no per-provider search endpoint (verified bazarr/api/*.py)
+      final res = <BazarrSubtitle>[]; // download-best only
       setState(() { _searchResults = res; _searching = false; });
     } catch (e) { setState(() => _searching = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Search failed: $e'))); }
   }
 
   void _downloadResult(BazarrSubtitle r) async {
-    try { await ref.read(bazarrServiceProvider).downloadMovieSubtitle(movieId: widget.movieId, language: r.language, provider: r.provider); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded'))); setState(() => _searchResults.removeWhere((x) => x.language == r.language && x.provider == r.provider)); } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
+    try { await ref.read(bazarrServiceProvider).downloadMovieSubtitle(radarrId: widget.movieId, language: r.code2 ?? r.code3 ?? '', forced: r.forced ? 'True' : 'False', hi: r.hi ? 'True' : 'False'); ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded'))); setState(() => _searchResults.removeWhere((x) => (x.code2 ?? x.code3) == (r.code2 ?? r.code3))); } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
   }
 }

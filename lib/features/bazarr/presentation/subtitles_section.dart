@@ -53,12 +53,12 @@ class _SubtitleRow extends StatelessWidget {
       child: ListTile(
         dense: true,
         title: Row(children: [
-          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(4)), child: Text(sub.language.toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.blue.shade100, borderRadius: BorderRadius.circular(4)), child: Text((sub.code2 ?? sub.code3 ?? '').toUpperCase(), style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold))),
           const SizedBox(width: 8),
-          Expanded(child: Text(sub.provider.isNotEmpty ? sub.provider : '-', overflow: TextOverflow.ellipsis)),
+          Expanded(child: Text(sub.name.isNotEmpty ? sub.name : '-', overflow: TextOverflow.ellipsis)),
         ]),
         subtitle: Wrap(spacing: 6, children: [
-          if (sub.hearingImpaired) Chip(label: const Text('HI', style: TextStyle(fontSize: 10)), padding: EdgeInsets.zero, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
+          if (sub.hi) Chip(label: const Text('HI', style: TextStyle(fontSize: 10)), padding: EdgeInsets.zero, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
           if (sub.forced) Chip(label: const Text('Forced', style: TextStyle(fontSize: 10)), padding: EdgeInsets.zero, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap, visualDensity: VisualDensity.compact),
         ]),
         trailing: Row(mainAxisSize: MainAxisSize.min, children: [

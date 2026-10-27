@@ -1,17 +1,33 @@
 class BazarrSubtitle {
-  final String language;
-  final String provider;
-  final bool hearingImpaired;
-  final bool forced;
+  final String name;
+  final String code2;
+  final String code3;
   final String? path;
-  final String? downloadUrl;
-  BazarrSubtitle({required this.language, this.provider = '', this.hearingImpaired = false, this.forced = false, this.path, this.downloadUrl});
+  final bool forced;
+  final bool hi;
+  final int? fileSize;
+  final int? embeddedTrackId;
+  final int? id;
+  BazarrSubtitle({
+    required this.name,
+    required this.code2,
+    required this.code3,
+    this.path,
+    this.forced = false,
+    this.hi = false,
+    this.fileSize,
+    this.embeddedTrackId,
+    this.id,
+  });
   factory BazarrSubtitle.fromJson(Map<String, dynamic> j) => BazarrSubtitle(
-        language: (j['language'] ?? j['lang'] ?? '').toString(),
-        provider: (j['provider'] ?? '').toString(),
-        hearingImpaired: (j['hearing_impaired'] ?? j['hearingImpaired'] ?? false) == true,
-        forced: (j['forced'] ?? false) == true,
-        path: j['path'] == null ? null : j['path'].toString(),
-        downloadUrl: j['download_url'] == null ? null : j['download_url'].toString(),
+        name: (j['name'] ?? '').toString(),
+        code2: (j['code2'] ?? '').toString(),
+        code3: (j['code3'] ?? '').toString(),
+        path: j['path']?.toString(),
+        forced: j['forced'] == true,
+        hi: j['hi'] == true,
+        fileSize: ((j['file_size'] as num?) ?? (j['fileSize'] as num?))?.toInt(),
+        embeddedTrackId: ((j['embedded_track_id'] as num?) ?? (j['embeddedTrackId'] as num?))?.toInt(),
+        id: ((j['id'] as num?) ?? 0).toInt(),
       );
 }
