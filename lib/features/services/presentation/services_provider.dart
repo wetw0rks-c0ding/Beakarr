@@ -202,12 +202,8 @@ final servicesMusicProvider = musicProvider;
 // Prowlarr providers
 final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer>>(
   (ref) async {
-    try {
-      final service = ref.watch(prowlarrServiceProvider);
-      return await service.getIndexers();
-    } catch (_) {
-      return const [];
-    }
+    final service = ref.watch(prowlarrServiceProvider);
+    return await service.getIndexers();
   },
 );
 
@@ -223,6 +219,9 @@ final prowlarrSearchResultsProvider = FutureProvider<List<ProwlarrSearchResult>>
 ) async {
   final query = ref.watch(prowlarrSearchQueryProvider).trim();
   if (query.isEmpty) {
+    final previous = ref.read(prowlarrSearchCancelTokenProvider);
+    previous?.cancel('cleared');
+    ref.read(prowlarrSearchCancelTokenProvider.notifier).state = null;
     return const [];
   }
 
@@ -246,12 +245,8 @@ final prowlarrSearchResultsProvider = FutureProvider<List<ProwlarrSearchResult>>
 final prowlarrHistoryProvider = FutureProvider.autoDispose<List<ProwlarrHistoryRecord>>((
   ref,
 ) async {
-  try {
-    final service = ref.watch(prowlarrServiceProvider);
-    return await service.getHistory();
-  } catch (_) {
-    return const [];
-  }
+  final service = ref.watch(prowlarrServiceProvider);
+  return await service.getHistory();
 });
 
 final radarrQueuedMovieIdsProvider = FutureProvider<Set<int>>((ref) async {

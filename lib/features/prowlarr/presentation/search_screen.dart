@@ -40,6 +40,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       body: Column(
         children: [
           SearchBarHeader(
+            initialQuery: ref.watch(prowlarrSearchQueryProvider),
             hintText: 'Search for movies, TV shows, comics...',
             onQueryChanged: (query) {
               _searchController.text = query;
@@ -136,20 +137,16 @@ class ResultCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
               children: [
-                if (result.seeders != null && result.seeders! > 0) ...[
+                if (result.seeders != null && result.seeders! > 0)
                   _buildBadge('Seeders:', '${result.seeders ?? 0}', colorScheme.primaryContainer, theme),
-                  const SizedBox(width: 8),
-                ],
-                if (result.leechers != null && result.leechers! > 0) ...[
+                if (result.leechers != null && result.leechers! > 0)
                   _buildBadge('Leechers:', '${result.leechers ?? 0}', colorScheme.errorContainer, theme),
-                  const SizedBox(width: 8),
-                ],
-                if (result.categories.isNotEmpty) ...[
-                  const SizedBox(width: 8),
+                if (result.categories.isNotEmpty)
                   ...result.categories.map((cat) => _buildChip(cat, theme)),
-                ],
               ],
             ),
             const SizedBox(height: 8),
