@@ -20,7 +20,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   String? _lastSearchQuery;
   Timer? _debounceTimer;
-  bool _isLoading = false;
 
   @override
   void dispose() {
@@ -88,7 +87,6 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
       return;
     }
 
-    setState(() => _isLoading = true);
     _debounceTimer?.cancel();
 
     // Debounce search for 300ms

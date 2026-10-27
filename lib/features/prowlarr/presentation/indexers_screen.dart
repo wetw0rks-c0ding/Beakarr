@@ -176,8 +176,6 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
       ),
     );
   }
-
-  static String? mapOrNull(String? value) => value;
 }
 
 class IndexerCard extends StatelessWidget {
