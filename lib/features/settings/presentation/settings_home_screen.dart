@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/app_version.dart';
 import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/core/widgets/app_card.dart';
@@ -21,7 +22,7 @@ class SettingsHomeScreen extends ConsumerWidget {
   const SettingsHomeScreen({super.key});
 
   static final Uri _githubUri = Uri.parse(
-    'https://github.com/matthw-labs/seekarr',
+    'https://github.com/wetw0rks-c0ding/seekarr',
   );
   static final Uri _feedbackUri = Uri(
     scheme: 'mailto',
@@ -198,6 +199,12 @@ class SettingsHomeScreen extends ConsumerWidget {
             title: 'Share App',
             accentColor: AppColors.success,
             onTap: () => SnackBarHelper.info(context, 'Coming soon!'),
+          ),
+          SettingsCard.grouped(
+            leading: const Icon(Icons.info_outline_rounded),
+            title: 'Version',
+            subtitle: kAppVersion,
+            accentColor: colorScheme.onSurfaceVariant,
           ),
           SettingsCard.grouped(
             leading: const Icon(Icons.code_rounded),
