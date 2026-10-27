@@ -60,9 +60,12 @@ void main() {
 
     final groups = await container.read(globalSearchResultsProvider.future);
 
+    // Global search covers the media services only; Prowlarr (indexers) and
+    // qBittorrent are intentionally not part of global media search even
+    // though ServiceKey.isSearchable may include them.
     expect(
       groups.map((group) => group.service),
-      ServiceKey.values.where((s) => s.isSearchable),
+      [ServiceKey.seerr, ServiceKey.radarr, ServiceKey.sonarr, ServiceKey.lidarr],
     );
     expect(groups.expand((group) => group.results).map((item) => item.title), [
       'Dune: Part Two',

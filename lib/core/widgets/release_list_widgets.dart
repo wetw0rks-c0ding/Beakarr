@@ -59,7 +59,9 @@ class ReleaseListItem extends StatelessWidget {
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
+        child: Material(
+          color: Colors.transparent,
+          child: ExpansionTile(
           tilePadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
           childrenPadding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
           leading: _buildLeadingIcon(statusColor, customFormatScore),
@@ -144,6 +146,7 @@ class ReleaseListItem extends StatelessWidget {
               ),
           ],
         ),
+      ),
       ),
     );
   }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/movies/data/radarr_service.dart';
 import 'package:seekarr/features/movies/domain/models/radarr_movie.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
@@ -248,7 +249,7 @@ ProviderContainer _container({
       if (statusClient != null)
         serviceStatusClientFactoryProvider.overrideWith(
           (ref) =>
-              ({required String baseUrl, required String apiKey}) =>
+              ({required String baseUrl, required ServiceAuth auth}) =>
                   statusClient,
         ),
       radarrServiceProvider.overrideWith(
@@ -336,7 +337,7 @@ class _QueueLidarrService extends FakeLidarrService {
 
 class _StatusClient extends ApiClient {
   _StatusClient(this.data)
-    : super(baseUrl: 'https://status.example.com', apiKey: 'key');
+    : super(baseUrl: 'https://status.example.com', auth: ApiKeyHeaderAuth('key'));
 
   final Map<String, dynamic> data;
 
@@ -359,7 +360,7 @@ class _StatusClient extends ApiClient {
 
 class _ThrowingStatusClient extends ApiClient {
   _ThrowingStatusClient()
-    : super(baseUrl: 'https://status.example.com', apiKey: 'key');
+    : super(baseUrl: 'https://status.example.com', auth: ApiKeyHeaderAuth('key'));
 
   @override
   Future<Response> get(

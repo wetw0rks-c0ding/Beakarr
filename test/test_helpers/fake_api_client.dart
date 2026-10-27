@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 
 /// Shared in-memory fake [ApiClient] used by service tests.
 ///
@@ -8,7 +9,7 @@ import 'package:seekarr/core/api/api_client.dart';
 /// etc. For multi-call scenarios, use [getResponseQueue] which is consumed FIFO
 /// (falling back to [getResponseData] when empty).
 class FakeApiClient extends ApiClient {
-  FakeApiClient() : super(baseUrl: 'https://example.com', apiKey: 'key');
+  FakeApiClient() : super(baseUrl: 'https://example.com', auth: ApiKeyHeaderAuth('key'));
 
   // Canned responses
   dynamic getResponseData;
@@ -75,6 +76,7 @@ class FakeApiClient extends ApiClient {
     String path, {
     dynamic data,
     Map<String, dynamic>? queryParameters,
+    CancelToken? cancelToken,
   }) async {
     lastPostPath = path;
     lastPostData = data;

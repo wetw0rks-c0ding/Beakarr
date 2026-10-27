@@ -319,5 +319,14 @@ Future<ServiceSummary> _summaryBuilder(Ref ref, ServiceKey service) async {
         itemCount: null,
         itemLabel: 'torrents',
       );
+    case ServiceKey.prowlarr:
+      return const ServiceSummary(
+        service: ServiceKey.prowlarr,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'indexers',
+      );
   }
 }
