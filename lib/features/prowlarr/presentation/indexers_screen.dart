@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/utils/service_routes.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
 import 'package:seekarr/features/prowlarr/presentation/widgets/indexer_card.dart';
@@ -31,6 +33,11 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
       appBar: AppBar(
         title: const Text('Indexers'),
         actions: [
+          IconButton(
+            onPressed: () => context.push(ServiceRoutes.prowlarrSearch),
+            icon: const Icon(Icons.search_rounded),
+            tooltip: 'Search releases',
+          ),
           IconButton(
             onPressed: () => _showSearchHistoryBottomSheet(),
             icon: const Icon(Icons.history_outlined),
