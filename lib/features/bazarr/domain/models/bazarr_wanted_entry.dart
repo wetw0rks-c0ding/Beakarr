@@ -4,6 +4,7 @@ class BazarrWantedEntry {
   final String? sceneName;
   final Map<String, dynamic>? missingSubtitles;
   final List<String> tags;
+  String get type => 'movie'; // minimal; screen expects .type
   BazarrWantedEntry({
     required this.title,
     this.radarrId,

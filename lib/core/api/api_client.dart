@@ -88,6 +88,18 @@ class ApiClient {
     );
   }
 
+  Future<Response> patch(
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+  }) {
+    return _dio.patch(
+      path,
+      data: data,
+      queryParameters: {...auth.queryParams(), ...queryParameters ?? {}},
+    );
+  }
+
   Future<Response> delete(
     String path, {
     dynamic data,

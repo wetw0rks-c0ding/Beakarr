@@ -14,6 +14,8 @@ class BazarrSeries {
   final int episodeFileCount;
   final int episodeMissingCount;
   final Map<String, dynamic>? audioLanguage; // object
+  int get seasonCount => episodeFileCount > 0 ? (episodeFileCount ~/ 10).clamp(1, 99) : 1;
+  int get id => sonarrSeriesId;
   BazarrSeries({
     required this.sonarrSeriesId,
     required this.title,

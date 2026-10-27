@@ -50,7 +50,7 @@ class _EpisodeSheetState extends ConsumerState<EpisodeSheet> {
             const SizedBox(height: AppSpacing.sm),
             ..._searchResults.map((r) => ListTile(
               dense: true,
-              title: Text('${(r.code2 ?? r.code3 ?? '').toUpperCase()} — ${r.name}'),
+              title: Text('${(r.code2).toUpperCase()} — ${r.name}'),
               subtitle: Text('HI: ${r.hi} • Forced: ${r.forced}'),
               trailing: IconButton(icon: const Icon(Icons.download_rounded, size: 20), tooltip: 'Download', onPressed: () => _downloadResult(r)),
             )),
@@ -68,14 +68,14 @@ class _EpisodeSheetState extends ConsumerState<EpisodeSheet> {
 
   void _download(BazarrSubtitle sub) async {
     try {
-      await ref.read(bazarrServiceProvider).downloadEpisodeSubtitle(seriesId: widget.seriesId, episodeId: widget.episode, language: sub.code2 ?? sub.code3 ?? '', forced: sub.forced ? 'True' : 'False', hi: sub.hi ? 'True' : 'False');
+      await ref.read(bazarrServiceProvider).downloadEpisodeSubtitle(seriesId: widget.seriesId, episodeId: widget.episode, language: sub.code2, forced: sub.forced ? 'True' : 'False', hi: sub.hi ? 'True' : 'False');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded'), duration: Duration(seconds: 2)));
     } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
   }
 
   void _delete(BazarrSubtitle sub) async {
     try {
-      await ref.read(bazarrServiceProvider).deleteEpisodeSubtitle(seriesId: widget.seriesId, episodeId: widget.episode, language: sub.code2 ?? sub.code3 ?? '', path: sub.path ?? '');
+      await ref.read(bazarrServiceProvider).deleteEpisodeSubtitle(seriesId: widget.seriesId, episodeId: widget.episode, language: sub.code2, path: sub.path ?? '');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle deleted'), duration: Duration(seconds: 2)));
     } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
   }
@@ -90,9 +90,9 @@ class _EpisodeSheetState extends ConsumerState<EpisodeSheet> {
 
   void _downloadResult(BazarrSubtitle r) async {
     try {
-      await ref.read(bazarrServiceProvider).downloadEpisodeSubtitle(seriesId: widget.seriesId, episodeId: widget.episode, language: r.code2 ?? r.code3 ?? '', forced: r.forced ? 'True' : 'False', hi: r.hi ? 'True' : 'False');
+      await ref.read(bazarrServiceProvider).downloadEpisodeSubtitle(seriesId: widget.seriesId, episodeId: widget.episode, language: r.code2, forced: r.forced ? 'True' : 'False', hi: r.hi ? 'True' : 'False');
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded')));
-      setState(() => _searchResults.removeWhere((x) => (x.code2 ?? x.code3) == (r.code2 ?? r.code3)));
+      setState(() => _searchResults.removeWhere((x) => x.code2 == r.code2));
     } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
   }
 }

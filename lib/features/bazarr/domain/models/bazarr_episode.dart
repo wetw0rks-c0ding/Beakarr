@@ -1,3 +1,5 @@
+import 'bazarr_subtitle.dart';
+
 class BazarrEpisode {
   final int sonarrEpisodeId;
   final int sonarrSeriesId;

@@ -10,6 +10,7 @@ class BazarrMovie {
   final List<String> tags;
   final Map<String, dynamic>? missingSubtitles;
   final int profileId;
+  int get id => radarrId;
   BazarrMovie({
     required this.radarrId,
     required this.title,
