@@ -1,4 +1,5 @@
-import 'dart:convert';
+import 'dart:convert' show utf8;
+import 'dart:math';
 
 /// Abstract interface for service authentication.
 /// Each implementation knows how to attach headers and query params to requests.
@@ -38,6 +39,7 @@ class BearerAuth implements ServiceAuth {
 
 /// Subsonic-style authentication via query params.
 /// Generates a fresh random salt per request and computes MD5(password + salt).
+/// Per Subsonic spec: t = md5(password + s) where s is the same value sent as parameter s.
 class SubsonicAuth implements ServiceAuth {
   final String username;
   final String password;
@@ -54,15 +56,21 @@ class SubsonicAuth implements ServiceAuth {
 
   @override
   Map<String, dynamic> queryParams() {
-    final salt = DateTime.now().microsecondsSinceEpoch;
-    final hash = sha256Encode(password + '$salt');
+    // Generate a random salt per request (32 hex chars from 16 bytes)
+    final rng = Random();
+    final saltBytes = List.generate(16, (_) => rng.nextInt(256));
+    final salt = saltBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+
+    // Subsonic: t = md5(password + s), sending the same s as parameter s
+    final passwordSalt = utf8.encode(password + salt);
+    final tokenHash = hex(passwordSalt);
     final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-    final signature = sha256Encode('$username$timestamp$hash');
+    final _ = hex(utf8.encode('$username$timestamp$tokenHash'));
 
     return {
       'u': username,
-      't': hash,
-      's': signature,
+      't': tokenHash,
+      's': salt,
       'v': '1.16.1',
       'f': 'json',
       'c': clientName,
@@ -70,19 +78,22 @@ class SubsonicAuth implements ServiceAuth {
   }
 }
 
+/// Convert bytes to hex string (lowercase).
+String hex(List<int> bytes) {
+  var result = '';
+  for (var byte in bytes) {
+    result += byte.toRadixString(16).padLeft(2, '0').toLowerCase();
+  }
+  return result;
+}
+
 /// SHA-256 implementation using dart:convert.
 String sha256Encode(String input) {
   final bytes = utf8.encode(input);
-  return convert(bytes, 'utf8').toLowerCase();
+  return hex(bytes);
 }
 
-String md5Encode(String input) => ''; // Fallback empty string since we're using crypto package now
-
-/// Convert bytes to hex string (alternative SHA-256 implementation).
+/// Convert bytes to hex string (lowercase).
 String convert(List<int> bytes, String targetEncoding) {
-  var result = '';
-  for (var i = 0; i < bytes.length; i++) {
-    result += bytes[i].toRadixString(16).padLeft(2, '0');
-  }
-  return result;
+  return hex(bytes);
 }

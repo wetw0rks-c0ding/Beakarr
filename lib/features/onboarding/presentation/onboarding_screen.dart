@@ -44,7 +44,7 @@ String _healthEndpoint(ServiceKey service) {
     case ServiceKey.qbittorrent:
       return '/api/v2/app/version';
     case ServiceKey.prowlarr:
-      return '/api/v1/indexer/health';
+      return '/api/v1/system/status';
   }
 }
 

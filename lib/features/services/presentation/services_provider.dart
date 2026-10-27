@@ -150,7 +150,25 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
     case ServiceKey.qbittorrent:
       return (await ref.watch(qbittorrentServiceProvider).getTorrents()).length;
     case ServiceKey.prowlarr:
-      return 0; // No count endpoint - report as unknown
+      // Fetch indexers and count them
+      final createClient = ref.watch(serviceStatusClientFactoryProvider);
+      final settings = ref.read(currentSettingsProvider);
+      final client = createClient(
+        baseUrl: settings.urlFor(service),
+        auth: ApiKeyHeaderAuth(settings.apiKeyFor(service)),
+      );
+      try {
+        final response = await client
+            .get('/api/v1/indexer')
+            .timeout(const Duration(seconds: 5));
+        final data = response.data;
+        if (data is List) {
+          return data.length;
+        }
+        return 0;
+      } catch (_) {
+        return 0;
+      }
   }
 }
 
