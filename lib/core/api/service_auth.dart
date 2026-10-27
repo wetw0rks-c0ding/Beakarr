@@ -64,9 +64,7 @@ class SubsonicAuth implements ServiceAuth {
 
     // Subsonic: t = md5(password + s), sending the same s as parameter s
     final passwordSalt = utf8.encode(password + salt);
-    final tokenHash = (md5.convert(passwordSalt) as String).toLowerCase();
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-    final _ = (md5.convert(utf8.encode('$username$timestamp$tokenHash')) as String).toLowerCase();
+    final tokenHash = md5.convert(passwordSalt).toString();
 
     return {
       'u': username,
