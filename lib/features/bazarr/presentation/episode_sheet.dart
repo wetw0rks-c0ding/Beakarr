@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/core/app_spacing.dart';
-import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/features/bazarr/domain/models/bazarr_subtitle.dart';
 import 'package:seekarr/features/bazarr/data/bazarr_service.dart';
 import 'package:seekarr/features/bazarr/presentation/bazarr_providers.dart';

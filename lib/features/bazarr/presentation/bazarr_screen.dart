@@ -5,7 +5,6 @@ import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/bazarr/domain/models/bazarr_series.dart';
 import 'package:seekarr/features/bazarr/domain/models/bazarr_movie.dart';
 import 'package:seekarr/features/bazarr/domain/models/bazarr_wanted_entry.dart';
-import 'package:seekarr/features/bazarr/domain/models/bazarr_provider.dart';
 import 'package:seekarr/features/bazarr/presentation/bazarr_providers.dart';
 import 'package:seekarr/features/bazarr/presentation/episode_sheet.dart';
 import 'package:seekarr/features/bazarr/presentation/movie_sheet.dart';
@@ -90,7 +89,7 @@ class _SeriesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = items.where((s) => s.title.toLowerCase().contains(query) || (s.year > 0 ? '${s.year}' : '').contains(query)).toList();
+    final filtered = items.where((s) => s.title.toLowerCase().contains(query) || '${s.year}'.contains(query)).toList();
     if (filtered.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No series found')));
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -144,7 +143,7 @@ class _MoviesList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final filtered = items.where((m) => m.title.toLowerCase().contains(query) || (m.year > 0 ? '${m.year}' : '').contains(query)).toList();
+    final filtered = items.where((m) => m.title.toLowerCase().contains(query) || '${m.year}'.contains(query)).toList();
     if (filtered.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No movies found')));
     return ListView.separated(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
@@ -202,7 +201,7 @@ class _WantedList extends StatelessWidget {
     if (items.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No wanted items')));
     return ListView.separated(padding: const EdgeInsets.symmetric(vertical: AppSpacing.md), itemCount: items.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, i) {
       final w = items[i];
-      return ListTile(title: Text(w.title ?? 'Unknown'), subtitle: Text('${w.type} • $label'), trailing: const Icon(Icons.download_rounded));
+      return ListTile(title: Text(w.title), subtitle: Text('${w.type} • $label'), trailing: const Icon(Icons.download_rounded));
     });
   }
 }
