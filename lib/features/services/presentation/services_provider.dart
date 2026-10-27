@@ -210,28 +210,20 @@ final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer
 /// Current search query for the Prowlarr search screen.
 final prowlarrSearchQueryProvider = StateProvider<String>((ref) => '');
 
-/// Holds the cancel token for the in-flight Prowlarr search.
-final prowlarrSearchCancelTokenProvider = StateProvider<CancelToken?>((ref) => null);
-
 /// Search results driven by [prowlarrSearchQueryProvider].
 final prowlarrSearchResultsProvider = FutureProvider<List<ProwlarrSearchResult>>((
   ref,
 ) async {
   final query = ref.watch(prowlarrSearchQueryProvider).trim();
   if (query.isEmpty) {
-    final previous = ref.read(prowlarrSearchCancelTokenProvider);
-    previous?.cancel('cleared');
-    ref.read(prowlarrSearchCancelTokenProvider.notifier).state = null;
     return const [];
   }
 
-  CancelToken? token;
+  final token = CancelToken();
+  ref.onDispose(token.cancel);
+
   try {
     final service = ref.read(prowlarrServiceProvider);
-    final previous = ref.read(prowlarrSearchCancelTokenProvider);
-    previous?.cancel('new search');
-    token = CancelToken();
-    ref.read(prowlarrSearchCancelTokenProvider.notifier).state = token;
     return await service.search(query, cancelToken: token);
   } on DioException catch (e) {
     if (e.type == DioExceptionType.cancel) {

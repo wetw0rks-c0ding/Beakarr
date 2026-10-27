@@ -29,7 +29,7 @@ class SearchBarHeader extends StatefulWidget {
     required this.onQueryChanged,
     this.hintText = 'Search...',
     this.initialQuery,
-    this.debounceDuration = const Duration(milliseconds: 400),
+    this.debounceDuration = const Duration(milliseconds: 100),
     this.autofocus = false,
   });
 
