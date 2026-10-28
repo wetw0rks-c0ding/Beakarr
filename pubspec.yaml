@@ -54,6 +54,7 @@ dependencies:
   in_app_purchase: ^3.2.3
   file_picker: ^8.1.4
   crypto: ^3.0.6
+  webview_flutter: ^4.10.0
 
 dependency_overrides:
   # path_provider_foundation 2.6.0 pulls in objective_c native assets,

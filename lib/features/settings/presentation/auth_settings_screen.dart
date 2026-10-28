@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:seekarr/features/auth/data/pkce.dart';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 import 'package:seekarr/features/auth/data/oidc_link_handler.dart';
 import 'package:seekarr/features/auth/data/oidc_loopback_listener.dart';
+import 'package:seekarr/features/auth/presentation/oidc_webview_screen.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
 
@@ -98,52 +98,32 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                       if (authUrl == null) {
                         throw Exception('No authorization endpoint in discovery');
                       }
+                      // Build authorize URL with redirect_uri matching Authentik's registered
+                      // loopback URI (unchanged from original config). The WebView will intercept
+                      // both http://127.0.0.1:8765/callback and seekarr://oauth/callback redirects,
+                      // extracting ?code= or ?error= before the navigation completes.
                       final url = Uri.parse(authUrl).replace(queryParameters: <String, String>{
                         'client_id': settings.oidcClientId,
                         'response_type': 'code',
                         'scope': 'openid profile email offline_access',
-                        // Loopback return: works in any browser (RFC 8252).
-                        // The custom-scheme app_links listener stays as fallback.
-                        'redirect_uri': OidcLoopbackListener.redirectUri,
+                        'redirect_uri': OidcLoopbackListener.redirectUri, // registered Authentik value
                         'code_challenge': pkce.codeChallenge,
                         'code_challenge_method': 'S256',
                       });
-                      // Bind loopback BEFORE launching the browser so the
-                      // redirect has somewhere to land.
-                      final codeFuture = OidcLoopbackListener.awaitCode();
-                      // Swallow late errors here; the await below surfaces
-                      // them to the catch block for the snackbar.
-                      codeFuture.then((_) {}, onError: (_) {});
-                      final launched = await launchUrl(
-                        url,
-                        mode: LaunchMode.externalApplication,
+
+                      // Push the WebView screen for in-app login.
+                      await Navigator.of(context).push<String>(
+                        MaterialPageRoute(
+                          builder: (context) => OidcWebViewScreen(authorizeUrl: url),
+                        ),
                       );
-                      if (!launched) {
-                        throw Exception(
-                          'No browser found to open the login page',
-                        );
-                      }
-                      final code = await codeFuture;
-                      final ok = await sess.exchangeToken(
-                        issuerUrl: settings.oidcIssuer,
-                        clientId: settings.oidcClientId,
-                        authorizationCode: code,
-                        pkceVerifier: v,
-                        redirectUri: OidcLoopbackListener.redirectUri,
-                      );
+
+                    } catch (e) {
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(
-                              ok ? 'Login successful' : 'Login failed: token rejected',
-                            ),
-                          ),
+                          SnackBar(content: Text('Login failed: ${e.toString()}')),
                         );
                       }
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Login failed: ${e.toString()}')),
-                      );
                     }
                   },
                   child: const Text('Login'),
