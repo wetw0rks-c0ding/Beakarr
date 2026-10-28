@@ -7,10 +7,14 @@ import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/core/utils/url_utils.dart';
 import 'package:seekarr/core/widgets/section_header.dart';
+import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
+import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
+import 'package:seekarr/features/soulsync/domain/models/soulsync_profile.dart';
 
 class ServiceSettingsScreen extends ConsumerStatefulWidget {
   final ServiceKey service;
@@ -33,7 +37,12 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
 
   bool get isQbittorrent => widget.service == ServiceKey.qbittorrent;
   bool get isNavidrome => widget.service == ServiceKey.navidrome;
+  bool get isSoulSync => widget.service == ServiceKey.soulsync;
   bool get isCredentialService => isQbittorrent || isNavidrome;
+
+  String? _selectedProfileId;
+  List<SoulSyncProfile> _profiles = const [];
+  bool _loadingProfiles = false;
 
   @override
   void initState() {
@@ -51,6 +60,11 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
     _passwordController = TextEditingController(
       text: isCredentialService ? settings.passwordFor(widget.service) : '',
     );
+    if (isSoulSync) {
+      _selectedProfileId = settings.soulsyncProfileId.isEmpty
+          ? null
+          : settings.soulsyncProfileId;
+    }
   }
 
   @override
@@ -91,6 +105,13 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
         password: _passwordController.text.trim(),
       );
     }
+    if (isSoulSync) {
+      return current.copyWithSoulSync(
+        url: _urlController.text.trim(),
+        apiKey: _apiKeyController.text.trim(),
+        profileId: _selectedProfileId ?? '',
+      );
+    }
     return current.copyWithService(
       widget.service,
       url: _urlController.text.trim(),
@@ -119,6 +140,10 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
               const SizedBox(height: AppSpacing.lg),
               _buildPasswordField(),
             ],
+            if (isSoulSync) ...[
+              const SizedBox(height: AppSpacing.lg),
+              _buildProfilePicker(),
+            ],
             const SizedBox(height: AppSpacing.lg),
             _buildTestConnectionButton(),
             const SizedBox(height: AppSpacing.sm),
@@ -135,6 +160,61 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildProfilePicker() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        OutlinedButton.icon(
+          onPressed: _loadingProfiles
+              ? null
+              : () async {
+                  setState(() => _loadingProfiles = true);
+                  try {
+                    final url = _urlController.text.trim();
+                    final key = _apiKeyController.text.trim();
+                    final client = ApiClient(
+                      baseUrl: url,
+                      auth: SoulSyncAuth(key),
+                    );
+                    final service = SoulSyncService(client);
+                    final profiles = await service.getProfiles();
+                    if (!mounted) return;
+                    setState(() {
+                      _profiles = profiles;
+                      if (_selectedProfileId == null && profiles.isNotEmpty) {
+                        _selectedProfileId = profiles.first.id;
+                      }
+                    });
+                  } catch (_) {
+                    if (!mounted) return;
+                    setState(() => _profiles = const []);
+                  } finally {
+                    if (mounted) setState(() => _loadingProfiles = false);
+                  }
+                },
+          icon: const Icon(Icons.refresh_rounded),
+          label: Text(_loadingProfiles ? 'Loading…' : 'Load profiles'),
+        ),
+        if (_profiles.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.sm),
+          DropdownButtonFormField<String>(
+            initialValue: _selectedProfileId,
+            decoration: const InputDecoration(labelText: 'Profile'),
+            items: _profiles
+                .map(
+                  (p) => DropdownMenuItem<String>(
+                    value: p.id,
+                    child: Text(p.name.isEmpty ? p.id : p.name),
+                  ),
+                )
+                .toList(),
+            onChanged: (value) => setState(() => _selectedProfileId = value),
+          ),
+        ],
+      ],
     );
   }
 

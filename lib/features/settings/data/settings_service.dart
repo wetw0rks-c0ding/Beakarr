@@ -59,6 +59,7 @@ class SettingsService {
   static const _kOnboardingComplete = 'onboarding_complete';
   static const _kOidcIssuer = 'oidc_issuer';
   static const _kOidcClientId = 'oidc_client_id';
+  static const _kSoulSyncProfileId = 'soulsync_profile_id';
 
   static const Map<ServiceKey, _ServiceStorageKeys> _serviceStorageKeys = {
     ServiceKey.seerr: _ServiceStorageKeys(
@@ -105,6 +106,11 @@ class SettingsService {
       legacyApiKey: '',
       secureApiKey: 'secure_navidrome_password',
       username: 'navidrome_username',
+    ),
+    ServiceKey.soulsync: _ServiceStorageKeys(
+      url: 'soulsync_url',
+      legacyApiKey: 'soulsync_api_key',
+      secureApiKey: 'secure_soulsync_api_key',
     ),
   };
 
@@ -195,6 +201,7 @@ class SettingsService {
     await _prefs.remove('hidden_tabs');
     await _prefs.remove(_kOidcIssuer);
     await _prefs.remove(_kOidcClientId);
+    await _prefs.remove(_kSoulSyncProfileId);
   }
 
   Future<SettingsModel> loadSettings() async {
@@ -226,6 +233,9 @@ class SettingsService {
       navidromeUrl: serviceSettings[ServiceKey.navidrome]!.$1,
       navidromeUsername: ndUsername,
       navidromePassword: ndPassword,
+      soulsyncUrl: serviceSettings[ServiceKey.soulsync]!.$1,
+      soulsyncApiKey: serviceSettings[ServiceKey.soulsync]!.$2,
+      soulsyncProfileId: _prefs.getString(_kSoulSyncProfileId) ?? '',
       region: _loadRegion(),
       themeMode: AppThemeMode.fromName(_prefs.getString(_kThemeMode)),
       oidcIssuer: _prefs.getString(_kOidcIssuer) ?? '',
@@ -241,6 +251,11 @@ class SettingsService {
     await _prefs.setString(_kThemeMode, settings.themeMode.name);
     await _prefs.setString(_kOidcIssuer, settings.oidcIssuer);
     await _prefs.setString(_kOidcClientId, settings.oidcClientId);
+    if (settings.soulsyncProfileId.isNotEmpty) {
+      await _prefs.setString(_kSoulSyncProfileId, settings.soulsyncProfileId);
+    } else {
+      await _prefs.remove(_kSoulSyncProfileId);
+    }
     await _prefs.remove('hidden_tabs');
 
     await _saveServiceApiKeys(settings);

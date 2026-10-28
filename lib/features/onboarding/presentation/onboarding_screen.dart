@@ -32,6 +32,7 @@ const _serviceColors = {
   ServiceKey.prowlarr: Color(0xFFD63636), // Prowlarr red
   ServiceKey.bazarr: Color(0xFF22D3EE), // Bazarr cyan
   ServiceKey.navidrome: Color(0xFF4ADE80), // Navidrome green
+  ServiceKey.soulsync: Color(0xFF8B5CF6), // SoulSync violet
 };
 
 // ─── Health-check helper (mirrors serviceConnectionProvider logic) ──────────
@@ -52,6 +53,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/system/status';
     case ServiceKey.navidrome:
       return '/rest/ping.view';
+    case ServiceKey.soulsync:
+      return '/api/v1/profiles';
   }
 }
 
@@ -100,6 +103,26 @@ Future<ServiceConnectionStatus> _verifyService(
       client.close();
     }
   }
+  if (service == ServiceKey.soulsync) {
+    if (url.trim().isEmpty || apiKey.trim().isEmpty) {
+      return ServiceConnectionStatus.notConfigured;
+    }
+    final client = ApiClient(
+      baseUrl: url.trim(),
+      auth: SoulSyncAuth(apiKey.trim()),
+    );
+    try {
+      final code = (await client.get('/api/v1/profiles').timeout(const Duration(seconds: 5))).statusCode ?? 0;
+      return (code >= 200 && code < 300)
+          ? ServiceConnectionStatus.connected
+          : ServiceConnectionStatus.disconnected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
   if (url.trim().isEmpty || apiKey.trim().isEmpty) {
     return ServiceConnectionStatus.notConfigured;
   }

@@ -14,6 +14,7 @@ import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/presentation/music_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
+import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
 import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_history_record.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
@@ -136,6 +137,24 @@ Future<String?> _loadVersion(
     }
   }
 
+  if (service == ServiceKey.soulsync) {
+    final client = ApiClient(
+      baseUrl: settings.soulsyncUrl,
+      auth: SoulSyncAuth(
+        settings.soulsyncApiKey,
+        profileId: settings.soulsyncProfileId,
+      ),
+    );
+    try {
+      await client.get('/api/v1/profiles').timeout(const Duration(seconds: 5));
+      return null;
+    } catch (_) {
+      rethrow;
+    } finally {
+      client.close();
+    }
+  }
+
   final createClient = ref.watch(serviceStatusClientFactoryProvider);
   final client = createClient(
     baseUrl: settings.urlFor(service),
@@ -173,6 +192,8 @@ String _statusEndpointFor(ServiceKey service) {
       return '/api/system/status';
     case ServiceKey.navidrome:
       return '/rest/ping.view';
+    case ServiceKey.soulsync:
+      return '/api/v1/profiles';
   }
 }
 
@@ -286,6 +307,12 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
         throw StateError('Navidrome artist count unavailable');
       }
       return count;
+    case ServiceKey.soulsync:
+      try {
+        return (await ref.watch(soulsyncServiceProvider).getWishlist()).length;
+      } catch (_) {
+        throw StateError('SoulSync wishlist count unavailable');
+      }
   }
 }
 
@@ -507,7 +534,8 @@ Future<List<ServiceQueueItem>> _loadServiceQueueItems(
       ServiceKey.lidarr ||
       ServiceKey.qbittorrent ||
       ServiceKey.bazarr ||
-      ServiceKey.navidrome => const <dynamic>[],
+      ServiceKey.navidrome ||
+      ServiceKey.soulsync => const <dynamic>[],
     };
     return items
         .whereType<Map>()
@@ -549,6 +577,7 @@ String _queueTypeLabel(ServiceKey service) {
     ServiceKey.prowlarr => 'Indexer',
     ServiceKey.bazarr => 'Subtitle',
     ServiceKey.navidrome => 'Artist',
+    ServiceKey.soulsync => 'Wishlist',
     ServiceKey.seerr || ServiceKey.qbittorrent => service.title,
   };
 }

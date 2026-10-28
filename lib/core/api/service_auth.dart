@@ -38,6 +38,24 @@ class BearerAuth implements ServiceAuth {
   Map<String, dynamic> queryParams() => {};
 }
 
+/// SoulSync authentication: Bearer token plus optional profile scoping header.
+class SoulSyncAuth implements ServiceAuth {
+  final String token;
+  final String? profileId;
+
+  const SoulSyncAuth(this.token, {this.profileId});
+
+  @override
+  Map<String, String> headers() => {
+        'Authorization': 'Bearer $token',
+        if (profileId != null && profileId!.trim().isNotEmpty)
+          'X-Profile-Id': profileId!.trim(),
+      };
+
+  @override
+  Map<String, dynamic> queryParams() => {};
+}
+
 /// Subsonic-style authentication via query params.
 /// Generates a fresh random salt per request and computes MD5(password + salt).
 /// Per Subsonic spec: t = md5(password + s) where s is the same value sent as parameter s.

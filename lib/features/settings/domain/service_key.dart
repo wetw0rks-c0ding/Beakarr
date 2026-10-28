@@ -11,6 +11,7 @@ enum ServiceKey {
   prowlarr,
   bazarr,
   navidrome,
+  soulsync,
 }
 
 extension ServiceKeyExtension on ServiceKey {
@@ -32,6 +33,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'Bazarr';
       case ServiceKey.navidrome:
         return 'Navidrome';
+      case ServiceKey.soulsync:
+        return 'SoulSync';
     }
   }
 
@@ -53,6 +56,8 @@ extension ServiceKeyExtension on ServiceKey {
         return Icons.closed_caption_rounded;
       case ServiceKey.navidrome:
         return Icons.library_music_rounded;
+      case ServiceKey.soulsync:
+        return Icons.sync_rounded;
     }
   }
 
@@ -74,6 +79,8 @@ extension ServiceKeyExtension on ServiceKey {
         return AppColors.bazarr;
       case ServiceKey.navidrome:
         return AppColors.navidrome;
+      case ServiceKey.soulsync:
+        return AppColors.soulsync;
     }
   }
 
@@ -96,6 +103,7 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.seerr:
       case ServiceKey.lidarr:
       case ServiceKey.prowlarr:
+      case ServiceKey.soulsync:
         return 'v1';
       case ServiceKey.bazarr:
       case ServiceKey.navidrome:
@@ -126,6 +134,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'subtitles';
       case ServiceKey.navidrome:
         return 'artists';
+      case ServiceKey.soulsync:
+        return 'wishlist';
     }
   }
 
@@ -140,6 +150,7 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.prowlarr:
       case ServiceKey.bazarr:
       case ServiceKey.navidrome:
+      case ServiceKey.soulsync:
         return name;
     }
   }

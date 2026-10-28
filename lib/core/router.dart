@@ -41,6 +41,7 @@ import 'package:seekarr/features/qbittorrent/presentation/widgets/qbittorrent_ac
 import 'package:seekarr/features/bazarr/presentation/bazarr_screen.dart' as bz;
 import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
 import 'package:seekarr/features/navidrome/presentation/navidrome_screen.dart' as nd;
+import 'package:seekarr/features/soulsync/presentation/soulsync_screen.dart' as ss;
 import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart' as nda;
 import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
 
@@ -404,6 +405,19 @@ GoRoute _bazarrRoutes({required String path}) {
   );
 }
 
+GoRoute _soulsyncRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.soulsync,
+        child: const ss.SoulSyncScreen(),
+      ),
+    ),
+  );
+}
+
 GoRoute _prowlarrRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -508,6 +522,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               _bazarrRoutes(path: 'bazarr'),
               _prowlarrRoutes(path: 'prowlarr'),
               _navidromeRoutes(path: 'navidrome'),
+              _soulsyncRoutes(path: 'soulsync'),
             ],
           ),
           GoRoute(

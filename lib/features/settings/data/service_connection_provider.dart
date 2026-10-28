@@ -36,6 +36,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/system/status';
     case ServiceKey.navidrome:
       return '/rest/ping.view';
+    case ServiceKey.soulsync:
+      return '/api/v1/profiles';
   }
 }
 
@@ -91,6 +93,29 @@ Future<ServiceConnectionStatus> _checkService(
 
   final url = settings.urlFor(service);
   final apiKey = settings.apiKeyFor(service);
+
+  if (service == ServiceKey.soulsync) {
+    final ssClient = ApiClient(
+      baseUrl: settings.soulsyncUrl,
+      auth: SoulSyncAuth(
+        settings.soulsyncApiKey,
+        profileId: settings.soulsyncProfileId,
+      ),
+    );
+    try {
+      final response = await ssClient
+          .get('/api/v1/profiles')
+          .timeout(const Duration(seconds: 5));
+      final status = response.statusCode ?? 0;
+      return (status >= 200 && status < 300)
+          ? ServiceConnectionStatus.connected
+          : ServiceConnectionStatus.disconnected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      ssClient.close();
+    }
+  }
 
   final client = ApiClient(baseUrl: url, auth: ApiKeyHeaderAuth(apiKey));
   try {
@@ -188,6 +213,34 @@ Future<({bool ok, String detail})> testServiceConnection(
       return (ok: false, detail: _errorDetail(e, settings, service));
     } finally {
       client.close();
+    }
+  }
+
+  if (service == ServiceKey.soulsync) {
+    final ssClient = ApiClient(
+      baseUrl: settings.soulsyncUrl,
+      auth: SoulSyncAuth(
+        settings.soulsyncApiKey,
+        profileId: settings.soulsyncProfileId,
+      ),
+    );
+    try {
+      final response = await ssClient
+          .get('/api/v1/profiles')
+          .timeout(const Duration(seconds: 5));
+      final status = response.statusCode ?? 0;
+      if (status >= 200 && status < 300) {
+        return (ok: true, detail: '');
+      }
+      return (ok: false, detail: 'HTTP $status');
+    } catch (e) {
+      final code = _httpStatusCode(e);
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      ssClient.close();
     }
   }
 

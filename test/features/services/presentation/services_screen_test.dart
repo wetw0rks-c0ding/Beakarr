@@ -346,5 +346,14 @@ Future<ServiceSummary> _summaryBuilder(Ref ref, ServiceKey service) async {
         itemCount: null,
         itemLabel: 'artists',
       );
+    case ServiceKey.soulsync:
+      return const ServiceSummary(
+        service: ServiceKey.soulsync,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'wishlist',
+      );
   }
 }

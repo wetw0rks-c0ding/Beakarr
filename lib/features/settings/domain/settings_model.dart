@@ -46,6 +46,9 @@ class SettingsModel {
   final String navidromeUrl;
   final String navidromeUsername;
   final String navidromePassword;
+  final String soulsyncUrl;
+  final String soulsyncApiKey;
+  final String soulsyncProfileId;
   final String region;
   final AppThemeMode themeMode;
   final String oidcIssuer; // empty = disabled; plain URL-like field (NOT secret)
@@ -105,6 +108,14 @@ class SettingsModel {
             navidromePassword: apiKey,
           ),
         ),
+        ServiceKey.soulsync: _ServiceSettingsAccess(
+          url: (settings) => settings.soulsyncUrl,
+          apiKey: (settings) => settings.soulsyncApiKey,
+          update: (settings, {url, apiKey}) => settings.copyWith(
+            soulsyncUrl: url,
+            soulsyncApiKey: apiKey,
+          ),
+        ),
       };
 
   static String normalizeRegion(String? region) {
@@ -131,6 +142,9 @@ class SettingsModel {
     this.navidromeUrl = '',
     this.navidromeUsername = '',
     this.navidromePassword = '',
+    this.soulsyncUrl = '',
+    this.soulsyncApiKey = '',
+    this.soulsyncProfileId = '',
     this.region = 'US',
     this.themeMode = AppThemeMode.system,
     this.oidcIssuer = '',
@@ -156,6 +170,9 @@ class SettingsModel {
     String? navidromeUrl,
     String? navidromeUsername,
     String? navidromePassword,
+    String? soulsyncUrl,
+    String? soulsyncApiKey,
+    String? soulsyncProfileId,
     String? region,
     AppThemeMode? themeMode,
     String? oidcIssuer,
@@ -180,6 +197,9 @@ class SettingsModel {
       navidromeUrl: navidromeUrl ?? this.navidromeUrl,
       navidromeUsername: navidromeUsername ?? this.navidromeUsername,
       navidromePassword: navidromePassword ?? this.navidromePassword,
+      soulsyncUrl: soulsyncUrl ?? this.soulsyncUrl,
+      soulsyncApiKey: soulsyncApiKey ?? this.soulsyncApiKey,
+      soulsyncProfileId: soulsyncProfileId ?? this.soulsyncProfileId,
       region: region ?? this.region,
       themeMode: themeMode ?? this.themeMode,
       oidcIssuer: oidcIssuer ?? this.oidcIssuer,
@@ -243,6 +263,18 @@ class SettingsModel {
       navidromeUrl: url,
       navidromeUsername: username,
       navidromePassword: password,
+    );
+  }
+
+  SettingsModel copyWithSoulSync({
+    String? url,
+    String? apiKey,
+    String? profileId,
+  }) {
+    return copyWith(
+      soulsyncUrl: url,
+      soulsyncApiKey: apiKey,
+      soulsyncProfileId: profileId,
     );
   }
 
