@@ -7,9 +7,10 @@ import 'service_auth.dart';
 class ApiClient {
   final Dio _dio;
   final ServiceAuth auth;
+  final String baseUrl;
 
   ApiClient({
-    required String baseUrl,
+    required this.baseUrl,
     required this.auth,
     String? serviceKey,
     OidcSessionService? session,

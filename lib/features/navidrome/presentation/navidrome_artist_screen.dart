@@ -5,6 +5,7 @@ import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/widgets/not_configured_placeholder.dart';
 import 'package:seekarr/features/navidrome/domain/models/navidrome_album.dart';
 import 'package:seekarr/features/navidrome/presentation/navidrome_providers.dart';
+import 'package:seekarr/features/navidrome/presentation/widgets/navidrome_cover.dart';
 
 class NavidromeArtistScreen extends ConsumerWidget {
   final String artistId;
@@ -90,6 +91,7 @@ class _AlbumTile extends ConsumerWidget {
     return ExpansionTile(
       key: PageStorageKey<String>(album.id),
       maintainState: true,
+      leading: NavidromeCover(coverArtId: album.coverArt),
       title: Text(album.name),
       subtitle: Text(
         [

@@ -54,6 +54,25 @@ class NavidromeService {
 
   NavidromeService(this.client);
 
+  /// Direct URL for Subsonic `getCoverArt` (binary image, auth in query).
+  ///
+  /// Used with [Image.network] — no headers needed. Generates a fresh
+  /// salt/token per URL like every other request.
+  String coverArtUrl(String coverArtId) {
+    final base = client.baseUrl.endsWith('/')
+        ? client.baseUrl.substring(0, client.baseUrl.length - 1)
+        : client.baseUrl;
+    final params = <String, String>{
+      for (final entry in client.auth.queryParams().entries)
+        entry.key: '${entry.value}',
+      'id': coverArtId,
+      'size': '300',
+    };
+    return Uri.parse(
+      '$base/rest/getCoverArt.view',
+    ).replace(queryParameters: params).toString();
+  }
+
   Future<List<NavidromeArtist>> getArtists() async {
     try {
       final response = await client.get('/rest/getArtists.view');

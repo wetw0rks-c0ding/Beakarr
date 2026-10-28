@@ -1,6 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
@@ -151,6 +153,21 @@ void main() {
         },
       };
       expect(() => service.getAlbumTracks('10'), throwsA(isA<StateError>()));
+    });
+
+    test('coverArtUrl builds an authenticated getCoverArt URL', () {
+      final svc = NavidromeService(
+        ApiClient(
+          baseUrl: 'https://navidrome.example.com/',
+          auth: const SubsonicAuth('user', 'pass'),
+        ),
+      );
+      final uri = Uri.parse(svc.coverArtUrl('abc123'));
+      expect(uri.path, '/rest/getCoverArt.view');
+      expect(uri.queryParameters['id'], 'abc123');
+      expect(uri.queryParameters['u'], 'user');
+      expect(uri.queryParameters['t'], isNotEmpty);
+      expect(uri.queryParameters['s'], isNotEmpty);
     });
   });
 }

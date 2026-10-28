@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/navidrome/presentation/navidrome_providers.dart';
+import 'package:seekarr/features/navidrome/presentation/widgets/navidrome_cover.dart';
 
 class NavidromeScreen extends ConsumerStatefulWidget {
   const NavidromeScreen({super.key});
@@ -92,6 +93,7 @@ class _ArtistsTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final a = filtered[index];
             return ListTile(
+              leading: NavidromeCover(coverArtId: a.coverArt),
               title: Text(a.name),
               subtitle: Text(
                 '${a.albumCount} album${a.albumCount == 1 ? '' : 's'}',
@@ -136,6 +138,7 @@ class _AlbumsTab extends ConsumerWidget {
           itemBuilder: (context, index) {
             final a = filtered[index];
             return ListTile(
+              leading: NavidromeCover(coverArtId: a.coverArt),
               title: Text(a.name),
               subtitle: Text(a.artist ?? ''),
             );
