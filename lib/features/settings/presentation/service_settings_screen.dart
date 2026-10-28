@@ -183,8 +183,9 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
                     return;
                   }
                   setState(() => _loadingProfiles = true);
+                  ApiClient? client;
                   try {
-                    final client = ApiClient(
+                    client = ApiClient(
                       baseUrl: url,
                       auth: SoulSyncAuth(key),
                     );
@@ -195,8 +196,10 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
                     if (!mounted) return;
                     setState(() {
                       _profiles = profiles;
-                      if (_selectedProfileId == null && profiles.isNotEmpty) {
-                        _selectedProfileId = profiles.first.id;
+                      final ids = profiles.map((p) => p.id).toSet();
+                      if (!ids.contains(_selectedProfileId)) {
+                        _selectedProfileId =
+                            profiles.isNotEmpty ? profiles.first.id : null;
                       }
                     });
                   } catch (e) {
@@ -206,6 +209,7 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
                       SnackBar(content: Text('Could not load profiles: $e')),
                     );
                   } finally {
+                    client?.close();
                     if (mounted) setState(() => _loadingProfiles = false);
                   }
                 },
@@ -215,6 +219,7 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
         if (_profiles.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
+            key: ValueKey(_selectedProfileId),
             initialValue: _selectedProfileId,
             decoration: const InputDecoration(labelText: 'Profile'),
             items: _profiles
