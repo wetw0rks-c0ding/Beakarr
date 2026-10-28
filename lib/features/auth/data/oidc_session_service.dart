@@ -45,7 +45,8 @@ class OidcSessionService {
 
   /// Discovery from `.well-known/openid-configuration`; pure http.
   Future<Map<String, dynamic>> discover(String issuerUrl) async {
-    final url = '$issuerUrl/.well-known/openid-configuration';
+    final base = issuerUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    final url = '$base/.well-known/openid-configuration';
     final res = await http.get(Uri.parse(url));
     if (res.statusCode != 200) throw Exception('OIDC discovery failed: ${res.statusCode}');
     return jsonDecode(res.body) as Map<String, dynamic>;
