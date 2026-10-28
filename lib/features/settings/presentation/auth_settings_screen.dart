@@ -132,6 +132,11 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                         redirectUri: OidcLoopbackListener.redirectUri,
                       );
                       if (context.mounted) {
+                        setState(() {
+                          _sessionStatus = ok
+                              ? SessionStatus.active
+                              : SessionStatus.error;
+                        });
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
