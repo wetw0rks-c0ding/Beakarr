@@ -337,5 +337,14 @@ Future<ServiceSummary> _summaryBuilder(Ref ref, ServiceKey service) async {
         itemCount: null,
         itemLabel: 'subtitles',
       );
+    case ServiceKey.navidrome:
+      return const ServiceSummary(
+        service: ServiceKey.navidrome,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'artists',
+      );
   }
 }

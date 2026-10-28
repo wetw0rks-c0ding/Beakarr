@@ -100,6 +100,12 @@ class SettingsService {
       legacyApiKey: 'bazarr_api_key',
       secureApiKey: 'secure_bazarr_api_key',
     ),
+    ServiceKey.navidrome: _ServiceStorageKeys(
+      url: 'navidrome_url',
+      legacyApiKey: '',
+      secureApiKey: 'secure_navidrome_password',
+      username: 'navidrome_username',
+    ),
   };
 
   final SharedPreferences _prefs;
@@ -197,6 +203,10 @@ class SettingsService {
     final qbUsername = _prefs.getString(qbKeys.username!) ?? '';
     final qbPassword = await _loadApiKey(qbKeys.secureApiKey);
 
+    final ndKeys = _serviceStorageKeys[ServiceKey.navidrome]!;
+    final ndUsername = _prefs.getString(ndKeys.username!) ?? '';
+    final ndPassword = await _loadApiKey(ndKeys.secureApiKey);
+
     return SettingsModel(
       seerrUrl: serviceSettings[ServiceKey.seerr]!.$1,
       seerrApiKey: serviceSettings[ServiceKey.seerr]!.$2,
@@ -213,6 +223,9 @@ class SettingsService {
       prowlarrApiKey: serviceSettings[ServiceKey.prowlarr]!.$2,
       bazarrUrl: serviceSettings[ServiceKey.bazarr]!.$1,
       bazarrApiKey: serviceSettings[ServiceKey.bazarr]!.$2,
+      navidromeUrl: serviceSettings[ServiceKey.navidrome]!.$1,
+      navidromeUsername: ndUsername,
+      navidromePassword: ndPassword,
       region: _loadRegion(),
       themeMode: AppThemeMode.fromName(_prefs.getString(_kThemeMode)),
       oidcIssuer: _prefs.getString(_kOidcIssuer) ?? '',
@@ -238,6 +251,13 @@ class SettingsService {
     } else {
       await _prefs.remove(qbKeys.username!);
     }
+
+    final ndKeys = _serviceStorageKeys[ServiceKey.navidrome]!;
+    if (settings.navidromeUsername.isNotEmpty) {
+      await _prefs.setString(ndKeys.username!, settings.navidromeUsername);
+    } else {
+      await _prefs.remove(ndKeys.username!);
+    }
   }
 
   Future<Map<ServiceKey, (String, String)>> _loadServiceSettings() async {
@@ -257,7 +277,7 @@ class SettingsService {
       // secure key is loaded separately in loadSettings() to avoid a
       // second secure store read here.
       var apiKey = '';
-      if (service != ServiceKey.qbittorrent) {
+      if (service != ServiceKey.qbittorrent && service != ServiceKey.navidrome) {
         apiKey = await _loadApiKey(storageKeys.secureApiKey);
         if (apiKey.isEmpty && storageKeys.legacySecureApiKey != null) {
           apiKey = await _loadApiKey(storageKeys.legacySecureApiKey!);

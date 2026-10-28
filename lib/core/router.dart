@@ -40,6 +40,7 @@ import 'package:seekarr/features/qbittorrent/presentation/torrent_detail_screen.
 import 'package:seekarr/features/qbittorrent/presentation/widgets/qbittorrent_actions_bar.dart';
 import 'package:seekarr/features/bazarr/presentation/bazarr_screen.dart' as bz;
 import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
+import 'package:seekarr/features/navidrome/presentation/navidrome_screen.dart' as nd;
 import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -345,6 +346,19 @@ GoRoute _qbittorrentRoutes({required String path}) {
   );
 }
 
+GoRoute _navidromeRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.navidrome,
+        child: const nd.NavidromeScreen(),
+      ),
+    ),
+  );
+}
+
 GoRoute _bazarrRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -461,6 +475,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               _qbittorrentRoutes(path: 'qbittorrent'),
               _bazarrRoutes(path: 'bazarr'),
               _prowlarrRoutes(path: 'prowlarr'),
+              _navidromeRoutes(path: 'navidrome'),
             ],
           ),
           GoRoute(

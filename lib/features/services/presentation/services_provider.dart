@@ -108,6 +108,30 @@ Future<String?> _loadVersion(
     }
   }
 
+  if (service == ServiceKey.navidrome) {
+    final client = ApiClient(
+      baseUrl: settings.navidromeUrl,
+      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+    );
+    try {
+      final response = await client
+          .get('/rest/ping.view')
+          .timeout(const Duration(seconds: 5));
+      final data = response.data;
+      if (data is Map<String, dynamic>) {
+        final sub = data['subsonic-response'];
+        if (sub is Map<String, dynamic>) {
+          return (sub['serverVersion'] ?? sub['version'])?.toString();
+        }
+      }
+      return null;
+    } catch (_) {
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
   final createClient = ref.watch(serviceStatusClientFactoryProvider);
   final client = createClient(
     baseUrl: settings.urlFor(service),
@@ -143,6 +167,8 @@ String _statusEndpointFor(ServiceKey service) {
       return '/api/v1/system/status';
     case ServiceKey.bazarr:
       return '/api/system/status';
+    case ServiceKey.navidrome:
+      return '/rest/ping.view';
   }
 }
 
@@ -210,6 +236,42 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
         count = wantedCount(ep.data) + wantedCount(mv.data);
       } catch (_) {
         // Error propagated via null return
+      } finally {
+        client.close();
+      }
+      return count ?? 0;
+    case ServiceKey.navidrome:
+      final createClient = ref.watch(serviceStatusClientFactoryProvider);
+      final settings = ref.read(currentSettingsProvider);
+      final client = createClient(
+        baseUrl: settings.navidromeUrl,
+        auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+      );
+      int? count;
+      try {
+        final response = await client
+            .get('/rest/getArtists.view')
+            .timeout(const Duration(seconds: 5));
+        final data = response.data;
+        if (data is Map<String, dynamic>) {
+          final sub = data['subsonic-response'];
+          if (sub is Map<String, dynamic>) {
+            final artists = sub['artists'];
+            if (artists is Map<String, dynamic>) {
+              final index = artists['index'];
+              if (index is List) {
+                count = 0;
+                for (final i in index) {
+                  if (i is Map<String, dynamic>) {
+                    final a = i['artist'];
+                    if (a is List) count = (count ?? 0) + a.length;
+                  }
+                }
+              }
+            }
+          }
+        }
+      } catch (_) {
       } finally {
         client.close();
       }
@@ -434,7 +496,8 @@ Future<List<ServiceQueueItem>> _loadServiceQueueItems(
       ServiceKey.seerr ||
       ServiceKey.lidarr ||
       ServiceKey.qbittorrent ||
-      ServiceKey.bazarr => const <dynamic>[],
+      ServiceKey.bazarr ||
+      ServiceKey.navidrome => const <dynamic>[],
     };
     return items
         .whereType<Map>()
@@ -475,6 +538,7 @@ String _queueTypeLabel(ServiceKey service) {
     ServiceKey.lidarr => 'Music',
     ServiceKey.prowlarr => 'Indexer',
     ServiceKey.bazarr => 'Subtitle',
+    ServiceKey.navidrome => 'Artist',
     ServiceKey.seerr || ServiceKey.qbittorrent => service.title,
   };
 }

@@ -30,6 +30,7 @@ const _serviceColors = {
   ServiceKey.qbittorrent: Color(0xFF2F67BA), // blue
   ServiceKey.prowlarr: Color(0xFFD63636), // Prowlarr red
   ServiceKey.bazarr: Color(0xFF22D3EE), // Bazarr cyan
+  ServiceKey.navidrome: Color(0xFF4ADE80), // Navidrome green
 };
 
 // ─── Health-check helper (mirrors serviceConnectionProvider logic) ──────────
@@ -48,6 +49,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/v1/system/status';
     case ServiceKey.bazarr:
       return '/api/system/status';
+    case ServiceKey.navidrome:
+      return '/rest/ping.view';
   }
 }
 
@@ -61,6 +64,30 @@ Future<ServiceConnectionStatus> _verifyService(
   if (!service.usesApiKey) {
     final urlTrimmed = url.trim();
     if (urlTrimmed.isEmpty) return ServiceConnectionStatus.notConfigured;
+    if (service == ServiceKey.navidrome) {
+      if (username.trim().isEmpty || password.isEmpty) {
+        return ServiceConnectionStatus.notConfigured;
+      }
+      final client = ApiClient(
+        baseUrl: urlTrimmed,
+        auth: SubsonicAuth(username.trim(), password),
+      );
+      try {
+        final code =
+            (await client
+                    .get('/rest/ping.view')
+                    .timeout(const Duration(seconds: 5)))
+                .statusCode ??
+            0;
+        return (code >= 200 && code < 300)
+            ? ServiceConnectionStatus.connected
+            : ServiceConnectionStatus.disconnected;
+      } catch (_) {
+        return ServiceConnectionStatus.disconnected;
+      } finally {
+        client.close();
+      }
+    }
     final client = QbittorrentClient(
       url: urlTrimmed,
       username: username.trim().isEmpty ? null : username.trim(),
@@ -177,6 +204,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             username: _usernameCtrl[k]!.text.trim(),
             password: _passwordCtrl[k]!.text,
           );
+        } else if (k == ServiceKey.navidrome) {
+          updated = updated.copyWithNavidrome(
+            url: _urlCtrl[k]!.text.trim(),
+            username: _usernameCtrl[k]!.text.trim(),
+            password: _passwordCtrl[k]!.text,
+          );
         } else {
           updated = updated.copyWithService(
             k,
@@ -187,6 +220,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       } else {
         if (k == ServiceKey.qbittorrent) {
           updated = updated.copyWithQbittorrent(
+            url: '',
+            username: '',
+            password: '',
+          );
+        } else if (k == ServiceKey.navidrome) {
+          updated = updated.copyWithNavidrome(
             url: '',
             username: '',
             password: '',
@@ -869,7 +908,8 @@ class _ServiceConfig extends StatelessWidget {
                   controller: apiKeyCtrl,
                   isPassword: true,
                 ),
-              ] else if (serviceKey == ServiceKey.qbittorrent) ...[
+              ] else if (serviceKey == ServiceKey.qbittorrent ||
+                  serviceKey == ServiceKey.navidrome) ...[
                 const SizedBox(height: 10),
                 _ConfigField(
                   label: 'Username (optional)',

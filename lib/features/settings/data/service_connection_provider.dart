@@ -33,6 +33,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/v1/system/status';
     case ServiceKey.bazarr:
       return '/api/system/status';
+    case ServiceKey.navidrome:
+      return '/rest/ping.view';
   }
 }
 
@@ -60,6 +62,28 @@ Future<ServiceConnectionStatus> _checkService(
       await client.authenticate().timeout(const Duration(seconds: 5));
       await client.getVersion().timeout(const Duration(seconds: 5));
       return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.navidrome) {
+    final client = ApiClient(
+      baseUrl: settings.navidromeUrl,
+      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+    );
+    try {
+      final statusCode =
+          (await client
+                  .get('/rest/ping.view')
+                  .timeout(const Duration(seconds: 5)))
+              .statusCode ??
+          0;
+      return statusCode >= 200 && statusCode < 300
+          ? ServiceConnectionStatus.connected
+          : ServiceConnectionStatus.disconnected;
     } catch (_) {
       return ServiceConnectionStatus.disconnected;
     } finally {
@@ -137,6 +161,31 @@ Future<({bool ok, String detail})> testServiceConnection(
     }
   }
 
+  if (service == ServiceKey.navidrome) {
+    final client = ApiClient(
+      baseUrl: settings.navidromeUrl,
+      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+    );
+    try {
+      final response = await client
+          .get('/rest/ping.view')
+          .timeout(const Duration(seconds: 5));
+      final statusCode = response.statusCode ?? 0;
+      if (statusCode >= 200 && statusCode < 300) {
+        return (ok: true, detail: '');
+      }
+      return (ok: false, detail: 'HTTP $statusCode');
+    } catch (e) {
+      final code = _httpStatusCode(e);
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      client.close();
+    }
+  }
+
   final url = settings.urlFor(service);
   final apiKey = settings.apiKeyFor(service);
 
@@ -199,6 +248,12 @@ String _scrub(String text, SettingsModel settings, ServiceKey service) {
       settings.qbittorrentUrl,
       settings.qbittorrentUsername,
       settings.qbittorrentPassword,
+    ]);
+  } else if (service == ServiceKey.navidrome) {
+    secrets.addAll([
+      settings.navidromeUrl,
+      settings.navidromeUsername,
+      settings.navidromePassword,
     ]);
   } else {
     secrets.addAll([settings.urlFor(service), settings.apiKeyFor(service)]);

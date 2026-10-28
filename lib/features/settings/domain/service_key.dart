@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 
 import 'package:seekarr/core/theme.dart';
 
-enum ServiceKey { seerr, radarr, sonarr, lidarr, qbittorrent, prowlarr, bazarr }
+enum ServiceKey {
+  seerr,
+  radarr,
+  sonarr,
+  lidarr,
+  qbittorrent,
+  prowlarr,
+  bazarr,
+  navidrome,
+}
 
 extension ServiceKeyExtension on ServiceKey {
   String get title {
@@ -21,6 +30,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'Prowlarr';
       case ServiceKey.bazarr:
         return 'Bazarr';
+      case ServiceKey.navidrome:
+        return 'Navidrome';
     }
   }
 
@@ -40,6 +51,8 @@ extension ServiceKeyExtension on ServiceKey {
         return Icons.dns_rounded;
       case ServiceKey.bazarr:
         return Icons.closed_caption_rounded;
+      case ServiceKey.navidrome:
+        return Icons.library_music_rounded;
     }
   }
 
@@ -59,15 +72,17 @@ extension ServiceKeyExtension on ServiceKey {
         return AppColors.prowlarr;
       case ServiceKey.bazarr:
         return AppColors.bazarr;
+      case ServiceKey.navidrome:
+        return AppColors.navidrome;
     }
   }
 
   bool get usesApiKey {
-    return this != ServiceKey.qbittorrent || this == ServiceKey.prowlarr;
+    return this != ServiceKey.qbittorrent && this != ServiceKey.navidrome;
   }
 
   bool get isSearchable {
-    return this != ServiceKey.qbittorrent;
+    return this != ServiceKey.qbittorrent && this != ServiceKey.navidrome;
   }
 
   bool get supportsManualImport {
@@ -83,6 +98,7 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.prowlarr:
         return 'v1';
       case ServiceKey.bazarr:
+      case ServiceKey.navidrome:
         return '';
       case ServiceKey.radarr:
       case ServiceKey.sonarr:
@@ -108,6 +124,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'indexers';
       case ServiceKey.bazarr:
         return 'subtitles';
+      case ServiceKey.navidrome:
+        return 'artists';
     }
   }
 
@@ -121,6 +139,7 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.qbittorrent:
       case ServiceKey.prowlarr:
       case ServiceKey.bazarr:
+      case ServiceKey.navidrome:
         return name;
     }
   }

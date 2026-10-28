@@ -43,6 +43,9 @@ class SettingsModel {
   final String prowlarrApiKey;
   final String bazarrUrl;
   final String bazarrApiKey;
+  final String navidromeUrl;
+  final String navidromeUsername;
+  final String navidromePassword;
   final String region;
   final AppThemeMode themeMode;
   final String oidcIssuer; // empty = disabled; plain URL-like field (NOT secret)
@@ -94,6 +97,14 @@ class SettingsModel {
           update: (settings, {url, apiKey}) =>
               settings.copyWith(bazarrUrl: url, bazarrApiKey: apiKey),
         ),
+        ServiceKey.navidrome: _ServiceSettingsAccess(
+          url: (settings) => settings.navidromeUrl,
+          apiKey: (settings) => settings.navidromePassword,
+          update: (settings, {url, apiKey}) => settings.copyWith(
+            navidromeUrl: url,
+            navidromePassword: apiKey,
+          ),
+        ),
       };
 
   static String normalizeRegion(String? region) {
@@ -117,6 +128,9 @@ class SettingsModel {
     this.prowlarrApiKey = '',
     this.bazarrUrl = '',
     this.bazarrApiKey = '',
+    this.navidromeUrl = '',
+    this.navidromeUsername = '',
+    this.navidromePassword = '',
     this.region = 'US',
     this.themeMode = AppThemeMode.system,
     this.oidcIssuer = '',
@@ -139,6 +153,9 @@ class SettingsModel {
     String? prowlarrApiKey,
     String? bazarrUrl,
     String? bazarrApiKey,
+    String? navidromeUrl,
+    String? navidromeUsername,
+    String? navidromePassword,
     String? region,
     AppThemeMode? themeMode,
     String? oidcIssuer,
@@ -160,6 +177,9 @@ class SettingsModel {
       prowlarrApiKey: prowlarrApiKey ?? this.prowlarrApiKey,
       bazarrUrl: bazarrUrl ?? this.bazarrUrl,
       bazarrApiKey: bazarrApiKey ?? this.bazarrApiKey,
+      navidromeUrl: navidromeUrl ?? this.navidromeUrl,
+      navidromeUsername: navidromeUsername ?? this.navidromeUsername,
+      navidromePassword: navidromePassword ?? this.navidromePassword,
       region: region ?? this.region,
       themeMode: themeMode ?? this.themeMode,
       oidcIssuer: oidcIssuer ?? this.oidcIssuer,
@@ -214,14 +234,28 @@ class SettingsModel {
     );
   }
 
+  SettingsModel copyWithNavidrome({
+    String? url,
+    String? username,
+    String? password,
+  }) {
+    return copyWith(
+      navidromeUrl: url,
+      navidromeUsername: username,
+      navidromePassword: password,
+    );
+  }
+
   String usernameFor(ServiceKey service) {
     if (service == ServiceKey.qbittorrent) return qbittorrentUsername;
+    if (service == ServiceKey.navidrome) return navidromeUsername;
     return '';
   }
 
   String passwordFor(ServiceKey service) {
     if (service == ServiceKey.qbittorrent) return qbittorrentPassword;
     if (service == ServiceKey.prowlarr) return prowlarrApiKey;
+    if (service == ServiceKey.navidrome) return navidromePassword;
     return '';
   }
 
@@ -231,6 +265,11 @@ class SettingsModel {
     }
     if (service == ServiceKey.prowlarr) {
       return prowlarrUrl.isNotEmpty && prowlarrApiKey.isNotEmpty;
+    }
+    if (service == ServiceKey.navidrome) {
+      return navidromeUrl.isNotEmpty &&
+          navidromeUsername.isNotEmpty &&
+          navidromePassword.isNotEmpty;
     }
     return urlFor(service).isNotEmpty && apiKeyFor(service).isNotEmpty;
   }

@@ -32,6 +32,8 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   String? _testDetail;
 
   bool get isQbittorrent => widget.service == ServiceKey.qbittorrent;
+  bool get isNavidrome => widget.service == ServiceKey.navidrome;
+  bool get isCredentialService => isQbittorrent || isNavidrome;
 
   @override
   void initState() {
@@ -41,13 +43,13 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
       text: settings.urlFor(widget.service),
     );
     _apiKeyController = TextEditingController(
-      text: isQbittorrent ? '' : settings.apiKeyFor(widget.service),
+      text: isCredentialService ? '' : settings.apiKeyFor(widget.service),
     );
     _usernameController = TextEditingController(
-      text: isQbittorrent ? settings.usernameFor(widget.service) : '',
+      text: isCredentialService ? settings.usernameFor(widget.service) : '',
     );
     _passwordController = TextEditingController(
-      text: isQbittorrent ? settings.passwordFor(widget.service) : '',
+      text: isCredentialService ? settings.passwordFor(widget.service) : '',
     );
   }
 
@@ -82,6 +84,13 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
         password: _passwordController.text.trim(),
       );
     }
+    if (isNavidrome) {
+      return current.copyWithNavidrome(
+        url: _urlController.text.trim(),
+        username: _usernameController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+    }
     return current.copyWithService(
       widget.service,
       url: _urlController.text.trim(),
@@ -105,8 +114,8 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
             const SizedBox(height: AppSpacing.lg),
             _buildUrlField(),
             const SizedBox(height: AppSpacing.lg),
-            if (isQbittorrent) _buildUsernameField() else _buildApiKeyField(),
-            if (isQbittorrent) ...[
+            if (isCredentialService) _buildUsernameField() else _buildApiKeyField(),
+            if (isCredentialService) ...[
               const SizedBox(height: AppSpacing.lg),
               _buildPasswordField(),
             ],
