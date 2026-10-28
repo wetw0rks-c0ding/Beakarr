@@ -23,6 +23,7 @@ class OidcSessionService {
 
   Future<String?> get accessToken => _store.read(key: _kAccess);
   Future<String?> get refreshToken => _store.read(key: _kRefresh);
+  Future<String?> get pkceVerifier => _store.read(key: _kPkceV);
   
   Future<int?> expiryEpoch() async {
     final s = await _store.read(key: _kExpiry);

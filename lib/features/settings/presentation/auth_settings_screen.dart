@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:seekarr/features/auth/data/pkce.dart';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
+import 'package:seekarr/features/auth/data/oidc_link_handler.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
 
@@ -19,6 +20,14 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    ref.listen<String?>(oidcLinkResultProvider, (_, result) {
+      if (result != null && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result)),
+        );
+        ref.read(oidcLinkResultProvider.notifier).state = null;
+      }
+    });
 
     return Scaffold(
       appBar: AppBar(title: const Text('OIDC / Authentik')),
