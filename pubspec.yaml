@@ -46,6 +46,7 @@ dependencies:
   dynamic_color: ^1.8.1
   shared_preferences: ^2.5.3
   flutter_secure_storage: ^10.2.0
+  app_links: ^6.0.0
   cached_network_image: ^3.4.1
   flutter_svg: ^2.2.3
   infinite_scroll_pagination: ^5.1.1
@@ -116,3 +117,4 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+

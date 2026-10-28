@@ -27,7 +27,7 @@ class OidcAuthInterceptor extends Interceptor {
     final serviceKey = this.serviceKey ?? _inferServiceFromPath(options.path);
     final allowBearer = bearerCapableServices[serviceKey] ?? false;
     if (allowBearer && _issuerUrl.isNotEmpty) {
-      final token = await _session.accessToken();
+      final token = await _session.accessToken;
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
       }
@@ -53,7 +53,7 @@ class OidcAuthInterceptor extends Interceptor {
         final ok = await _refreshFuture!;
         if (ok) {
           final opts = err.requestOptions;
-          final newToken = await _session.accessToken();
+          final newToken = await _session.accessToken;
           if (newToken != null && newToken.isNotEmpty) {
             opts.headers['Authorization'] = 'Bearer $newToken';
           }

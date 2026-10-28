@@ -13,7 +13,8 @@ class AuthSettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
-    final flowReady = settings.oidcIssuer.isNotEmpty && settings.oidcClientId.isNotEmpty;
+    
+    // Get current session state from the service
     return Scaffold(
       appBar: AppBar(title: const Text('OIDC / Authentik')),
       body: Padding(
@@ -38,31 +39,66 @@ class AuthSettingsScreen extends ConsumerWidget {
                 ref.read(settingsProvider.notifier).updateSettings(latest.copyWith(oidcClientId: v));
               },
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
+            FutureBuilder<SessionStatus>(
+              future: OidcSessionService(FlutterSecureSettingsStore(FlutterSecureStorage())).sessionState(),
+              builder: (_, snapshot) {
+                if (!snapshot.hasData) {
+                  return Text('Loading...', style: TextStyle(fontWeight: FontWeight.bold));
+                }
+                final status = snapshot.data!;
+                
+                switch (status) {
+                  case SessionStatus.disabled:
+                    return Text('Disabled', style: TextStyle(fontWeight: FontWeight.bold));
+                  case SessionStatus.active:
+                    return Text('Active', style: TextStyle(fontWeight: FontWeight.bold));
+                  case SessionStatus.error:
+                    return Text('Error', style: TextStyle(fontWeight: FontWeight.bold));
+                }
+              },
+            ),
+            const SizedBox(height: 24),
             Row(
               children: [
                 ElevatedButton(
-                  onPressed: flowReady ? () async {
-                    final sess = OidcSessionService(FlutterSecureSettingsStore(FlutterSecureStorage()));
-                    final pkce = generatePkce();
-                    final v = pkce.codeVerifier.replaceAll('=', '');
-                    await sess.saveTokens(access: '', refresh: '', expiryEpoch: 0, pkceVerifier: v);
+                  onPressed: () async {
+                    if (settings.oidcIssuer.isEmpty || settings.oidcClientId.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please configure OIDC settings first')),
+                      );
+                      return;
+                    }
                     try {
+                      final sess = OidcSessionService(FlutterSecureSettingsStore(FlutterSecureStorage()));
+                      final pkce = generatePkce();
+                      final v = pkce.codeVerifier.replaceAll('=', '');
+                      await sess.saveTokens(
+                        access: '', 
+                        refresh: '', 
+                        expiryEpoch: 0, 
+                        pkceVerifier: v,
+                      );
+                      
                       final disc = await sess.discover(settings.oidcIssuer);
                       final authUrl = disc['authorization_endpoint'] as String?;
                       if (authUrl != null) {
-                        final url = Uri.parse(authUrl).replace(queryParameters: {
+                        final url = Uri.parse(authUrl).replace(queryParameters: <String, String>{
                           'client_id': settings.oidcClientId,
                           'response_type': 'code',
-                          'scope': 'openid profile email',
+                          'scope': 'openid profile email offline_access',
                           'redirect_uri': 'seekarr://oauth/callback',
                           'code_challenge': pkce.codeChallenge,
                           'code_challenge_method': 'S256',
                         });
                         await launchUrl(url, mode: LaunchMode.externalApplication);
                       }
-                    } catch (_) {}
-                  } : null,
+                    } catch (e) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Discovery failed: ${e.toString()}')),
+                      );
+                    }
+                  },
                   child: const Text('Login'),
                 ),
                 const SizedBox(width: 12),
@@ -79,7 +115,6 @@ class AuthSettingsScreen extends ConsumerWidget {
               ],
             ),
             const SizedBox(height: 8),
-            Text('Status: ${settings.oidcIssuer.isEmpty ? 'Disabled' : 'Configured'}'),
           ],
         ),
       ),
