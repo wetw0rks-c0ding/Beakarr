@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
 import 'package:seekarr/features/soulsync/presentation/soulsync_providers.dart';
 
 class SoulSyncScreen extends ConsumerStatefulWidget {
@@ -14,7 +15,6 @@ class SoulSyncScreen extends ConsumerStatefulWidget {
 class _SoulSyncScreenState extends ConsumerState<SoulSyncScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -25,7 +25,6 @@ class _SoulSyncScreenState extends ConsumerState<SoulSyncScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -48,7 +47,7 @@ class _SoulSyncScreenState extends ConsumerState<SoulSyncScreen>
         children: [
           _WishlistTab(),
           _DownloadsTab(),
-          _DiscoverTab(controller: _searchController),
+          const _DiscoverTab(),
         ],
       ),
     );
@@ -68,9 +67,15 @@ class _WishlistTab extends ConsumerWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (context, index) {
                 final item = items[index];
+                final detail = [
+                  if (item.artist.isNotEmpty) item.artist,
+                  if (item.album.isNotEmpty) item.album,
+                  if (item.reason != null && item.reason!.isNotEmpty)
+                    item.reason!,
+                ].join(' · ');
                 return ListTile(
-                  title: Text(item.title),
-                  subtitle: Text(item.reason ?? item.status),
+                  title: Text(item.title.isEmpty ? 'Unknown item' : item.title),
+                  subtitle: detail.isEmpty ? null : Text(detail),
                 );
               },
             ),
@@ -105,39 +110,78 @@ class _DownloadsTab extends ConsumerWidget {
   }
 }
 
-class _DiscoverTab extends ConsumerWidget {
-  final TextEditingController controller;
-  const _DiscoverTab({required this.controller});
+class _DiscoverTab extends ConsumerStatefulWidget {
+  const _DiscoverTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: TextField(
-            controller: controller,
-            decoration: const InputDecoration(hintText: 'Search...'),
-            onSubmitted: (q) =>
-                ref.read(soulsyncDiscoverQueryProvider.notifier).state = q,
+  ConsumerState<_DiscoverTab> createState() => _DiscoverTabState();
+}
+
+class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
+  final TextEditingController _controller = TextEditingController();
+  bool _requesting = false;
+  String? _result;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: const InputDecoration(
+              hintText: 'Artist - Track Name',
+              labelText: 'Request download',
+            ),
+            textInputAction: TextInputAction.go,
+            onSubmitted: (_) => _request(),
           ),
-        ),
-        Expanded(
-          child: ref.watch(soulsyncDiscoverResultsProvider).when(
-                data: (items) => items.isEmpty
-                    ? const Center(child: Text('No results'))
-                    : ListView.separated(
-                        padding: const EdgeInsets.all(AppSpacing.md),
-                        itemCount: items.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 8),
-                        itemBuilder: (context, index) =>
-                            ListTile(title: Text(items[index].title)),
-                      ),
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
-              ),
-        ),
-      ],
+          const SizedBox(height: AppSpacing.sm),
+          FilledButton.icon(
+            onPressed: _requesting ? null : _request,
+            icon: _requesting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.download_rounded),
+            label: Text(_requesting ? 'Requesting…' : 'Request'),
+          ),
+          if (_result != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            Text(_result!),
+          ],
+        ],
+      ),
     );
+  }
+
+  Future<void> _request() async {
+    final query = _controller.text.trim();
+    if (query.isEmpty || _requesting) return;
+    setState(() {
+      _requesting = true;
+      _result = null;
+    });
+    try {
+      final service = ref.read(soulsyncServiceProvider);
+      final requestId = await service.requestDownload(query);
+      if (!mounted) return;
+      setState(() => _result = 'Requested (id: $requestId)');
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _result = 'Request failed — check connection and try again');
+    } finally {
+      if (mounted) setState(() => _requesting = false);
+    }
   }
 }

@@ -7,7 +7,6 @@ import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/soulsync/domain/models/soulsync_profile.dart';
 import 'package:seekarr/features/soulsync/domain/models/soulsync_wishlist_item.dart';
 import 'package:seekarr/features/soulsync/domain/models/soulsync_download.dart';
-import 'package:seekarr/features/soulsync/domain/models/soulsync_discover_result.dart';
 
 final soulsyncServiceProvider = Provider<SoulSyncService>((ref) {
   final settings = ref.watch(currentSettingsProvider);
@@ -53,6 +52,25 @@ List<Map<String, dynamic>> _asListOfMaps(dynamic value) {
   return const <Map<String, dynamic>>[];
 }
 
+/// Digs one level into envelope data: SoulSync returns
+/// `data: {tracks: [...]}` / `{downloads: [...]}` rather than bare lists.
+dynamic _asNestedList(dynamic value) {
+  if (value is List) return value;
+  if (value is Map<String, dynamic>) {
+    for (final key in const [
+      'tracks',
+      'downloads',
+      'results',
+      'items',
+      'data',
+    ]) {
+      final nested = value[key];
+      if (nested is List) return nested;
+    }
+  }
+  return value;
+}
+
 class SoulSyncService {
   final ApiClient client;
 
@@ -74,7 +92,7 @@ class SoulSyncService {
   Future<List<SoulSyncWishlistItem>> getWishlist() async {
     try {
       final response = await client.get('/api/v1/wishlist').timeout(const Duration(seconds: 5));
-      final data = unwrapSoulSyncEnvelope(response.data);
+      final data = _asNestedList(unwrapSoulSyncEnvelope(response.data));
       return _asListOfMaps(data)
           .map(SoulSyncWishlistItem.fromJson)
           .toList(growable: false);
@@ -87,7 +105,7 @@ class SoulSyncService {
   Future<List<SoulSyncDownload>> getDownloads() async {
     try {
       final response = await client.get('/api/v1/downloads').timeout(const Duration(seconds: 5));
-      final data = unwrapSoulSyncEnvelope(response.data);
+      final data = _asNestedList(unwrapSoulSyncEnvelope(response.data));
       return _asListOfMaps(data)
           .map(SoulSyncDownload.fromJson)
           .toList(growable: false);
@@ -97,19 +115,22 @@ class SoulSyncService {
     }
   }
 
-  Future<List<SoulSyncDiscoverResult>> search(String query) async {
-    // 60 req/min limit: keep search single-shot and debounce in UI.
+  /// Triggers a music download (`POST /api/v1/request`).
+  ///
+  /// Returns the `request_id` for status polling. This is the API-key
+  /// counterpart to the web UI's external-source search: the
+  /// session-only `/api/enhanced-search` cannot be used with keys.
+  Future<String> requestDownload(String query) async {
     try {
       final response = await client
-          .get(
-            '/api/v1/discover/search',
-            queryParameters: {'q': query},
-          )
-          .timeout(const Duration(seconds: 5));
+          .post('/api/v1/request', data: {'query': query})
+          .timeout(const Duration(seconds: 15));
       final data = unwrapSoulSyncEnvelope(response.data);
-      return _asListOfMaps(data)
-          .map(SoulSyncDiscoverResult.fromJson)
-          .toList(growable: false);
+      if (data is Map) {
+        final id = data['request_id'] ?? data['requestId'] ?? data['id'];
+        if (id != null) return id.toString();
+      }
+      return 'Requested';
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       rethrow;

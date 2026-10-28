@@ -88,4 +88,107 @@ void main() {
 
     await server.close();
   });
+
+  test('wishlist parses nested tracks with real field names', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'success': true,
+          'data': {
+            'tracks': [
+              {
+                'id': 48561,
+                'artist_name': 'Elvis Presley',
+                'album_name': "Rock 'N Roll Medley, Vol. 4",
+                'failure_reason': 'No matching track found',
+              },
+            ],
+          },
+        }),
+      );
+      await request.response.close();
+    });
+
+    final service = SoulSyncService(
+      ApiClient(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        auth: const SoulSyncAuth('sk_test'),
+      ),
+    );
+
+    final items = await service.getWishlist();
+    expect(items, hasLength(1));
+    expect(items.first.artist, 'Elvis Presley');
+    expect(items.first.album, "Rock 'N Roll Medley, Vol. 4");
+    expect(items.first.reason, 'No matching track found');
+
+    await server.close();
+  });
+
+  test('requestDownload posts query and returns request id', () async {
+    String? method;
+    String? path;
+    Map<String, dynamic>? body;
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      method = request.method;
+      path = request.uri.path;
+      final raw = await request
+          .cast<List<int>>()
+          .transform(const Utf8Decoder())
+          .join();
+      body = jsonDecode(raw) as Map<String, dynamic>;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'success': true,
+          'data': {'request_id': 'req-1'},
+        }),
+      );
+      await request.response.close();
+    });
+
+    final service = SoulSyncService(
+      ApiClient(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        auth: const SoulSyncAuth('sk_test'),
+      ),
+    );
+
+    final requestId = await service.requestDownload('Artist - Track');
+    expect(method, 'POST');
+    expect(path, '/api/v1/request');
+    expect(body?['query'], 'Artist - Track');
+    expect(requestId, 'req-1');
+
+    await server.close();
+  });
+
+  test('requestDownload throws on failed envelope', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'success': false,
+          'data': null,
+          'error': {'code': 'BAD_REQUEST', 'message': 'Missing query'},
+        }),
+      );
+      await request.response.close();
+    });
+
+    final service = SoulSyncService(
+      ApiClient(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        auth: const SoulSyncAuth('sk_test'),
+      ),
+    );
+
+    expect(() => service.requestDownload(''), throwsA(isA<StateError>()));
+
+    await server.close();
+  });
 }
