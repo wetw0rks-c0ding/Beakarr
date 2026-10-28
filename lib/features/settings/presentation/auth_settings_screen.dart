@@ -111,12 +111,35 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                         'code_challenge_method': 'S256',
                       });
 
-                      // Push the WebView screen for in-app login.
-                      await Navigator.of(context).push<String>(
+                      // Push the WebView screen for in-app login. It pops
+                      // with the authorization code (or 'error:<desc>').
+                      final result = await Navigator.of(context).push<String>(
                         MaterialPageRoute(
                           builder: (context) => OidcWebViewScreen(authorizeUrl: url),
                         ),
                       );
+                      if (result == null || result.isEmpty) return;
+                      if (result.startsWith('error:')) {
+                        throw Exception(
+                          'Login failed: ${result.substring('error:'.length)}',
+                        );
+                      }
+                      final ok = await sess.exchangeToken(
+                        issuerUrl: settings.oidcIssuer,
+                        clientId: settings.oidcClientId,
+                        authorizationCode: result,
+                        pkceVerifier: v,
+                        redirectUri: OidcLoopbackListener.redirectUri,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              ok ? 'Login successful' : 'Login failed: token rejected',
+                            ),
+                          ),
+                        );
+                      }
 
                     } catch (e) {
                       if (context.mounted) {
