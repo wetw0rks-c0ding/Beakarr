@@ -112,7 +112,7 @@ Future<ServiceConnectionStatus> _verifyService(
       auth: SoulSyncAuth(apiKey.trim()),
     );
     try {
-      final code = (await client.get('/api/v1/profiles').timeout(const Duration(seconds: 5))).statusCode ?? 0;
+      final code = (await client.get('/api/v1/profiles').timeout(const Duration(seconds: 15))).statusCode ?? 0;
       return (code >= 200 && code < 300)
           ? ServiceConnectionStatus.connected
           : ServiceConnectionStatus.disconnected;

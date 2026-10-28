@@ -105,7 +105,7 @@ Future<ServiceConnectionStatus> _checkService(
     try {
       final response = await ssClient
           .get('/api/v1/profiles')
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
       final status = response.statusCode ?? 0;
       return (status >= 200 && status < 300)
           ? ServiceConnectionStatus.connected
@@ -227,7 +227,7 @@ Future<({bool ok, String detail})> testServiceConnection(
     try {
       final response = await ssClient
           .get('/api/v1/profiles')
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
       final status = response.statusCode ?? 0;
       if (status >= 200 && status < 300) {
         return (ok: true, detail: '');
