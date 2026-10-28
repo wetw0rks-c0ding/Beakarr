@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:seekarr/features/auth/data/pkce.dart';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 import 'package:seekarr/features/auth/data/oidc_link_handler.dart';
+import 'package:seekarr/features/auth/data/oidc_loopback_listener.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
 
@@ -94,20 +95,43 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
 
                       final disc = await sess.discover(settings.oidcIssuer);
                       final authUrl = disc['authorization_endpoint'] as String?;
-                      if (authUrl != null) {
-                        final url = Uri.parse(authUrl).replace(queryParameters: <String, String>{
-                          'client_id': settings.oidcClientId,
-                          'response_type': 'code',
-                          'scope': 'openid profile email offline_access',
-                          'redirect_uri': 'seekarr://oauth/callback',
-                          'code_challenge': pkce.codeChallenge,
-                          'code_challenge_method': 'S256',
-                        });
-                        await launchUrl(url, mode: LaunchMode.inAppBrowserView);
+                      if (authUrl == null) {
+                        throw Exception('No authorization endpoint in discovery');
+                      }
+                      final url = Uri.parse(authUrl).replace(queryParameters: <String, String>{
+                        'client_id': settings.oidcClientId,
+                        'response_type': 'code',
+                        'scope': 'openid profile email offline_access',
+                        // Loopback return: works in any browser (RFC 8252).
+                        // The custom-scheme app_links listener stays as fallback.
+                        'redirect_uri': OidcLoopbackListener.redirectUri,
+                        'code_challenge': pkce.codeChallenge,
+                        'code_challenge_method': 'S256',
+                      });
+                      // Bind loopback BEFORE launching the browser so the
+                      // redirect has somewhere to land.
+                      final codeFuture = OidcLoopbackListener.awaitCode();
+                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                      final code = await codeFuture;
+                      final ok = await sess.exchangeToken(
+                        issuerUrl: settings.oidcIssuer,
+                        clientId: settings.oidcClientId,
+                        authorizationCode: code,
+                        pkceVerifier: v,
+                        redirectUri: OidcLoopbackListener.redirectUri,
+                      );
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              ok ? 'Login successful' : 'Login failed: token rejected',
+                            ),
+                          ),
+                        );
                       }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Discovery failed: ${e.toString()}')),
+                        SnackBar(content: Text('Login failed: ${e.toString()}')),
                       );
                     }
                   },
