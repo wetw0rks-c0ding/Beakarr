@@ -29,7 +29,7 @@ class SoulSyncDownload {
     if (progress > 1) progress = progress / 100.0;
     return SoulSyncDownload(
       id: (data['id'] ?? '').toString(),
-      title: (data['title'] ?? data['name'] ?? '').toString(),
+      title: (data['track_name'] ?? data['title'] ?? data['name'] ?? '').toString(),
       progress: progress,
       client: data['client']?.toString() ?? data['source']?.toString(),
       speed: data['speed']?.toString(),

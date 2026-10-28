@@ -27,7 +27,8 @@ class SoulSyncWishlistItem {
     ].join(' – ');
     return SoulSyncWishlistItem(
       id: (data['id'] ?? '').toString(),
-      title: (data['title'] ?? data['name'] ?? fallback).toString(),
+      title: (data['track_name'] ?? data['title'] ?? data['name'] ?? fallback)
+          .toString(),
       artist: artistName,
       album: albumName,
       status: (data['status'] ?? data['state'] ?? '').toString(),

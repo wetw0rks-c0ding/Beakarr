@@ -100,6 +100,7 @@ void main() {
             'tracks': [
               {
                 'id': 48561,
+                'track_name': 'Your Cheatin Heart',
                 'artist_name': 'Elvis Presley',
                 'album_name': "Rock 'N Roll Medley, Vol. 4",
                 'failure_reason': 'No matching track found',
@@ -120,6 +121,7 @@ void main() {
 
     final items = await service.getWishlist();
     expect(items, hasLength(1));
+    expect(items.first.title, 'Your Cheatin Heart');
     expect(items.first.artist, 'Elvis Presley');
     expect(items.first.album, "Rock 'N Roll Medley, Vol. 4");
     expect(items.first.reason, 'No matching track found');
@@ -187,7 +189,10 @@ void main() {
       ),
     );
 
-    expect(() => service.requestDownload(''), throwsA(isA<StateError>()));
+    await expectLater(
+      service.requestDownload(''),
+      throwsA(isA<StateError>()),
+    );
 
     await server.close();
   });
