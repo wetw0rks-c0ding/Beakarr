@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
 import 'package:seekarr/features/soulsync/presentation/soulsync_providers.dart';
 
@@ -168,6 +169,13 @@ class _DiscoverTabState extends ConsumerState<_DiscoverTab> {
   Future<void> _request() async {
     final query = _controller.text.trim();
     if (query.isEmpty || _requesting) return;
+    final settings = ref.read(currentSettingsProvider);
+    if (settings.soulsyncProfileId.trim().isEmpty) {
+      setState(() {
+        _result = 'Select a profile in SoulSync settings first';
+      });
+      return;
+    }
     setState(() {
       _requesting = true;
       _result = null;
