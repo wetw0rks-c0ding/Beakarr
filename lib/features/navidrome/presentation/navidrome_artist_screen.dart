@@ -80,35 +80,26 @@ class NavidromeArtistScreen extends ConsumerWidget {
   }
 }
 
-class _AlbumTile extends ConsumerStatefulWidget {
+class _AlbumTile extends ConsumerWidget {
   final NavidromeAlbum album;
 
   const _AlbumTile({required this.album});
 
   @override
-  ConsumerState<_AlbumTile> createState() => _AlbumTileState();
-}
-
-class _AlbumTileState extends ConsumerState<_AlbumTile> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return ExpansionTile(
-      key: PageStorageKey<String>(widget.album.id),
-      title: Text(widget.album.name),
+      key: PageStorageKey<String>(album.id),
+      maintainState: true,
+      title: Text(album.name),
       subtitle: Text(
         [
-          if (widget.album.artist != null) widget.album.artist!,
-          if (widget.album.year != null) '${widget.album.year}',
-          if (widget.album.songCount != null)
-            '${widget.album.songCount} track${widget.album.songCount == 1 ? '' : 's'}',
+          if (album.artist != null) album.artist!,
+          if (album.year != null) '${album.year}',
+          if (album.songCount != null)
+            '${album.songCount} track${album.songCount == 1 ? '' : 's'}',
         ].join(' · '),
       ),
-      onExpansionChanged: (value) => setState(() => _expanded = value),
-      children: _expanded
-          ? [_AlbumTracks(albumId: widget.album.id)]
-          : const <Widget>[],
+      children: [_AlbumTracks(albumId: album.id)],
     );
   }
 }

@@ -380,12 +380,9 @@ GoRoute _navidromeRoutes({required String path}) {
           }
           return RouteUtils.cupertinoPage(
             key: state.pageKey,
-            child: ServiceDashboardScreen(
-              service: ServiceKey.navidrome,
-              child: nda.NavidromeArtistScreen(
-                artistId: artistId,
-                artistName: artistName,
-              ),
+            child: nda.NavidromeArtistScreen(
+              artistId: artistId,
+              artistName: artistName,
             ),
           );
         },
