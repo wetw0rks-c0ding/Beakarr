@@ -16,10 +16,25 @@ class AuthSettingsScreen extends ConsumerStatefulWidget {
 
 class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
   SessionStatus _sessionStatus = SessionStatus.disabled;
+  late final TextEditingController _issuerController;
+  late final TextEditingController _clientIdController;
+  bool _controllersSeeded = false;
+
+  @override
+  void dispose() {
+    _issuerController.dispose();
+    _clientIdController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
+    if (!_controllersSeeded) {
+      _issuerController = TextEditingController(text: settings.oidcIssuer);
+      _clientIdController = TextEditingController(text: settings.oidcClientId);
+      _controllersSeeded = true;
+    }
     ref.listen<String?>(oidcLinkResultProvider, (_, result) {
       if (result != null && context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -37,7 +52,7 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             TextField(
-              controller: TextEditingController(text: settings.oidcIssuer),
+              controller: _issuerController,
               decoration: const InputDecoration(labelText: 'Authentik Issuer URL'),
               onChanged: (v) {
                 final latest = ref.read(settingsProvider);
@@ -46,7 +61,7 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: TextEditingController(text: settings.oidcClientId),
+              controller: _clientIdController,
               decoration: const InputDecoration(labelText: 'Client ID'),
               onChanged: (v) {
                 final latest = ref.read(settingsProvider);
@@ -88,7 +103,7 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                           'code_challenge': pkce.codeChallenge,
                           'code_challenge_method': 'S256',
                         });
-                        await launchUrl(url, mode: LaunchMode.externalApplication);
+                        await launchUrl(url, mode: LaunchMode.inAppBrowserView);
                       }
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(

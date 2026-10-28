@@ -426,6 +426,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     initialLocation: onboardingDone ? '/services' : '/onboarding',
     redirect: (context, state) {
+      // Custom-scheme links (e.g. seekarr://oauth/callback) are consumed by
+      // the app_links handler, not the router — never navigate to them.
+      // (In-app locations parse with an empty scheme; leave those alone.)
+      final scheme = state.uri.scheme;
+      if (scheme.isNotEmpty && scheme != 'http' && scheme != 'https') {
+        return '/services';
+      }
       final done = ref.read(onboardingCompletedProvider);
       final isOnboarding = state.matchedLocation == '/onboarding';
       if (!done && !isOnboarding) return '/onboarding';
