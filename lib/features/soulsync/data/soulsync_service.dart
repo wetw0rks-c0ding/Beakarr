@@ -80,7 +80,7 @@ class SoulSyncService {
   Future<List<SoulSyncProfile>> getProfiles() async {
     try {
       final response = await client.get('/api/v1/profiles').timeout(const Duration(seconds: 5));
-      final data = unwrapSoulSyncEnvelope(response.data);
+      final data = _asNestedList(unwrapSoulSyncEnvelope(response.data));
       return _asListOfMaps(data)
           .map(SoulSyncProfile.fromJson)
           .toList(growable: false);
