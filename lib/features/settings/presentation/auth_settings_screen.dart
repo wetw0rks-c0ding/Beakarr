@@ -111,7 +111,18 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                       // Bind loopback BEFORE launching the browser so the
                       // redirect has somewhere to land.
                       final codeFuture = OidcLoopbackListener.awaitCode();
-                      await launchUrl(url, mode: LaunchMode.externalApplication);
+                      // Swallow late errors here; the await below surfaces
+                      // them to the catch block for the snackbar.
+                      codeFuture.then((_) {}, onError: (_) {});
+                      final launched = await launchUrl(
+                        url,
+                        mode: LaunchMode.externalApplication,
+                      );
+                      if (!launched) {
+                        throw Exception(
+                          'No browser found to open the login page',
+                        );
+                      }
                       final code = await codeFuture;
                       final ok = await sess.exchangeToken(
                         issuerUrl: settings.oidcIssuer,
