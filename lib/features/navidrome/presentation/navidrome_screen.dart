@@ -15,7 +15,7 @@ class NavidromeScreen extends ConsumerStatefulWidget {
 class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
-  final TextEditingController _searchController = TextEditingController();
+  String _search = '';
 
   @override
   void initState() {
@@ -26,7 +26,6 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
   @override
   void dispose() {
     _tabController.dispose();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -44,11 +43,21 @@ class _NavidromeScreenState extends ConsumerState<NavidromeScreen>
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _ArtistsTab(search: _searchController.text),
-          _AlbumsTab(search: _searchController.text),
+          SearchBarHeader(
+            hintText: 'Search...',
+            onQueryChanged: (q) => setState(() => _search = q),
+          ),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _ArtistsTab(search: _search),
+                _AlbumsTab(search: _search),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -62,44 +71,36 @@ class _ArtistsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(navidromeArtistsProvider);
-    return Column(
-      children: [
-        SearchBarHeader(hintText: 'Artists...', onQueryChanged: (_) {}),
-        const SizedBox(height: AppSpacing.md),
-        Expanded(
-          child: async.when(
-            data: (list) {
-              final filtered = list
-                  .where((a) => a.name.toLowerCase().contains(search.toLowerCase()))
-                  .toList();
-              if (filtered.isEmpty) {
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(24),
-                    child: Text('No artists found'),
-                  ),
-                );
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
-                itemCount: filtered.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, index) {
-                  final a = filtered[index];
-                  return ListTile(
-                    title: Text(a.name),
-                    subtitle: Text(
-                      '${a.albumCount} album${a.albumCount == 1 ? '' : 's'}',
-                    ),
-                  );
-                },
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Center(child: Text('Error: $e')),
-          ),
-        ),
-      ],
+    return async.when(
+      data: (list) {
+        final filtered = list
+            .where((a) => a.name.toLowerCase().contains(search.toLowerCase()))
+            .toList();
+        if (filtered.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Text('No artists found'),
+            ),
+          );
+        }
+        return ListView.separated(
+          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          itemCount: filtered.length,
+          separatorBuilder: (_, __) => const SizedBox(height: 8),
+          itemBuilder: (context, index) {
+            final a = filtered[index];
+            return ListTile(
+              title: Text(a.name),
+              subtitle: Text(
+                '${a.albumCount} album${a.albumCount == 1 ? '' : 's'}',
+              ),
+            );
+          },
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error: $e')),
     );
   }
 }

@@ -13,6 +13,7 @@ import 'package:seekarr/features/movies/data/radarr_service.dart';
 import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/presentation/music_provider.dart';
+import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_history_record.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
@@ -118,6 +119,9 @@ Future<String?> _loadVersion(
           .get('/rest/ping.view')
           .timeout(const Duration(seconds: 5));
       final data = response.data;
+      if (!isSubsonicOk(data)) {
+        throw StateError('Navidrome request failed');
+      }
       if (data is Map<String, dynamic>) {
         final sub = data['subsonic-response'];
         if (sub is Map<String, dynamic>) {
@@ -126,7 +130,7 @@ Future<String?> _loadVersion(
       }
       return null;
     } catch (_) {
-      return null;
+      rethrow;
     } finally {
       client.close();
     }
@@ -253,6 +257,9 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
             .get('/rest/getArtists.view')
             .timeout(const Duration(seconds: 5));
         final data = response.data;
+        if (!isSubsonicOk(data)) {
+          throw StateError('Navidrome request failed');
+        }
         if (data is Map<String, dynamic>) {
           final sub = data['subsonic-response'];
           if (sub is Map<String, dynamic>) {
@@ -275,7 +282,10 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       } finally {
         client.close();
       }
-      return count ?? 0;
+      if (count == null) {
+        throw StateError('Navidrome artist count unavailable');
+      }
+      return count;
   }
 }
 

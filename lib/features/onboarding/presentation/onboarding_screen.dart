@@ -7,6 +7,7 @@ import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
+import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
@@ -73,13 +74,10 @@ Future<ServiceConnectionStatus> _verifyService(
         auth: SubsonicAuth(username.trim(), password),
       );
       try {
-        final code =
-            (await client
-                    .get('/rest/ping.view')
-                    .timeout(const Duration(seconds: 5)))
-                .statusCode ??
-            0;
-        return (code >= 200 && code < 300)
+        final response = await client
+            .get('/rest/ping.view')
+            .timeout(const Duration(seconds: 5));
+        return isSubsonicOk(response.data)
             ? ServiceConnectionStatus.connected
             : ServiceConnectionStatus.disconnected;
       } catch (_) {
@@ -170,6 +168,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _isServiceReady(ServiceKey k) {
     if (!_enabled[k]!) return false;
     if (_urlCtrl[k]!.text.trim().isEmpty) return false;
+    if (k == ServiceKey.navidrome) {
+      return _usernameCtrl[k]!.text.trim().isNotEmpty &&
+          _passwordCtrl[k]!.text.isNotEmpty;
+    }
     if (!k.usesApiKey) return true;
     return _apiKeyCtrl[k]!.text.trim().isNotEmpty;
   }
@@ -912,19 +914,25 @@ class _ServiceConfig extends StatelessWidget {
                   serviceKey == ServiceKey.navidrome) ...[
                 const SizedBox(height: 10),
                 _ConfigField(
-                  label: 'Username (optional)',
+                  label: serviceKey == ServiceKey.navidrome
+                      ? 'Username'
+                      : 'Username (optional)',
                   controller: usernameCtrl,
                 ),
                 const SizedBox(height: 10),
                 _ConfigField(
-                  label: 'Password (optional)',
+                  label: serviceKey == ServiceKey.navidrome
+                      ? 'Password'
+                      : 'Password (optional)',
                   controller: passwordCtrl,
                   isPassword: true,
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Leave credentials empty if your qBittorrent instance does not require authentication.',
-                  style: TextStyle(
+                Text(
+                  serviceKey == ServiceKey.navidrome
+                      ? 'Navidrome requires a username and password.'
+                      : 'Leave credentials empty if your qBittorrent instance does not require authentication.',
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
                     color: _muted,
@@ -932,7 +940,8 @@ class _ServiceConfig extends StatelessWidget {
                   ),
                 ),
               ],
-              if (serviceKey == ServiceKey.qbittorrent &&
+              if ((serviceKey == ServiceKey.qbittorrent ||
+                  serviceKey == ServiceKey.navidrome) &&
                   verifyStatus == ServiceConnectionStatus.disconnected) ...[
                 const SizedBox(height: 10),
                 const Text(

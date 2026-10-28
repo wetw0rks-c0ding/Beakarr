@@ -268,27 +268,43 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   Widget _buildUsernameField() {
     return TextFormField(
       controller: _usernameController,
-      decoration: const InputDecoration(
-        labelText: 'Username',
-        hintText: 'Optional',
+      decoration: InputDecoration(
+        labelText: isNavidrome ? 'Username' : 'Username',
+        hintText: isNavidrome ? null : 'Optional',
       ),
       keyboardType: TextInputType.text,
       textInputAction: TextInputAction.next,
       autocorrect: false,
+      validator: isNavidrome
+          ? (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Username is required';
+              }
+              return null;
+            }
+          : null,
     );
   }
 
   Widget _buildPasswordField() {
     return TextFormField(
       controller: _passwordController,
-      decoration: const InputDecoration(
+      decoration: InputDecoration(
         labelText: 'Password',
-        hintText: 'Optional',
+        hintText: isNavidrome ? null : 'Optional',
       ),
       keyboardType: TextInputType.visiblePassword,
       textInputAction: TextInputAction.done,
       onFieldSubmitted: (_) => _saveSettings(),
       obscureText: true,
+      validator: isNavidrome
+          ? (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Password is required';
+              }
+              return null;
+            }
+          : null,
     );
   }
 

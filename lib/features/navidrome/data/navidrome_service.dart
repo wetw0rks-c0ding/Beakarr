@@ -38,6 +38,17 @@ Map<String, dynamic>? _subsonicResponse(dynamic data) {
   return _asMap(root['subsonic-response']);
 }
 
+/// Returns true when [data] is a Subsonic response with status "ok".
+///
+/// Subsonic-compatible servers (including Navidrome) answer failed
+/// authentication with HTTP 200 and a body whose `subsonic-response.status`
+/// is "failed", so a 2xx status code alone is not sufficient.
+bool isSubsonicOk(dynamic data) {
+  final sub = _subsonicResponse(data);
+  if (sub == null) return false;
+  return sub['status'] == 'ok';
+}
+
 class NavidromeService {
   final ApiClient client;
 
@@ -46,6 +57,9 @@ class NavidromeService {
   Future<List<NavidromeArtist>> getArtists() async {
     try {
       final response = await client.get('/rest/getArtists.view');
+      if (!isSubsonicOk(response.data)) {
+        throw StateError('Navidrome request failed');
+      }
       final sub = _subsonicResponse(response.data);
       final artistsNode = _asMap(sub?['artists']);
       final result = <NavidromeArtist>[];
@@ -64,7 +78,7 @@ class NavidromeService {
       return result;
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
-      return const [];
+      rethrow;
     }
   }
 
@@ -74,6 +88,9 @@ class NavidromeService {
         '/rest/getAlbumList2.view',
         queryParameters: {'type': 'alphabeticalByName', 'size': 500},
       );
+      if (!isSubsonicOk(response.data)) {
+        throw StateError('Navidrome request failed');
+      }
       final sub = _subsonicResponse(response.data);
       final albumList = _asMap(sub?['albumList2']);
       final albums = albumList?['album'];
@@ -87,7 +104,7 @@ class NavidromeService {
       return result;
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
-      return const [];
+      rethrow;
     }
   }
 
@@ -97,6 +114,9 @@ class NavidromeService {
         '/rest/getArtist.view',
         queryParameters: {'id': artistId},
       );
+      if (!isSubsonicOk(response.data)) {
+        throw StateError('Navidrome request failed');
+      }
       final sub = _subsonicResponse(response.data);
       final artist = _asMap(sub?['artist']);
       final albums = artist?['album'];
@@ -110,7 +130,7 @@ class NavidromeService {
       return result;
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
-      return const [];
+      rethrow;
     }
   }
 
@@ -120,6 +140,9 @@ class NavidromeService {
         '/rest/getAlbum.view',
         queryParameters: {'id': albumId},
       );
+      if (!isSubsonicOk(response.data)) {
+        throw StateError('Navidrome request failed');
+      }
       final sub = _subsonicResponse(response.data);
       final album = _asMap(sub?['album']);
       final songs = album?['song'];
@@ -133,7 +156,7 @@ class NavidromeService {
       return result;
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
-      return const [];
+      rethrow;
     }
   }
 
@@ -143,6 +166,9 @@ class NavidromeService {
         '/rest/getAlbum.view',
         queryParameters: {'id': albumId},
       );
+      if (!isSubsonicOk(response.data)) {
+        return null;
+      }
       final sub = _subsonicResponse(response.data);
       final album = _asMap(sub?['album']);
       if (album == null) return null;

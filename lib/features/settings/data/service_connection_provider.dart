@@ -6,6 +6,7 @@ import 'package:seekarr/core/api/api_client.dart';
 import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
+import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 
@@ -75,13 +76,10 @@ Future<ServiceConnectionStatus> _checkService(
       auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
     );
     try {
-      final statusCode =
-          (await client
-                  .get('/rest/ping.view')
-                  .timeout(const Duration(seconds: 5)))
-              .statusCode ??
-          0;
-      return statusCode >= 200 && statusCode < 300
+      final response = await client
+          .get('/rest/ping.view')
+          .timeout(const Duration(seconds: 5));
+      return isSubsonicOk(response.data)
           ? ServiceConnectionStatus.connected
           : ServiceConnectionStatus.disconnected;
     } catch (_) {
@@ -170,11 +168,18 @@ Future<({bool ok, String detail})> testServiceConnection(
       final response = await client
           .get('/rest/ping.view')
           .timeout(const Duration(seconds: 5));
-      final statusCode = response.statusCode ?? 0;
-      if (statusCode >= 200 && statusCode < 300) {
+      if (isSubsonicOk(response.data)) {
         return (ok: true, detail: '');
       }
-      return (ok: false, detail: 'HTTP $statusCode');
+      // Surface the Subsonic error message (if any) for a failed status.
+      final sub = response.data is Map
+          ? (response.data as Map)['subsonic-response']
+          : null;
+      final err = sub is Map ? sub['error'] : null;
+      final message = err is Map && err['message'] != null
+          ? err['message'].toString()
+          : 'Navidrome request failed';
+      return (ok: false, detail: message);
     } catch (e) {
       final code = _httpStatusCode(e);
       if (code != null) {

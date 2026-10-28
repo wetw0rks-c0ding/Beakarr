@@ -72,10 +72,19 @@ void main() {
       expect(artists.first.albumCount, 2);
     });
 
-    test('getArtists returns empty list on error', () async {
+    test('getArtists throws on error', () async {
       client.getException = Exception('boom');
-      final artists = await service.getArtists();
-      expect(artists, isEmpty);
+      expect(() => service.getArtists(), throwsA(isA<Object>()));
+    });
+
+    test('getArtists throws on failed status', () async {
+      client.getResponseData = {
+        'subsonic-response': {
+          'status': 'failed',
+          'error': {'message': 'Wrong username or password'},
+        },
+      };
+      expect(() => service.getArtists(), throwsA(isA<StateError>()));
     });
 
     test('getAlbums fetches and maps albums', () async {
@@ -129,10 +138,19 @@ void main() {
       expect(tracks.single.trackNumber, 1);
     });
 
-    test('getAlbumTracks returns empty list on error', () async {
+    test('getAlbumTracks throws on error', () async {
       client.getException = Exception('boom');
-      final tracks = await service.getAlbumTracks('10');
-      expect(tracks, isEmpty);
+      expect(() => service.getAlbumTracks('10'), throwsA(isA<Object>()));
+    });
+
+    test('getAlbumTracks throws on failed status', () async {
+      client.getResponseData = {
+        'subsonic-response': {
+          'status': 'failed',
+          'error': {'message': 'Wrong username or password'},
+        },
+      };
+      expect(() => service.getAlbumTracks('10'), throwsA(isA<StateError>()));
     });
   });
 }
