@@ -1,20 +1,25 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:seekarr/features/auth/data/pkce.dart';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
 
-class AuthSettingsScreen extends ConsumerWidget {
+class AuthSettingsScreen extends ConsumerStatefulWidget {
   const AuthSettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AuthSettingsScreen> createState() => _AuthSettingsScreenState();
+}
+
+class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
+  SessionStatus _sessionStatus = SessionStatus.disabled;
+
+  @override
+  Widget build(BuildContext context) {
     final settings = ref.watch(settingsProvider);
-    
-    // Get current session state from the service
+
     return Scaffold(
       appBar: AppBar(title: const Text('OIDC / Authentik')),
       body: Padding(
@@ -40,24 +45,7 @@ class AuthSettingsScreen extends ConsumerWidget {
               },
             ),
             const SizedBox(height: 24),
-            FutureBuilder<SessionStatus>(
-              future: OidcSessionService(FlutterSecureSettingsStore(FlutterSecureStorage())).sessionState(),
-              builder: (_, snapshot) {
-                if (!snapshot.hasData) {
-                  return Text('Loading...', style: TextStyle(fontWeight: FontWeight.bold));
-                }
-                final status = snapshot.data!;
-                
-                switch (status) {
-                  case SessionStatus.disabled:
-                    return Text('Disabled', style: TextStyle(fontWeight: FontWeight.bold));
-                  case SessionStatus.active:
-                    return Text('Active', style: TextStyle(fontWeight: FontWeight.bold));
-                  case SessionStatus.error:
-                    return Text('Error', style: TextStyle(fontWeight: FontWeight.bold));
-                }
-              },
-            ),
+            Text(_sessionStatus.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -70,16 +58,16 @@ class AuthSettingsScreen extends ConsumerWidget {
                       return;
                     }
                     try {
-                      final sess = OidcSessionService(FlutterSecureSettingsStore(FlutterSecureStorage()));
+                      final sess = OidcSessionService(createSecureSettingsStore());
                       final pkce = generatePkce();
                       final v = pkce.codeVerifier.replaceAll('=', '');
                       await sess.saveTokens(
-                        access: '', 
-                        refresh: '', 
-                        expiryEpoch: 0, 
+                        access: '',
+                        refresh: '',
+                        expiryEpoch: 0,
                         pkceVerifier: v,
                       );
-                      
+
                       final disc = await sess.discover(settings.oidcIssuer);
                       final authUrl = disc['authorization_endpoint'] as String?;
                       if (authUrl != null) {
@@ -104,7 +92,7 @@ class AuthSettingsScreen extends ConsumerWidget {
                 const SizedBox(width: 12),
                 ElevatedButton(
                   onPressed: () async {
-                    final sess = OidcSessionService(FlutterSecureSettingsStore(FlutterSecureStorage()));
+                    final sess = OidcSessionService(createSecureSettingsStore());
                     await sess.clear();
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Session cleared')));
@@ -114,7 +102,6 @@ class AuthSettingsScreen extends ConsumerWidget {
                 ),
               ],
             ),
-            const SizedBox(height: 8),
           ],
         ),
       ),
