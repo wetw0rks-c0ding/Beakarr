@@ -20,6 +20,10 @@ final oidcLinkHandlerProvider = Provider<void>((ref) {
   final store = ref.watch(secureSettingsStoreProvider);
   final appLinks = AppLinks();
 
+  // Guard against handling the same authorization code twice (e.g. if the
+  // OS redelivers the callback). Auth codes are single-use.
+  String? handledCode;
+
   Future<void> handle(Uri uri) async {
     if (!CallbackUriHelper.isCallbackUri(uri)) return;
     final sess = OidcSessionService(store);
@@ -30,7 +34,8 @@ final oidcLinkHandlerProvider = Provider<void>((ref) {
       return;
     }
     final code = CallbackUriHelper.extractCode(uri);
-    if (code == null || code.isEmpty) return;
+    if (code == null || code.isEmpty || code == handledCode) return;
+    handledCode = code;
     final settings = ref.read(settingsProvider);
     final verifier = await sess.pkceVerifier;
     if (verifier == null || verifier.isEmpty) {
@@ -53,9 +58,8 @@ final oidcLinkHandlerProvider = Provider<void>((ref) {
     }
   }
 
+  // app_links >= 6 delivers the initial link through uriLinkStream, so no
+  // separate getInitialLink call (avoids double-handling the same code).
   final sub = appLinks.uriLinkStream.listen(handle, onError: (_) {});
   ref.onDispose(sub.cancel);
-  appLinks.getInitialLink().then((uri) {
-    if (uri != null) handle(uri);
-  });
 });
