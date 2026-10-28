@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
@@ -94,6 +95,9 @@ class _ArtistsTab extends ConsumerWidget {
               title: Text(a.name),
               subtitle: Text(
                 '${a.albumCount} album${a.albumCount == 1 ? '' : 's'}',
+              ),
+              onTap: () => context.push(
+                '/services/navidrome/artist/${a.id}?name=${Uri.encodeComponent(a.name)}',
               ),
             );
           },

@@ -22,3 +22,9 @@ final navidromeAlbumTracksProvider =
   final s = ref.watch(navidromeServiceProvider);
   return s.getAlbumTracks(albumId);
 });
+
+final navidromeArtistAlbumsProvider =
+    FutureProvider.autoDispose.family<List<NavidromeAlbum>, String>((ref, artistId) async {
+  final s = ref.watch(navidromeServiceProvider);
+  return s.getArtistAlbums(artistId);
+});

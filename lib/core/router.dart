@@ -41,6 +41,7 @@ import 'package:seekarr/features/qbittorrent/presentation/widgets/qbittorrent_ac
 import 'package:seekarr/features/bazarr/presentation/bazarr_screen.dart' as bz;
 import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
 import 'package:seekarr/features/navidrome/presentation/navidrome_screen.dart' as nd;
+import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart' as nda;
 import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -356,6 +357,40 @@ GoRoute _navidromeRoutes({required String path}) {
         child: const nd.NavidromeScreen(),
       ),
     ),
+    routes: [
+      GoRoute(
+        path: 'artist/:artistId',
+        pageBuilder: (context, state) {
+          final artistId = state.pathParameters['artistId'] ?? '';
+          if (artistId.isEmpty) {
+            return RouteUtils.redirectPage(
+              key: state.pageKey,
+              location: '/services',
+            );
+          }
+          final extra = state.extra;
+          String artistName = '';
+          if (extra is String) {
+            artistName = extra;
+          } else {
+            artistName =
+                state.uri.queryParameters['name'] ??
+                state.uri.queryParameters['artistName'] ??
+                '';
+          }
+          return RouteUtils.cupertinoPage(
+            key: state.pageKey,
+            child: ServiceDashboardScreen(
+              service: ServiceKey.navidrome,
+              child: nda.NavidromeArtistScreen(
+                artistId: artistId,
+                artistName: artistName,
+              ),
+            ),
+          );
+        },
+      ),
+    ],
   );
 }
 
