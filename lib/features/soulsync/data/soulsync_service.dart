@@ -60,7 +60,7 @@ class SoulSyncService {
 
   Future<List<SoulSyncProfile>> getProfiles() async {
     try {
-      final response = await client.get('/api/v1/profiles');
+      final response = await client.get('/api/v1/profiles').timeout(const Duration(seconds: 5));
       final data = unwrapSoulSyncEnvelope(response.data);
       return _asListOfMaps(data)
           .map(SoulSyncProfile.fromJson)
@@ -73,7 +73,7 @@ class SoulSyncService {
 
   Future<List<SoulSyncWishlistItem>> getWishlist() async {
     try {
-      final response = await client.get('/api/v1/wishlist');
+      final response = await client.get('/api/v1/wishlist').timeout(const Duration(seconds: 5));
       final data = unwrapSoulSyncEnvelope(response.data);
       return _asListOfMaps(data)
           .map(SoulSyncWishlistItem.fromJson)
@@ -86,7 +86,7 @@ class SoulSyncService {
 
   Future<List<SoulSyncDownload>> getDownloads() async {
     try {
-      final response = await client.get('/api/v1/downloads');
+      final response = await client.get('/api/v1/downloads').timeout(const Duration(seconds: 5));
       final data = unwrapSoulSyncEnvelope(response.data);
       return _asListOfMaps(data)
           .map(SoulSyncDownload.fromJson)
@@ -100,10 +100,12 @@ class SoulSyncService {
   Future<List<SoulSyncDiscoverResult>> search(String query) async {
     // 60 req/min limit: keep search single-shot and debounce in UI.
     try {
-      final response = await client.get(
-        '/api/v1/discover/search',
-        queryParameters: {'q': query},
-      );
+      final response = await client
+          .get(
+            '/api/v1/discover/search',
+            queryParameters: {'q': query},
+          )
+          .timeout(const Duration(seconds: 5));
       final data = unwrapSoulSyncEnvelope(response.data);
       return _asListOfMaps(data)
           .map(SoulSyncDiscoverResult.fromJson)

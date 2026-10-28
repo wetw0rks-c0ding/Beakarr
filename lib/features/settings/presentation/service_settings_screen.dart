@@ -171,16 +171,27 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
           onPressed: _loadingProfiles
               ? null
               : () async {
+                  final url = _urlController.text.trim();
+                  final key = _apiKeyController.text.trim();
+                  if (url.isEmpty || key.isEmpty) {
+                    if (!mounted) return;
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Enter the URL and API key first'),
+                      ),
+                    );
+                    return;
+                  }
                   setState(() => _loadingProfiles = true);
                   try {
-                    final url = _urlController.text.trim();
-                    final key = _apiKeyController.text.trim();
                     final client = ApiClient(
                       baseUrl: url,
                       auth: SoulSyncAuth(key),
                     );
                     final service = SoulSyncService(client);
-                    final profiles = await service.getProfiles();
+                    final profiles = await service
+                        .getProfiles()
+                        .timeout(const Duration(seconds: 10));
                     if (!mounted) return;
                     setState(() {
                       _profiles = profiles;
@@ -188,9 +199,12 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
                         _selectedProfileId = profiles.first.id;
                       }
                     });
-                  } catch (_) {
+                  } catch (e) {
                     if (!mounted) return;
                     setState(() => _profiles = const []);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Could not load profiles: $e')),
+                    );
                   } finally {
                     if (mounted) setState(() => _loadingProfiles = false);
                   }
