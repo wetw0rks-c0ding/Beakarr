@@ -60,6 +60,7 @@ dynamic _asNestedList(dynamic value) {
     for (final key in const [
       'tracks',
       'downloads',
+      'profiles',
       'results',
       'items',
       'data',

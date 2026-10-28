@@ -129,6 +129,37 @@ void main() {
     await server.close();
   });
 
+  test('getProfiles parses nested profiles map', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'success': true,
+          'data': {
+            'profiles': [
+              {'id': 1, 'name': 'Admin'},
+              {'id': 2, 'name': 'sheila'},
+            ],
+          },
+        }),
+      );
+      await request.response.close();
+    });
+
+    final service = SoulSyncService(
+      ApiClient(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        auth: const SoulSyncAuth('sk_test'),
+      ),
+    );
+
+    final profiles = await service.getProfiles();
+    expect(profiles.map((p) => p.name), ['Admin', 'sheila']);
+
+    await server.close();
+  });
+
   test('requestDownload posts query and returns request id', () async {
     String? method;
     String? path;
@@ -168,8 +199,7 @@ void main() {
     await server.close();
   });
 
-  test('requestDownload throws on failed envelope', () async {
-    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  test('requestDownload throws on failed envelope', () async {    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       request.response.headers.contentType = ContentType.json;
       request.response.write(
