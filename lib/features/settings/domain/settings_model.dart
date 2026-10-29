@@ -300,14 +300,35 @@ class SettingsModel {
       return qbittorrentUrl.isNotEmpty;
     }
     if (service == ServiceKey.prowlarr) {
-      return prowlarrUrl.isNotEmpty && prowlarrApiKey.isNotEmpty;
+      return prowlarrUrl.isNotEmpty &&
+          (prowlarrApiKey.isNotEmpty || _isArrstackMode);
     }
     if (service == ServiceKey.navidrome) {
       return navidromeUrl.isNotEmpty &&
           navidromeUsername.isNotEmpty &&
           navidromePassword.isNotEmpty;
     }
+    if (service == ServiceKey.sonarr) {
+      // Sonarr provider runs URL-only whenever any OIDC issuer is set
+      // (per-service pair or the shared ArrStack pair); the interceptor
+      // mints the service token lazily on 401.
+      return sonarrUrl.isNotEmpty &&
+          (sonarrApiKey.isNotEmpty || oidcIssuer.isNotEmpty);
+    }
+    if (service == ServiceKey.radarr) {
+      // Radarr provider runs URL-only in ArrStack mode only.
+      return radarrUrl.isNotEmpty &&
+          (radarrApiKey.isNotEmpty || _isArrstackMode);
+    }
     return urlFor(service).isNotEmpty && apiKeyFor(service).isNotEmpty;
+  }
+
+  /// Same definition as `OidcSessionService.isArrstackMode`, kept local so
+  /// the domain model does not depend on the auth data layer (which would
+  /// close an import cycle via settings_service).
+  bool get _isArrstackMode {
+    final trimmed = oidcIssuer.trim().replaceAll(RegExp(r'/+$'), '');
+    return trimmed.endsWith('/o/arrstack');
   }
 }
 
