@@ -451,12 +451,15 @@ class SettingsHomeScreen extends ConsumerWidget {
     final dir = await getTemporaryDirectory();
     final savePath = '${dir.path}/${asset.name}';
     final progress = ValueNotifier<double?>(null);
+    BuildContext? dialogContext;
 
     if (context.mounted) {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
+        builder: (dialogContext_) {
+          dialogContext = dialogContext_;
+          return AlertDialog(
           title: Text('Downloading ${asset.name}'),
           content: ValueListenableBuilder<double?>(
             valueListenable: progress,
@@ -486,14 +489,16 @@ class SettingsHomeScreen extends ConsumerWidget {
         },
       );
     } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
+      final dlg = dialogContext;
+      if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
       if (context.mounted) {
         SnackBarHelper.error(context, "Couldn't download update. ($e)");
       }
       return;
     }
 
-    if (context.mounted) Navigator.of(context).pop();
+    final dlg = dialogContext;
+    if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
 
     // Trigger system install prompt via platform channel.
     try {
@@ -525,12 +530,15 @@ class SettingsHomeScreen extends ConsumerWidget {
     final dir = await getApplicationDocumentsDirectory();
     final savePath = '${dir.path}/${asset.name}';
     final progress = ValueNotifier<double?>(null);
+    BuildContext? dialogContext;
 
     if (context.mounted) {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext) => AlertDialog(
+        builder: (dialogContext_) {
+          dialogContext = dialogContext_;
+          return AlertDialog(
           title: Text('Downloading ${asset.name}'),
           content: ValueListenableBuilder<double?>(
             valueListenable: progress,
@@ -560,14 +568,16 @@ class SettingsHomeScreen extends ConsumerWidget {
         },
       );
     } catch (e) {
-      if (context.mounted) Navigator.of(context).pop();
+      final dlg = dialogContext;
+      if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
       if (context.mounted) {
         SnackBarHelper.error(context, "Couldn't download update. ($e)");
       }
       return;
     }
 
-    if (context.mounted) Navigator.of(context).pop();
+    final dlg = dialogContext;
+    if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
 
     try {
       final box = context.findRenderObject() as RenderBox?;
