@@ -31,6 +31,12 @@ class OidcAuthInterceptor extends Interceptor {
     final svc = serviceKey ?? 'unknown';
     final allowBearer = bearerCapableServices[svc] ?? false;
     if (allowBearer && _issuerUrl.isNotEmpty && baseUrl != null && baseUrl!.isNotEmpty && svc == 'sonarr') {
+      // Origin-scoped: a foreign absolute URL through this client never
+      // receives the Sonarr service token (matches the onError guard).
+      if (!_isSonarrOrigin(options.uri)) {
+        handler.next(options);
+        return;
+      }
       final session = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
       if (session != null && !session.isExpired()) {
         options.headers['Authorization'] = 'Bearer ${session.serviceToken}';
@@ -94,12 +100,86 @@ class OidcAuthInterceptor extends Interceptor {
     }
   }
 
+  /// True when [requestUri] belongs to the configured Sonarr origin.
+  /// Guards every Bearer attach/retry below: an absolute-URL request to a
+  /// foreign origin passing through the Sonarr client must never receive
+  /// the Sonarr service token.
+  bool _isSonarrOrigin(Uri requestUri) {
+    final base = Uri.tryParse(baseUrl ?? '');
+    if (base == null || !base.hasScheme || base.host.isEmpty) return false;
+    int portOf(Uri u) =>
+        u.hasPort ? u.port : (u.scheme == 'https' ? 443 : 80);
+    return requestUri.scheme == base.scheme &&
+        requestUri.host == base.host &&
+        portOf(requestUri) == portOf(base);
+  }
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final status = err.response?.statusCode;
     if (status == 401 && baseUrl != null && baseUrl!.isNotEmpty && (serviceKey == 'sonarr' || (serviceKey ?? '') == 'sonarr')) {
+      if (!_isSonarrOrigin(err.requestOptions.uri)) {
+        handler.next(err);
+        return;
+      }
       final carriedBearer = (err.requestOptions.headers['Authorization'] as String?)?.startsWith('Bearer ') ?? false;
       if (!carriedBearer) {
+        // Lazy first exchange (Branch 3): the API-key path 401'd (blank or
+        // invalid key) and we hold a Sonarr Authentik identity but no
+        // service token yet. Exchange once and retry with the service
+        // token. No identity or failed exchange → fall through to the
+        // normal API-key error path untouched.
+        try {
+          // Belt-and-braces: getSonarrSession already evicts expired
+          // entries, but a session valid at lookup must never be retried
+          // if it aged out during the exchange calls above.
+          var cached = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+          if (cached != null && cached.isExpired()) cached = null;
+          if (cached == null) {
+            var firstAuth = await _sonarrAuthToken();
+            if (firstAuth == null || firstAuth.isEmpty) {
+              // A prior failed refresh drops the access token but keeps
+              // the refresh token: try once to recover the identity.
+              // No refresh token → returns false, no side effects.
+              if (await _doSonarrRefresh()) {
+                firstAuth = await _sonarrAuthToken();
+              }
+            }
+            if (firstAuth != null && firstAuth.isNotEmpty) {
+              if (!await _postExchange(baseUrl!, firstAuth)) {
+                // Identity may be stale while a refresh token exists:
+                // refresh once and retry the exchange before giving up.
+                if (await _doSonarrRefresh()) {
+                  final again = await _sonarrAuthToken();
+                  if (again != null && again.isNotEmpty) {
+                    await _postExchange(baseUrl!, again);
+                  }
+                }
+              }
+              // Re-read: another in-flight request may have warmed the
+              // cache while this one was exchanging.
+              cached = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+              if (cached != null && cached.isExpired()) cached = null;
+            }
+          }
+          if (cached != null) {
+            // Copy: a failed retry must not leave the service token in
+            // err.requestOptions, which handler.next(err) forwards below
+            // past the Authorization cleanup at the end of onError.
+            final opts = err.requestOptions.copyWith(
+              headers: <String, dynamic>{
+                ...err.requestOptions.headers,
+                'Authorization': 'Bearer ${cached.serviceToken}',
+              },
+            );
+            try {
+              final retry =
+                  await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
+              handler.resolve(retry);
+              return;
+            } catch (_) {}
+          }
+        } catch (_) {}
         handler.next(err);
         return;
       }
