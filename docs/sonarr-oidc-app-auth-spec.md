@@ -105,10 +105,10 @@ Error responses:
 ## Validation rules (must match exactly)
 
 1. **Authentik JWT validation** (on `subject_token`):
-   - Issuer == `https://auth.piracyhub.win/application/o/seekarr/`
-     (trailing slash matters).
-   - Audience contains `seekarr` (the Authentik client_id the app logs
-     in with). Reject if aud does not contain `seekarr`.
+   - Issuer == `https://auth.piracyhub.win/application/o/sonarr/`
+     (trailing slash matters, per-provider issuer).
+   - Audience contains `sonarr` (the Authentik client_id the app logs
+     in with for this pilot). Reject if aud does not contain `sonarr`.
    - Signature verified against Authentik's JWKS.
    - JWKS refresh: cache with `RefreshInterval = 24h`, plus refresh on
      unknown `kid` (key rotation).
@@ -130,8 +130,11 @@ Error responses:
 
 ## App-side contract (what the app will do — do not change these shapes)
 
-- App logs in to Authentik once (PKCE, `aud=seekarr`), stores the
-  Authentik access + refresh tokens in secure storage.
+- App logs in to Authentik once per service pilot (PKCE, `aud=sonarr`,
+  `issuer https://auth.piracyhub.win/application/o/sonarr/`,
+  `client_id sonarr`), stores the Authentik access + refresh tokens
+  in secure storage. `seekarr` app (`aud=seekarr`) stays for Seekarr's
+  own desktop PKCE, not for `*arr` exchange.
 - On first call to a Sonarr endpoint, app gets `401` (no service token),
   then `POST /api/auth/oidc/exchange { subject_token }` with
   `Authorization: Bearer <authentik_token>`.
