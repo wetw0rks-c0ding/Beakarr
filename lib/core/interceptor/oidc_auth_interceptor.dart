@@ -30,10 +30,10 @@ class OidcAuthInterceptor extends Interceptor {
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
     final svc = serviceKey ?? 'unknown';
     final allowBearer = bearerCapableServices[svc] ?? false;
-    if (allowBearer && _issuerUrl.isNotEmpty && baseUrl != null && baseUrl!.isNotEmpty && svc == 'sonarr') {
+    if (allowBearer && _issuerUrl.isNotEmpty && baseUrl != null && baseUrl!.isNotEmpty && _oidcService) {
       // Origin-scoped: a foreign absolute URL through this client never
       // receives the Sonarr service token (matches the onError guard).
-      if (!_isSonarrOrigin(options.uri)) {
+      if (!_isServiceOrigin(options.uri)) {
         handler.next(options);
         return;
       }
@@ -57,13 +57,22 @@ class OidcAuthInterceptor extends Interceptor {
   Future<RefreshOutcome> _doRefresh() =>
       _session.refresh(_issuerUrl, _clientId);
 
-  /// Per-service Authentik identity for Sonarr: the exchange `subject_token`
-  /// must be minted by the `sonarr` provider (`iss .../o/sonarr/`,
-  /// `aud=sonarr`). The Seekarr-UI pair (`aud=seekarr`) is never sent here.
+  /// Per-service Authentik identity (Sonarr pilot; Radarr shares this path
+  /// in ArrStack mode): the exchange `subject_token` must be minted by the
+  /// expected provider. The Seekarr-UI pair (`aud=seekarr`) is never sent
+  /// to *arr hosts — in ArrStack mode the shared pair is the base pair.
   String get _sonarrIssuer =>
       OidcSessionService.perServiceIssuer(_issuerUrl, 'sonarr');
   String get _sonarrClientId =>
       OidcSessionService.perServiceClientId('sonarr', _issuerUrl);
+
+  /// Services whose requests may carry/exchange OIDC tokens. Sonarr always
+  /// (pilot: owns a per-provider identity); Radarr only in ArrStack mode,
+  /// where the shared pair is valid fleet-wide. Other services keep the
+  /// API-key path until their forks land.
+  bool get _oidcService =>
+      serviceKey == 'sonarr' ||
+      (serviceKey == 'radarr' && _useBasePair);
 
   /// ArrStack single-tile mode: the fleet shares the main pair minted by
   /// the main login. Per-service keys stay for the legacy per-provider
@@ -81,8 +90,34 @@ class OidcAuthInterceptor extends Interceptor {
   /// the cached Sonarr service token, never the shared identity — one
   /// service's refusal must not log the fleet out. Refresh-dead paths
   /// keep using [_clearSonarrAuth].
+  /// Verified safe in ArrStack mode: the live identity lives in the base
+  /// pair ([_useBasePair]), which `clearFor` never touches — per-service
+  /// keys are neither read nor written on that path (see [_sonarrAuthToken],
+  /// [_hasSonarrIdentity], and the hidden Sonarr login row).
   Future<void> _clearSonarrServiceOnly() =>
       _session.clearFor('sonarr');
+
+  /// Mint a fresh service token with the live identity, or null when no
+  /// identity exists or the exchange is refused. Never clears anything.
+  Future<String?> _freshServiceToken(String urlBase) async {
+    final auth = await _sonarrAuthToken();
+    if (auth == null || auth.isEmpty) return null;
+    if (!await _postExchange(urlBase, auth)) return null;
+    final s = SonarrOidcSessionProvider.getSonarrSession(urlBase);
+    if (s != null && s.isExpired()) return null;
+    return s?.serviceToken;
+  }
+
+  /// Whether any Authentik identity material exists (access or refresh).
+  /// Virgin state (never logged in) must keep the plain API-key error path.
+  Future<bool> _hasSonarrIdentity() async {
+    final a = await _sonarrAuthToken();
+    if (a != null && a.isNotEmpty) return true;
+    final r = _useBasePair
+        ? await _session.refreshToken
+        : await _session.refreshTokenFor('sonarr');
+    return r != null && r.isNotEmpty;
+  }
 
   Future<bool> _postExchange(String urlBase, String authToken) async {
     try {
@@ -143,7 +178,7 @@ class OidcAuthInterceptor extends Interceptor {
   /// Guards every Bearer attach/retry below: an absolute-URL request to a
   /// foreign origin passing through the Sonarr client must never receive
   /// the Sonarr service token.
-  bool _isSonarrOrigin(Uri requestUri) {
+  bool _isServiceOrigin(Uri requestUri) {
     final base = Uri.tryParse(baseUrl ?? '');
     if (base == null || !base.hasScheme || base.host.isEmpty) return false;
     int portOf(Uri u) =>
@@ -168,11 +203,11 @@ class OidcAuthInterceptor extends Interceptor {
       }
       debugPrint('Sonarr OIDC onError status=$status '
           'serviceKey=$serviceKey baseUrl=${safe(Uri.tryParse(baseUrl ?? '') ?? Uri())} carried=$carried '
-          'origin=${_isSonarrOrigin(err.requestOptions.uri)} '
+          'origin=${_isServiceOrigin(err.requestOptions.uri)} '
           'uri=${safe(err.requestOptions.uri)}');
     }
-    if (status == 401 && baseUrl != null && baseUrl!.isNotEmpty && (serviceKey == 'sonarr' || (serviceKey ?? '') == 'sonarr')) {
-      if (!_isSonarrOrigin(err.requestOptions.uri)) {
+    if (status == 401 && baseUrl != null && baseUrl!.isNotEmpty && _oidcService) {
+      if (!_isServiceOrigin(err.requestOptions.uri)) {
         handler.next(err);
         return;
       }
@@ -242,96 +277,53 @@ class OidcAuthInterceptor extends Interceptor {
         return;
       }
       try {
-        final authToken = await _sonarrAuthToken();
-        if (authToken == null || authToken.isEmpty) {
+        // Virgin state (never logged in): keep the plain API-key error
+        // path untouched.
+        if (!await _hasSonarrIdentity()) {
           handler.next(err);
           return;
         }
-        final hasValid = SonarrOidcSessionProvider.hasValidSession(baseUrl!);
-        if (!hasValid) {
-          final ok = await _postExchange(baseUrl!, authToken);
-          if (ok) {
-            final s = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
-            if (s != null) {
-              final opts = err.requestOptions..headers['Authorization'] = 'Bearer ${s.serviceToken}';
-              try {
-                final retry = await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
-                handler.resolve(retry);
-                return;
-              } catch (_) {}
-            }
-          } else {
-            final outcome = await _doSonarrRefresh();
-            if (outcome == RefreshOutcome.refreshed) {
-              final newAuth = await _sonarrAuthToken();
-              if (newAuth != null && newAuth.isNotEmpty) {
-                final ok2 = await _postExchange(baseUrl!, newAuth);
-                if (ok2) {
-                  final s2 = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
-                  if (s2 != null) {
-                    final opts = err.requestOptions..headers['Authorization'] = 'Bearer ${s2.serviceToken}';
-                    try {
-                      final retry = await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
-                      handler.resolve(retry);
-                      return;
-                    } catch (_) {}
-                  }
-                } else {
-                  // Exchange rejected on a live, freshly refreshed
-                  // identity: Sonarr-side refusal (misconfig, 403 tier).
-                  // Drop the service token only; the shared identity
-                  // stays valid for the rest of the fleet.
-                  await _clearSonarrServiceOnly();
-                  SonarrOidcSessionProvider.clear(baseUrl);
-                  handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
-                  return;
-                }
-              } else {
-                await _clearSonarrAuth();
-                SonarrOidcSessionProvider.clear(baseUrl);
-                handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
-                return;
-              }
-            } else if (outcome == RefreshOutcome.rejected) {
-              await _clearSonarrAuth();
-              SonarrOidcSessionProvider.clear(baseUrl);
-              handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
-              return;
-            } else {
-              // Transient (network blip): keep the identity, pass the
-              // original error through untouched.
-              handler.next(err);
-              return;
-            }
-          }
-        } else {
+        // The carried Bearer was rejected server-side. The cached token
+        // may be stale (rotation, fork restart): mint a fresh one with
+        // the live identity first, replacing the rejected token.
+        var token = await _freshServiceToken(baseUrl!);
+        if (token == null) {
+          // Live identity failed too: recover via refresh, then exchange
+          // exactly once more.
           final outcome = await _doSonarrRefresh();
           if (outcome == RefreshOutcome.refreshed) {
-            final opts = err.requestOptions;
-            final s = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
-            if (s != null) opts.headers['Authorization'] = 'Bearer ${s.serviceToken}';
-            else {
-              final newAuth = await _sonarrAuthToken();
-              if (newAuth != null && newAuth.isNotEmpty) {
-                await _postExchange(baseUrl!, newAuth);
-                final s2 = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
-                if (s2 != null) opts.headers['Authorization'] = 'Bearer ${s2.serviceToken}';
-              }
-            }
-            try {
-              final retry = await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
-              handler.resolve(retry);
-              return;
-            } catch (_) {}
+            token = await _freshServiceToken(baseUrl!);
           } else if (outcome == RefreshOutcome.rejected) {
             await _clearSonarrAuth();
             SonarrOidcSessionProvider.clear(baseUrl);
             handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
             return;
           } else {
+            // Transient (network blip): keep the identity, pass the
+            // original error through untouched.
             handler.next(err);
             return;
           }
+        }
+        if (token != null) {
+          final opts = err.requestOptions.copyWith(
+            headers: <String, dynamic>{
+              ...err.requestOptions.headers,
+              'Authorization': 'Bearer $token',
+            },
+          );
+          try {
+            final retry = await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
+            handler.resolve(retry);
+            return;
+          } catch (_) {}
+        } else {
+          // Identity live but service refused twice: drop the service
+          // token only; the shared identity stays valid for the fleet.
+          await _clearSonarrServiceOnly();
+          SonarrOidcSessionProvider.clear(baseUrl);
+          handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
+          return;
         }
       } catch (e) {
         if (kDebugMode) debugPrint('Interceptor error: $e');
