@@ -262,17 +262,7 @@ class _PoolSectionState extends ConsumerState<_PoolSection> {
             _hasNext = page.hasNext;
             return Column(
               children: [
-                ..._items.map(
-                  (item) => ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(
-                      item.title.isEmpty ? 'Unknown' : item.title,
-                    ),
-                    subtitle: item.subtitle.isEmpty
-                        ? null
-                        : Text(item.subtitle),
-                  ),
-                ),
+                ..._items.map((item) => _DiscoverTile(item: item)),
                 if (_hasNext)
                   TextButton(
                     onPressed: _loadingMore
@@ -324,40 +314,46 @@ class _DiscoverSection extends StatelessWidget {
               ? const Text('Nothing here yet')
               : Column(
                   children: items
-                      .map(
-                        (item) => ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: item.coverUrl == null
-                              ? const Icon(Icons.music_note_rounded)
-                              : ClipRRect(
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Image.network(
-                                    item.coverUrl!,
-                                    width: 48,
-                                    height: 48,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => const Icon(
-                                      Icons.music_note_rounded,
-                                    ),
-                                  ),
-                                ),
-                          title: Text(
-                            item.title.isEmpty ? 'Unknown' : item.title,
-                          ),
-                          subtitle: item.subtitle.isEmpty
-                              ? null
-                              : Text(item.subtitle),
-                          trailing: item.formattedDuration == null
-                              ? null
-                              : Text(item.formattedDuration!),
-                        ),
-                      )
+                      .map((item) => _DiscoverTile(item: item))
                       .toList(),
                 ),
           loading: () => const Center(child: CircularProgressIndicator()),
           error: (e, _) => Text('Error: $e'),
         ),
       ],
+    );
+  }
+}
+
+/// Shared recommendation row: cover art, title, subtitle, duration.
+class _DiscoverTile extends StatelessWidget {
+  final SoulSyncDiscoverItem item;
+
+  const _DiscoverTile({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: item.coverUrl == null
+          ? const Icon(Icons.music_note_rounded)
+          : ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                item.coverUrl!,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) => const Icon(
+                  Icons.music_note_rounded,
+                ),
+              ),
+            ),
+      title: Text(item.title.isEmpty ? 'Unknown' : item.title),
+      subtitle: item.subtitle.isEmpty ? null : Text(item.subtitle),
+      trailing: item.formattedDuration == null
+          ? null
+          : Text(item.formattedDuration!),
     );
   }
 }
