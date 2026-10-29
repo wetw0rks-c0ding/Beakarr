@@ -570,8 +570,16 @@ class SettingsHomeScreen extends ConsumerWidget {
     if (context.mounted) Navigator.of(context).pop();
 
     try {
+      final box = context.findRenderObject() as RenderBox?;
+      final origin = box == null
+          ? const Rect.fromLTWH(0, 0, 1, 1)
+          : box.localToGlobal(Offset.zero) & box.size;
       await SharePlus.instance.share(
-        ShareParams(files: [XFile(savePath)], text: 'Open in TrollStore'),
+        ShareParams(
+          files: [XFile(savePath)],
+          text: 'Open in TrollStore',
+          sharePositionOrigin: origin,
+        ),
       );
     } catch (e) {
       if (context.mounted) {

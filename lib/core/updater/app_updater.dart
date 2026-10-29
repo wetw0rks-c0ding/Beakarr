@@ -140,7 +140,14 @@ class AppUpdater {
 
   final Dio _dio;
 
-  AppUpdater({Dio? dio}) : _dio = dio ?? Dio();
+  AppUpdater({Dio? dio})
+      : _dio = dio ??
+            Dio(
+              BaseOptions(
+                connectTimeout: const Duration(seconds: 15),
+                receiveTimeout: const Duration(seconds: 60),
+              ),
+            );
 
   Future<List<GitHubRelease>> fetchReleases() async {
     final response = await _dio.get<dynamic>(
