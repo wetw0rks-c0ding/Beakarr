@@ -451,14 +451,14 @@ class SettingsHomeScreen extends ConsumerWidget {
     final dir = await getTemporaryDirectory();
     final savePath = '${dir.path}/${asset.name}';
     final progress = ValueNotifier<double?>(null);
-    BuildContext? dialogContext;
 
+    BuildContext? downloadDialogContext;
     if (context.mounted) {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext_) {
-          dialogContext = dialogContext_;
+        builder: (ctx) {
+          downloadDialogContext = ctx;
           return AlertDialog(
           title: Text('Downloading ${asset.name}'),
           content: ValueListenableBuilder<double?>(
@@ -476,7 +476,8 @@ class SettingsHomeScreen extends ConsumerWidget {
               ],
             ),
           ),
-        ),
+        );
+        },
       );
     }
 
@@ -489,7 +490,7 @@ class SettingsHomeScreen extends ConsumerWidget {
         },
       );
     } catch (e) {
-      final dlg = dialogContext;
+      final dlg = downloadDialogContext;
       if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
       if (context.mounted) {
         SnackBarHelper.error(context, "Couldn't download update. ($e)");
@@ -497,7 +498,7 @@ class SettingsHomeScreen extends ConsumerWidget {
       return;
     }
 
-    final dlg = dialogContext;
+    final dlg = downloadDialogContext;
     if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
 
     // Trigger system install prompt via platform channel.
@@ -530,14 +531,14 @@ class SettingsHomeScreen extends ConsumerWidget {
     final dir = await getApplicationDocumentsDirectory();
     final savePath = '${dir.path}/${asset.name}';
     final progress = ValueNotifier<double?>(null);
-    BuildContext? dialogContext;
 
+    BuildContext? ipaDialogContext;
     if (context.mounted) {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
-        builder: (dialogContext_) {
-          dialogContext = dialogContext_;
+        builder: (ctx) {
+          ipaDialogContext = ctx;
           return AlertDialog(
           title: Text('Downloading ${asset.name}'),
           content: ValueListenableBuilder<double?>(
@@ -555,7 +556,8 @@ class SettingsHomeScreen extends ConsumerWidget {
               ],
             ),
           ),
-        ),
+        );
+        },
       );
     }
 
@@ -568,7 +570,7 @@ class SettingsHomeScreen extends ConsumerWidget {
         },
       );
     } catch (e) {
-      final dlg = dialogContext;
+      final dlg = ipaDialogContext;
       if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
       if (context.mounted) {
         SnackBarHelper.error(context, "Couldn't download update. ($e)");
@@ -576,7 +578,7 @@ class SettingsHomeScreen extends ConsumerWidget {
       return;
     }
 
-    final dlg = dialogContext;
+    final dlg = ipaDialogContext;
     if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
 
     try {
