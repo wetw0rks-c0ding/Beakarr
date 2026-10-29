@@ -37,7 +37,7 @@ class OidcAuthInterceptor extends Interceptor {
         handler.next(options);
         return;
       }
-      final session = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+      final session = SonarrOidcSessionProvider.getSonarrSession(_host);
       if (session != null && !session.isExpired()) {
         options.headers['Authorization'] = 'Bearer ${session.serviceToken}';
       }
@@ -123,6 +123,10 @@ class OidcAuthInterceptor extends Interceptor {
   }
 
   Future<bool> _postExchange(String urlBase, String authToken) async {
+    // Radarr-style stored URLs may carry a trailing slash; without this
+    // the exchange/me paths gain a double slash and the fork's auth
+    // middleware 401s before routing (verified live: //api → empty 401).
+    urlBase = urlBase.trim().replaceAll(RegExp(r'/+$'), '');
     try {
       final res = await http.post(
         Uri.parse('$urlBase/api/auth/oidc/exchange'),
@@ -181,8 +185,14 @@ class OidcAuthInterceptor extends Interceptor {
   /// Guards every Bearer attach/retry below: an absolute-URL request to a
   /// foreign origin passing through the Sonarr client must never receive
   /// the Sonarr service token.
+  /// Canonical host key: no trailing slash, so the service-token cache,
+  /// exchange URLs, and origin check all agree regardless of how the
+  /// stored service URL was typed (Radarr ships with one).
+  String get _host =>
+      (baseUrl ?? '').trim().replaceAll(RegExp(r'/+$'), '');
+
   bool _isServiceOrigin(Uri requestUri) {
-    final base = Uri.tryParse(baseUrl ?? '');
+    final base = Uri.tryParse(_host);
     if (base == null || !base.hasScheme || base.host.isEmpty) return false;
     int portOf(Uri u) =>
         u.hasPort ? u.port : (u.scheme == 'https' ? 443 : 80);
@@ -229,7 +239,7 @@ class OidcAuthInterceptor extends Interceptor {
           // Belt-and-braces: getSonarrSession already evicts expired
           // entries, but a session valid at lookup must never be retried
           // if it aged out during the exchange calls above.
-          var cached = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+          var cached = SonarrOidcSessionProvider.getSonarrSession(_host);
           if (cached != null && cached.isExpired()) cached = null;
           if (cached == null) {
             var firstAuth = await _sonarrAuthToken();
@@ -242,19 +252,19 @@ class OidcAuthInterceptor extends Interceptor {
               }
             }
             if (firstAuth != null && firstAuth.isNotEmpty) {
-              if (!await _postExchange(baseUrl!, firstAuth)) {
+              if (!await _postExchange(_host, firstAuth)) {
                 // Identity may be stale while a refresh token exists:
                 // refresh once and retry the exchange before giving up.
                 if (await _doSonarrRefresh() == RefreshOutcome.refreshed) {
                   final again = await _sonarrAuthToken();
                   if (again != null && again.isNotEmpty) {
-                    await _postExchange(baseUrl!, again);
+                    await _postExchange(_host, again);
                   }
                 }
               }
               // Re-read: another in-flight request may have warmed the
               // cache while this one was exchanging.
-              cached = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+              cached = SonarrOidcSessionProvider.getSonarrSession(_host);
               if (cached != null && cached.isExpired()) cached = null;
             }
           }
@@ -270,7 +280,7 @@ class OidcAuthInterceptor extends Interceptor {
             );
             try {
               final retry =
-                  await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
+                  await Dio(BaseOptions(baseUrl: _host)).fetch(opts);
               handler.resolve(retry);
               return;
             } catch (_) {}
@@ -289,13 +299,13 @@ class OidcAuthInterceptor extends Interceptor {
         // The carried Bearer was rejected server-side. The cached token
         // may be stale (rotation, fork restart): mint a fresh one with
         // the live identity first, replacing the rejected token.
-        var token = await _freshServiceToken(baseUrl!);
+        var token = await _freshServiceToken(_host);
         if (token == null) {
           // Live identity failed too: recover via refresh, then exchange
           // exactly once more.
           final outcome = await _doSonarrRefresh();
           if (outcome == RefreshOutcome.refreshed) {
-            token = await _freshServiceToken(baseUrl!);
+            token = await _freshServiceToken(_host);
           } else if (outcome == RefreshOutcome.rejected) {
             // Identity confirmed dead: drop it plus every cached service
             // token fleet-wide (a sibling host's cache would only 401).
@@ -318,7 +328,7 @@ class OidcAuthInterceptor extends Interceptor {
             },
           );
           try {
-            final retry = await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
+            final retry = await Dio(BaseOptions(baseUrl: _host)).fetch(opts);
             handler.resolve(retry);
             return;
           } catch (_) {}
@@ -326,7 +336,7 @@ class OidcAuthInterceptor extends Interceptor {
           // Identity live but service refused twice: drop the service
           // token only; the shared identity stays valid for the fleet.
           await _clearSonarrServiceOnly();
-          SonarrOidcSessionProvider.clear(baseUrl);
+          SonarrOidcSessionProvider.clear(_host);
           handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
           return;
         }
