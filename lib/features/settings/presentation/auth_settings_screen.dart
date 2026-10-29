@@ -71,11 +71,12 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('OIDC / Authentik')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             TextField(
               controller: _issuerController,
               decoration: const InputDecoration(
@@ -275,6 +276,34 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
               ],
             ),
             const Divider(),
+            const Text(
+              'SSO service connections',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            _buildSsoServiceRow(
+              context,
+              label: 'Sonarr',
+              serviceKey: 'sonarr',
+              baseUrl: settings.sonarrUrl,
+              settings: settings,
+            ),
+            _buildSsoServiceRow(
+              context,
+              label: 'Radarr',
+              serviceKey: 'radarr',
+              baseUrl: settings.radarrUrl,
+              settings: settings,
+            ),
+            _buildSsoServiceRow(
+              context,
+              label: 'Prowlarr',
+              serviceKey: 'prowlarr',
+              baseUrl: settings.prowlarrUrl,
+              settings: settings,
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
             Text(
               'Sonarr (pilot)',
               style: const TextStyle(fontWeight: FontWeight.bold),
@@ -418,7 +447,68 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                 ],
               ),
           ],
-        ),
+          ),
+          ),
+      ),
+    );
+  }
+
+  Widget _buildSsoServiceRow(
+    BuildContext context, {
+    required String label,
+    required String serviceKey,
+    required String baseUrl,
+    required dynamic settings,
+  }) {
+    final isArrstack = OidcSessionService.isArrstackMode(settings.oidcIssuer);
+    final host = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
+    // Green = live service token cached for this host (real 200 exchange
+    // + /me, per the Sonarr/Radarr/Prowlarr fork contract). Orange = SSO
+    // identity exists but this host has no service token yet (exchange
+    // pending/failed, or fork endpoints missing as with Prowlarr pre-land).
+    // Red = no SSO identity at all.
+    final hasValidSession =
+        host.isNotEmpty && SonarrOidcSessionProvider.hasValidSession(host);
+    // Identity behind this row: shared main pair in ArrStack mode, the
+    // per-service sonarr pair otherwise. Other services have no SSO
+    // identity outside ArrStack mode.
+    final SessionStatus identityStatus = isArrstack
+        ? _sessionStatus
+        : (serviceKey == 'sonarr'
+              ? _sonarrStatus
+              : SessionStatus.disabled);
+
+    Color dotColor;
+    String statusText;
+    if (hasValidSession) {
+      dotColor = Colors.green;
+      statusText = 'Connected (SSO)';
+    } else if (identityStatus == SessionStatus.active ||
+        identityStatus == SessionStatus.error) {
+      dotColor = Colors.orange;
+      statusText = 'Connecting / error';
+    } else {
+      dotColor = Colors.red;
+      statusText = 'No connection';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Container(
+            width: 10,
+            height: 10,
+            decoration: BoxDecoration(
+              color: dotColor,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('$label — $statusText'),
+          ),
+        ],
       ),
     );
   }
