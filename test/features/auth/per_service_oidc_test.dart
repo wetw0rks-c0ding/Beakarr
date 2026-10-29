@@ -52,6 +52,23 @@ void main() {
     });
   });
 
+  group('per-service derivation + arrstack passthrough for prowlarr', () {
+    test('perServiceIssuer derives from seekarr base for prowlarr', () {
+      const base = 'https://auth.piracyhub.win/application/o/seekarr/';
+      expect(
+        OidcSessionService.perServiceIssuer(base, 'prowlarr'),
+        equals('https://auth.piracyhub.win/application/o/prowlarr/'),
+      );
+    });
+    test('perServiceClientId is prowlarr', () {
+      expect(OidcSessionService.perServiceClientId('prowlarr'), equals('prowlarr'));
+    });
+    test('arrstack passthrough keeps base issuer for prowlarr', () {
+      const arrstack = 'https://auth.piracyhub.win/application/o/arrstack/';
+      expect(OidcSessionService.perServiceIssuer(arrstack, 'prowlarr'), equals(arrstack));
+    });
+  });
+
   group('saveTokensFor + accessTokenFor round-trip for sonarr', () {
     test('stores and retrieves access token correctly', () async {
       const access = 'test_access_token';

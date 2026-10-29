@@ -86,7 +86,9 @@ class OidcAuthInterceptor extends Interceptor {
   /// where the shared pair is valid fleet-wide. Other services keep the
   /// API-key path until their forks land.
   bool get _oidcService =>
-      serviceKey == 'sonarr' || (serviceKey == 'radarr' && _useBasePair);
+      serviceKey == 'sonarr' ||
+      (serviceKey == 'radarr' && _useBasePair) ||
+      (serviceKey == 'prowlarr' && _useBasePair);
 
   /// ArrStack single-tile mode: the fleet shares the main pair minted by
   /// the main login. Per-service keys stay for the legacy per-provider

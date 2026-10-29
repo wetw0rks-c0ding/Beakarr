@@ -8,16 +8,28 @@ import 'package:seekarr/features/prowlarr/domain/models/prowlarr_history_record.
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
+import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 
 final prowlarrServiceProvider = Provider<ProwlarrService>((ref) {
   final settings = ref.watch(currentSettingsProvider);
-  if (settings.prowlarrUrl.isEmpty || settings.prowlarrApiKey.isEmpty) {
+  if (settings.prowlarrUrl.isEmpty ||
+      (settings.prowlarrApiKey.isEmpty &&
+          !OidcSessionService.isArrstackMode(settings.oidcIssuer))) {
     throw Exception('Prowlarr not configured');
   }
+  // Prowlarr has no per-provider login: only wire OIDC in ArrStack
+  // mode, where the shared pair is valid. Otherwise the plain
+  // API-key client, byte-identical to before.
+  final isArrstack = OidcSessionService.isArrstackMode(settings.oidcIssuer);
+  final store = ref.watch(secureSettingsStoreProvider);
   return ProwlarrService(
     ApiClient(
       baseUrl: settings.prowlarrUrl,
       auth: ApiKeyHeaderAuth(settings.prowlarrApiKey),
+      serviceKey: 'prowlarr',
+      session: isArrstack ? OidcSessionService(store) : null,
+      issuerUrl: isArrstack ? settings.oidcIssuer : null,
+      clientId: isArrstack ? settings.oidcClientId : null,
     ),
   );
 });
