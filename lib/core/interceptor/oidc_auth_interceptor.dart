@@ -79,6 +79,24 @@ class OidcAuthInterceptor extends Interceptor {
       if (res.statusCode != 200 && kDebugMode) {
         final snippet = res.body.length > 200 ? res.body.substring(0, 200) : res.body;
         debugPrint('Sonarr OIDC exchange body: $snippet');
+        // Temporary mismatch diagnostic: iss/aud/exp only, never sub/token.
+        try {
+          String norm(String s) => s.replaceAll('-', '+').replaceAll('_', '/');
+          String pad(String s) => s + '=' * ((4 - s.length % 4) % 4);
+          final parts = authToken.split('.');
+          if (parts.length == 3) {
+            final header = jsonDecode(
+                    utf8.decode(base64.decode(pad(norm(parts[0])))))
+                as Map<String, dynamic>;
+            final payload = jsonDecode(
+                    utf8.decode(base64.decode(pad(norm(parts[1])))))
+                as Map<String, dynamic>;
+            debugPrint('Sonarr OIDC subject-token iss=${payload['iss']} '
+                'aud=${payload['aud']} exp=${payload['exp']} '
+                'iat=${payload['iat']} kid=${header['kid']} '
+                'now=${DateTime.now().millisecondsSinceEpoch ~/ 1000}');
+          }
+        } catch (_) {}
       }
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
