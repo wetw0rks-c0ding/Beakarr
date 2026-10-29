@@ -30,8 +30,7 @@ final oidcLinkHandlerProvider = Provider<void>((ref) {
     final sess = OidcSessionService(store);
     final error = CallbackUriHelper.extractError(uri);
     if (error != null && error.isNotEmpty) {
-      ref.read(oidcLinkResultProvider.notifier).state =
-          'Login failed: $error';
+      ref.read(oidcLinkResultProvider.notifier).state = 'Login failed: $error';
       return;
     }
     final code = CallbackUriHelper.extractCode(uri);
@@ -52,14 +51,14 @@ final oidcLinkHandlerProvider = Provider<void>((ref) {
         pkceVerifier: verifier,
         redirectUri: 'seekarr://oauth/callback',
       );
-      if (ok &&
-          OidcSessionService.isArrstackMode(settings.oidcIssuer)) {
+      if (ok && OidcSessionService.isArrstackMode(settings.oidcIssuer)) {
         // New identity owns the fleet token now: drop any cached Sonarr
         // service token from the previous identity.
         SonarrOidcSessionProvider.clearAll();
       }
-      ref.read(oidcLinkResultProvider.notifier).state =
-          ok ? 'Login successful' : 'Login failed: token rejected';
+      ref.read(oidcLinkResultProvider.notifier).state = ok
+          ? 'Login successful'
+          : 'Login failed: token rejected';
     } catch (e) {
       ref.read(oidcLinkResultProvider.notifier).state = 'Login failed: $e';
     }

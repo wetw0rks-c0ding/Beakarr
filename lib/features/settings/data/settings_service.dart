@@ -331,7 +331,8 @@ class SettingsService {
       // secure key is loaded separately in loadSettings() to avoid a
       // second secure store read here.
       var apiKey = '';
-      if (service != ServiceKey.qbittorrent && service != ServiceKey.navidrome) {
+      if (service != ServiceKey.qbittorrent &&
+          service != ServiceKey.navidrome) {
         apiKey = await _loadApiKey(storageKeys.secureApiKey);
         if (apiKey.isEmpty && storageKeys.legacySecureApiKey != null) {
           apiKey = await _loadApiKey(storageKeys.legacySecureApiKey!);

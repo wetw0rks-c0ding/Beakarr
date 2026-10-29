@@ -22,15 +22,27 @@ class OidcAuthInterceptor extends Interceptor {
   final String? serviceKey;
   final String? baseUrl;
 
-  OidcAuthInterceptor(this._session, {required String issuerUrl, required String clientId, this.serviceKey, this.baseUrl})
-      : _clientId = clientId,
-        _issuerUrl = issuerUrl;
+  OidcAuthInterceptor(
+    this._session, {
+    required String issuerUrl,
+    required String clientId,
+    this.serviceKey,
+    this.baseUrl,
+  }) : _clientId = clientId,
+       _issuerUrl = issuerUrl;
 
   @override
-  void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
+  void onRequest(
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
     final svc = serviceKey ?? 'unknown';
     final allowBearer = bearerCapableServices[svc] ?? false;
-    if (allowBearer && _issuerUrl.isNotEmpty && baseUrl != null && baseUrl!.isNotEmpty && _oidcService) {
+    if (allowBearer &&
+        _issuerUrl.isNotEmpty &&
+        baseUrl != null &&
+        baseUrl!.isNotEmpty &&
+        _oidcService) {
       // Origin-scoped: a foreign absolute URL through this client never
       // receives the Sonarr service token (matches the onError guard).
       if (!_isServiceOrigin(options.uri)) {
@@ -74,8 +86,7 @@ class OidcAuthInterceptor extends Interceptor {
   /// where the shared pair is valid fleet-wide. Other services keep the
   /// API-key path until their forks land.
   bool get _oidcService =>
-      serviceKey == 'sonarr' ||
-      (serviceKey == 'radarr' && _useBasePair);
+      serviceKey == 'sonarr' || (serviceKey == 'radarr' && _useBasePair);
 
   /// ArrStack single-tile mode: the fleet shares the main pair minted by
   /// the main login. Per-service keys stay for the legacy per-provider
@@ -97,8 +108,7 @@ class OidcAuthInterceptor extends Interceptor {
   /// pair ([_useBasePair]), which `clearFor` never touches — per-service
   /// keys are neither read nor written on that path (see [_sonarrAuthToken],
   /// [_hasSonarrIdentity], and the hidden Sonarr login row).
-  Future<void> _clearSonarrServiceOnly() =>
-      _session.clearFor('sonarr');
+  Future<void> _clearSonarrServiceOnly() => _session.clearFor('sonarr');
 
   /// Mint a fresh service token with the live identity, or null when no
   /// identity exists or the exchange is refused. Never clears anything.
@@ -130,12 +140,17 @@ class OidcAuthInterceptor extends Interceptor {
     try {
       final res = await http.post(
         Uri.parse('$urlBase/api/auth/oidc/exchange'),
-        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $authToken'},
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $authToken',
+        },
         body: jsonEncode(<String, String>{'subject_token': authToken}),
       );
       if (kDebugMode) debugPrint('Sonarr OIDC exchange -> ${res.statusCode}');
       if (res.statusCode != 200 && kDebugMode) {
-        final snippet = res.body.length > 200 ? res.body.substring(0, 200) : res.body;
+        final snippet = res.body.length > 200
+            ? res.body.substring(0, 200)
+            : res.body;
         debugPrint('Sonarr OIDC exchange body: $snippet');
         // Temporary mismatch diagnostic: iss/aud/exp only, never sub/token.
         try {
@@ -143,16 +158,18 @@ class OidcAuthInterceptor extends Interceptor {
           String pad(String s) => s + '=' * ((4 - s.length % 4) % 4);
           final parts = authToken.split('.');
           if (parts.length == 3) {
-            final header = jsonDecode(
-                    utf8.decode(base64.decode(pad(norm(parts[0])))))
-                as Map<String, dynamic>;
-            final payload = jsonDecode(
-                    utf8.decode(base64.decode(pad(norm(parts[1])))))
-                as Map<String, dynamic>;
-            debugPrint('Sonarr OIDC subject-token iss=${payload['iss']} '
-                'aud=${payload['aud']} exp=${payload['exp']} '
-                'iat=${payload['iat']} kid=${header['kid']} '
-                'now=${DateTime.now().millisecondsSinceEpoch ~/ 1000}');
+            final header =
+                jsonDecode(utf8.decode(base64.decode(pad(norm(parts[0])))))
+                    as Map<String, dynamic>;
+            final payload =
+                jsonDecode(utf8.decode(base64.decode(pad(norm(parts[1])))))
+                    as Map<String, dynamic>;
+            debugPrint(
+              'Sonarr OIDC subject-token iss=${payload['iss']} '
+              'aud=${payload['aud']} exp=${payload['exp']} '
+              'iat=${payload['iat']} kid=${header['kid']} '
+              'now=${DateTime.now().millisecondsSinceEpoch ~/ 1000}',
+            );
           }
         } catch (_) {}
       }
@@ -160,12 +177,16 @@ class OidcAuthInterceptor extends Interceptor {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         final token = body['token'] as String?;
         if (token == null || token.isEmpty) return false;
-        final meRes = await http.get(Uri.parse('$urlBase/api/auth/me'), headers: {'Authorization': 'Bearer $token'});
+        final meRes = await http.get(
+          Uri.parse('$urlBase/api/auth/me'),
+          headers: {'Authorization': 'Bearer $token'},
+        );
         if (meRes.statusCode == 200) {
           final meBody = jsonDecode(meRes.body) as Map<String, dynamic>;
           SonarrOidcSessionProvider.update(urlBase, <String, dynamic>{
             ...body,
-            'permissions': meBody['permissions'] ?? body['permissions'] ?? <String>[],
+            'permissions':
+                meBody['permissions'] ?? body['permissions'] ?? <String>[],
             'role': meBody['role'] ?? body['role'] ?? 'ReadOnly',
           });
           if (kDebugMode) debugPrint('Sonarr OIDC cached for $urlBase');
@@ -188,14 +209,12 @@ class OidcAuthInterceptor extends Interceptor {
   /// Canonical host key: no trailing slash, so the service-token cache,
   /// exchange URLs, and origin check all agree regardless of how the
   /// stored service URL was typed (Radarr ships with one).
-  String get _host =>
-      (baseUrl ?? '').trim().replaceAll(RegExp(r'/+$'), '');
+  String get _host => (baseUrl ?? '').trim().replaceAll(RegExp(r'/+$'), '');
 
   bool _isServiceOrigin(Uri requestUri) {
     final base = Uri.tryParse(_host);
     if (base == null || !base.hasScheme || base.host.isEmpty) return false;
-    int portOf(Uri u) =>
-        u.hasPort ? u.port : (u.scheme == 'https' ? 443 : 80);
+    int portOf(Uri u) => u.hasPort ? u.port : (u.scheme == 'https' ? 443 : 80);
     return requestUri.scheme == base.scheme &&
         requestUri.host == base.host &&
         portOf(requestUri) == portOf(base);
@@ -205,8 +224,10 @@ class OidcAuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final status = err.response?.statusCode;
     if (kDebugMode && status == 401) {
-      final carried = (err.requestOptions.headers['Authorization'] as String?)
-              ?.startsWith('Bearer ') ??
+      final carried =
+          (err.requestOptions.headers['Authorization'] as String?)?.startsWith(
+            'Bearer ',
+          ) ??
           false;
       // Redacted: query parameters can carry API keys and configured
       // URLs can embed userinfo; log origin + path only.
@@ -214,17 +235,27 @@ class OidcAuthInterceptor extends Interceptor {
         final port = u.hasPort ? ':${u.port}' : '';
         return '${u.scheme}://${u.host}$port${u.path}';
       }
-      debugPrint('Sonarr OIDC onError status=$status '
-          'serviceKey=$serviceKey baseUrl=${safe(Uri.tryParse(baseUrl ?? '') ?? Uri())} carried=$carried '
-          'origin=${_isServiceOrigin(err.requestOptions.uri)} '
-          'uri=${safe(err.requestOptions.uri)}');
+
+      debugPrint(
+        'Sonarr OIDC onError status=$status '
+        'serviceKey=$serviceKey baseUrl=${safe(Uri.tryParse(baseUrl ?? '') ?? Uri())} carried=$carried '
+        'origin=${_isServiceOrigin(err.requestOptions.uri)} '
+        'uri=${safe(err.requestOptions.uri)}',
+      );
     }
-    if (status == 401 && baseUrl != null && baseUrl!.isNotEmpty && _oidcService) {
+    if (status == 401 &&
+        baseUrl != null &&
+        baseUrl!.isNotEmpty &&
+        _oidcService) {
       if (!_isServiceOrigin(err.requestOptions.uri)) {
         handler.next(err);
         return;
       }
-      final carriedBearer = (err.requestOptions.headers['Authorization'] as String?)?.startsWith('Bearer ') ?? false;
+      final carriedBearer =
+          (err.requestOptions.headers['Authorization'] as String?)?.startsWith(
+            'Bearer ',
+          ) ??
+          false;
       if (!carriedBearer) {
         // Lazy first exchange (Branch 3): the API-key path 401'd (blank or
         // invalid key) and we hold a Sonarr Authentik identity but no
@@ -233,8 +264,10 @@ class OidcAuthInterceptor extends Interceptor {
         // normal API-key error path untouched.
         try {
           if (kDebugMode) {
-            debugPrint('Sonarr OIDC lazy 401 for $baseUrl '
-                'identity=${(await _sonarrAuthToken())?.isNotEmpty == true}');
+            debugPrint(
+              'Sonarr OIDC lazy 401 for $baseUrl '
+              'identity=${(await _sonarrAuthToken())?.isNotEmpty == true}',
+            );
           }
           // Belt-and-braces: getSonarrSession already evicts expired
           // entries, but a session valid at lookup must never be retried
@@ -279,8 +312,7 @@ class OidcAuthInterceptor extends Interceptor {
               },
             );
             try {
-              final retry =
-                  await Dio(BaseOptions(baseUrl: _host)).fetch(opts);
+              final retry = await Dio(BaseOptions(baseUrl: _host)).fetch(opts);
               handler.resolve(retry);
               return;
             } catch (_) {}
@@ -311,7 +343,13 @@ class OidcAuthInterceptor extends Interceptor {
             // token fleet-wide (a sibling host's cache would only 401).
             await _clearSonarrAuth();
             SonarrOidcSessionProvider.clearAll();
-            handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
+            handler.reject(
+              DioException(
+                requestOptions: err.requestOptions,
+                error: 'Session expired — log in again',
+                response: err.response,
+              ),
+            );
             return;
           } else {
             // Transient (network blip): keep the identity, pass the
@@ -337,7 +375,13 @@ class OidcAuthInterceptor extends Interceptor {
           // token only; the shared identity stays valid for the fleet.
           await _clearSonarrServiceOnly();
           SonarrOidcSessionProvider.clear(_host);
-          handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
+          handler.reject(
+            DioException(
+              requestOptions: err.requestOptions,
+              error: 'Session expired — log in again',
+              response: err.response,
+            ),
+          );
           return;
         }
       } catch (e) {

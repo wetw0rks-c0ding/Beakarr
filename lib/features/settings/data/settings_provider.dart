@@ -60,7 +60,8 @@ class SettingsNotifier extends Notifier<SettingsModel> {
     // does not wipe sessions. State assigns before the awaits so a second
     // keystroke reads fresh state instead of overwriting the first change.
     String norm(String s) => s.trim().replaceAll(RegExp(r'/+$'), '');
-    final issuerChanged = norm(state.oidcIssuer) != norm(newSettings.oidcIssuer);
+    final issuerChanged =
+        norm(state.oidcIssuer) != norm(newSettings.oidcIssuer);
     state = newSettings;
     final work = _pending.then((_) async {
       if (issuerChanged) {

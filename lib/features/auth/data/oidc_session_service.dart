@@ -4,11 +4,7 @@ import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
 
 /// Session status strings.
-enum SessionStatus {
-  disabled,
-  active, 
-  error;
-}
+enum SessionStatus { disabled, active, error }
 
 /// App-level OIDC session service using Authentik discovery + PKCE.
 /// Outcome of an Authentik refresh attempt.
@@ -17,11 +13,7 @@ enum SessionStatus {
 /// tokens safe to clear. [transient] (network error, unparseable reply)
 /// must never clear: the identity may be fine, and in ArrStack mode a
 /// wrongful clear logs the whole fleet out.
-enum RefreshOutcome {
-  refreshed,
-  rejected,
-  transient,
-}
+enum RefreshOutcome { refreshed, rejected, transient }
 
 class OidcSessionService {
   final SecureSettingsStore _store;
@@ -37,7 +29,7 @@ class OidcSessionService {
   Future<String?> get accessToken => _store.read(key: _kAccess);
   Future<String?> get refreshToken => _store.read(key: _kRefresh);
   Future<String?> get pkceVerifier => _store.read(key: _kPkceV);
-  
+
   Future<int?> expiryEpoch() async {
     final s = await _store.read(key: _kExpiry);
     return s == null ? null : int.tryParse(s);
@@ -50,7 +42,8 @@ class OidcSessionService {
       return SessionStatus.disabled;
     }
     final expiry = await expiryEpoch();
-    if (expiry != null && DateTime.now().millisecondsSinceEpoch >= expiry * 1000) {
+    if (expiry != null &&
+        DateTime.now().millisecondsSinceEpoch >= expiry * 1000) {
       return SessionStatus.error;
     }
     return SessionStatus.active;
@@ -61,20 +54,22 @@ class OidcSessionService {
     final base = issuerUrl.trim().replaceAll(RegExp(r'/+$'), '');
     final url = '$base/.well-known/openid-configuration';
     final res = await http.get(Uri.parse(url));
-    if (res.statusCode != 200) throw Exception('OIDC discovery failed: ${res.statusCode}');
+    if (res.statusCode != 200)
+      throw Exception('OIDC discovery failed: ${res.statusCode}');
     return jsonDecode(res.body) as Map<String, dynamic>;
   }
 
   Future<void> saveTokens({
-    required String access, 
-    required String refresh, 
-    required int expiryEpoch, 
+    required String access,
+    required String refresh,
+    required int expiryEpoch,
     String? pkceVerifier,
   }) async {
     await _store.write(key: _kAccess, value: access);
     await _store.write(key: _kRefresh, value: refresh);
     await _store.write(key: _kExpiry, value: expiryEpoch.toString());
-    if (pkceVerifier != null) await _store.write(key: _kPkceV, value: pkceVerifier);
+    if (pkceVerifier != null)
+      await _store.write(key: _kPkceV, value: pkceVerifier);
   }
 
   Future<void> clear() async {
@@ -188,8 +183,7 @@ class OidcSessionService {
   }) async {
     await _store.write(key: _accessFor(service), value: access);
     await _store.write(key: _refreshFor(service), value: refresh);
-    await _store.write(
-        key: _expiryFor(service), value: expiryEpoch.toString());
+    await _store.write(key: _expiryFor(service), value: expiryEpoch.toString());
     if (pkceVerifier != null) {
       await _store.write(key: _pkceFor(service), value: pkceVerifier);
     }
@@ -244,7 +238,8 @@ class OidcSessionService {
           service: service,
           access: body['access_token'] as String,
           refresh: body['refresh_token'] as String? ?? '',
-          expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+          expiryEpoch:
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 +
               (body['expires_in'] as int? ?? 3600),
         );
         await _store.delete(key: _pkceFor(service));
@@ -268,21 +263,29 @@ class OidcSessionService {
   /// token call (see [_inflightRefreshes]). Never touches the
   /// Seekarr-UI session.
   Future<RefreshOutcome> refreshFor(
-      String service, String issuerUrl, String clientId) {
+    String service,
+    String issuerUrl,
+    String clientId,
+  ) {
     final existing = _inflightRefreshes[service];
     if (existing != null) return existing;
     final fut = _refreshForInner(service, issuerUrl, clientId);
     _inflightRefreshes[service] = fut;
-    fut.whenComplete(() {
-      if (identical(_inflightRefreshes[service], fut)) {
-        _inflightRefreshes.remove(service);
-      }
-    }).then((_) {}, onError: (_) {});
+    fut
+        .whenComplete(() {
+          if (identical(_inflightRefreshes[service], fut)) {
+            _inflightRefreshes.remove(service);
+          }
+        })
+        .then((_) {}, onError: (_) {});
     return fut;
   }
 
   Future<RefreshOutcome> _refreshForInner(
-      String service, String issuerUrl, String clientId) async {
+    String service,
+    String issuerUrl,
+    String clientId,
+  ) async {
     try {
       final storedRefresh = await refreshTokenFor(service);
       if (storedRefresh == null || storedRefresh.isEmpty) {
@@ -306,7 +309,8 @@ class OidcSessionService {
           service: service,
           access: body['access_token'] as String,
           refresh: body['refresh_token'] as String? ?? storedRefresh,
-          expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+          expiryEpoch:
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 +
               (body['expires_in'] as int? ?? 3600),
         );
         return RefreshOutcome.refreshed;
@@ -362,7 +366,9 @@ class OidcSessionService {
         await saveTokens(
           access: body['access_token'] as String,
           refresh: body['refresh_token'] as String? ?? '',
-          expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 + (body['expires_in'] as int? ?? 3600),
+          expiryEpoch:
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+              (body['expires_in'] as int? ?? 3600),
         );
         await _store.delete(key: _kPkceV);
         return true;
@@ -392,14 +398,19 @@ class OidcSessionService {
     if (existing != null) return existing;
     final fut = _refreshInner(issuerUrl, clientId);
     _inflightRefreshes[''] = fut;
-    fut.whenComplete(() {
-      if (identical(_inflightRefreshes[''], fut)) _inflightRefreshes.remove('');
-    }).then((_) {}, onError: (_) {});
+    fut
+        .whenComplete(() {
+          if (identical(_inflightRefreshes[''], fut))
+            _inflightRefreshes.remove('');
+        })
+        .then((_) {}, onError: (_) {});
     return fut;
   }
 
   Future<RefreshOutcome> _refreshInner(
-      String issuerUrl, String clientId) async {
+    String issuerUrl,
+    String clientId,
+  ) async {
     try {
       final refreshToken = await this.refreshToken;
       if (refreshToken == null || refreshToken.isEmpty) {
@@ -424,7 +435,9 @@ class OidcSessionService {
         await saveTokens(
           access: body['access_token'] as String,
           refresh: body['refresh_token'] as String? ?? refreshToken,
-          expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 + (body['expires_in'] as int? ?? 3600),
+          expiryEpoch:
+              DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+              (body['expires_in'] as int? ?? 3600),
         );
         return RefreshOutcome.refreshed;
       }
@@ -462,4 +475,3 @@ class OidcSessionService {
     return SonarrOidcSessionProvider.hasValidSession(baseUrl);
   }
 }
-

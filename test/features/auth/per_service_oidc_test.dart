@@ -15,15 +15,24 @@ void main() {
     test('derives origin correctly from seekarr base for sonarr', () async {
       const base = 'https://auth.piracyhub.win/application/o/seekarr/';
       final result = OidcSessionService.perServiceIssuer(base, 'sonarr');
-      expect(result, equals('https://auth.piracyhub.win/application/o/sonarr/'));
+      expect(
+        result,
+        equals('https://auth.piracyhub.win/application/o/sonarr/'),
+      );
     });
 
     test('is idempotent when base is already sonarr issuer', () async {
       const base = 'https://auth.piracyhub.win/application/o/sonarr/';
       final result1 = OidcSessionService.perServiceIssuer(base, 'sonarr');
       final result2 = OidcSessionService.perServiceIssuer(result1, 'sonarr');
-      expect(result1, equals('https://auth.piracyhub.win/application/o/sonarr/'));
-      expect(result2, equals('https://auth.piracyhub.win/application/o/sonarr/'));
+      expect(
+        result1,
+        equals('https://auth.piracyhub.win/application/o/sonarr/'),
+      );
+      expect(
+        result2,
+        equals('https://auth.piracyhub.win/application/o/sonarr/'),
+      );
     });
 
     test('returns empty string when base is empty', () async {
@@ -57,8 +66,14 @@ void main() {
         pkceVerifier: 'test_verifier',
       );
 
-      expect(await OidcSessionService(fakeStore).accessTokenFor('sonarr'), equals(access));
-      expect(await OidcSessionService(fakeStore).refreshTokenFor('sonarr'), equals(refresh));
+      expect(
+        await OidcSessionService(fakeStore).accessTokenFor('sonarr'),
+        equals(access),
+      );
+      expect(
+        await OidcSessionService(fakeStore).refreshTokenFor('sonarr'),
+        equals(refresh),
+      );
     });
 
     test('stores expiry epoch correctly', () async {
@@ -71,7 +86,9 @@ void main() {
         pkceVerifier: '',
       );
 
-      final stored = await OidcSessionService(fakeStore).expiryEpochFor('sonarr');
+      final stored = await OidcSessionService(
+        fakeStore,
+      ).expiryEpochFor('sonarr');
       expect(stored, equals(expiry));
     });
 
@@ -84,43 +101,62 @@ void main() {
         pkceVerifier: 'my_secret_verifier_123',
       );
 
-      final stored = await OidcSessionService(fakeStore).pkceVerifierFor('sonarr');
+      final stored = await OidcSessionService(
+        fakeStore,
+      ).pkceVerifierFor('sonarr');
       expect(stored, equals('my_secret_verifier_123'));
     });
   });
 
   group('seekarr base keys and sonarr keys are independent', () {
-    test('write base via saveTokens, write sonarr via saveTokensFor, read both back', () async {
-      const seekarrAccess = 'seekarr_base_access';
-      const seekarrRefresh = 'seekarr_base_refresh';
-      await OidcSessionService(fakeStore).saveTokens(
-        access: seekarrAccess,
-        refresh: seekarrRefresh,
-        expiryEpoch: 0,
-        pkceVerifier: '',
-      );
+    test(
+      'write base via saveTokens, write sonarr via saveTokensFor, read both back',
+      () async {
+        const seekarrAccess = 'seekarr_base_access';
+        const seekarrRefresh = 'seekarr_base_refresh';
+        await OidcSessionService(fakeStore).saveTokens(
+          access: seekarrAccess,
+          refresh: seekarrRefresh,
+          expiryEpoch: 0,
+          pkceVerifier: '',
+        );
 
-      const sonarrAccess = 'sonarr_access';
-      const sonarrRefresh = 'sonarr_refresh';
-      final expiry = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600;
-      await OidcSessionService(fakeStore).saveTokensFor(
-        service: 'sonarr',
-        access: sonarrAccess,
-        refresh: sonarrRefresh,
-        expiryEpoch: expiry,
-        pkceVerifier: '',
-      );
+        const sonarrAccess = 'sonarr_access';
+        const sonarrRefresh = 'sonarr_refresh';
+        final expiry = DateTime.now().millisecondsSinceEpoch ~/ 1000 + 3600;
+        await OidcSessionService(fakeStore).saveTokensFor(
+          service: 'sonarr',
+          access: sonarrAccess,
+          refresh: sonarrRefresh,
+          expiryEpoch: expiry,
+          pkceVerifier: '',
+        );
 
-      expect(await OidcSessionService(fakeStore).accessToken, equals(seekarrAccess));
-      expect(await OidcSessionService(fakeStore).refreshToken, equals(seekarrRefresh));
-      expect(await OidcSessionService(fakeStore).accessTokenFor('sonarr'), equals(sonarrAccess));
-      expect(await OidcSessionService(fakeStore).refreshTokenFor('sonarr'), equals(sonarrRefresh));
-    });
+        expect(
+          await OidcSessionService(fakeStore).accessToken,
+          equals(seekarrAccess),
+        );
+        expect(
+          await OidcSessionService(fakeStore).refreshToken,
+          equals(seekarrRefresh),
+        );
+        expect(
+          await OidcSessionService(fakeStore).accessTokenFor('sonarr'),
+          equals(sonarrAccess),
+        );
+        expect(
+          await OidcSessionService(fakeStore).refreshTokenFor('sonarr'),
+          equals(sonarrRefresh),
+        );
+      },
+    );
   });
 
   group('sessionStateFor', () {
     test('is disabled when empty', () async {
-      final state = await OidcSessionService(fakeStore).sessionStateFor('sonarr');
+      final state = await OidcSessionService(
+        fakeStore,
+      ).sessionStateFor('sonarr');
       expect(state, equals(SessionStatus.disabled));
     });
 
@@ -134,7 +170,9 @@ void main() {
         pkceVerifier: '',
       );
 
-      final state = await OidcSessionService(fakeStore).sessionStateFor('sonarr');
+      final state = await OidcSessionService(
+        fakeStore,
+      ).sessionStateFor('sonarr');
       expect(state, equals(SessionStatus.active));
     });
 
@@ -148,7 +186,9 @@ void main() {
         pkceVerifier: '',
       );
 
-      final state = await OidcSessionService(fakeStore).sessionStateFor('sonarr');
+      final state = await OidcSessionService(
+        fakeStore,
+      ).sessionStateFor('sonarr');
       expect(state, equals(SessionStatus.error));
     });
   });
@@ -177,8 +217,14 @@ void main() {
 
       await OidcSessionService(fakeStore).clearFor('sonarr');
 
-      expect(await OidcSessionService(fakeStore).accessTokenFor('sonarr'), isNull);
-      expect(await OidcSessionService(fakeStore).accessTokenFor('radarr'), equals(radarrAccess));
+      expect(
+        await OidcSessionService(fakeStore).accessTokenFor('sonarr'),
+        isNull,
+      );
+      expect(
+        await OidcSessionService(fakeStore).accessTokenFor('radarr'),
+        equals(radarrAccess),
+      );
     });
   });
 
@@ -186,36 +232,42 @@ void main() {
     test('isArrstackMode detects the arrstack issuer', () {
       expect(
         OidcSessionService.isArrstackMode(
-            'https://auth.piracyhub.win/application/o/arrstack/'),
+          'https://auth.piracyhub.win/application/o/arrstack/',
+        ),
         isTrue,
       );
       expect(
         OidcSessionService.isArrstackMode(
-            'https://auth.piracyhub.win/application/o/arrstack'),
+          'https://auth.piracyhub.win/application/o/arrstack',
+        ),
         isTrue,
       );
       expect(
         OidcSessionService.isArrstackMode(
-            'https://auth.piracyhub.win/application/o/sonarr/'),
+          'https://auth.piracyhub.win/application/o/sonarr/',
+        ),
         isFalse,
       );
       expect(OidcSessionService.isArrstackMode(''), isFalse);
     });
 
-    test('perServiceIssuer returns base for every service in arrstack mode',
-        () {
-      const base = 'https://auth.piracyhub.win/application/o/arrstack/';
-      for (final svc in ['sonarr', 'radarr', 'lidarr']) {
-        expect(OidcSessionService.perServiceIssuer(base, svc), equals(base));
-      }
-    });
+    test(
+      'perServiceIssuer returns base for every service in arrstack mode',
+      () {
+        const base = 'https://auth.piracyhub.win/application/o/arrstack/';
+        for (final svc in ['sonarr', 'radarr', 'lidarr']) {
+          expect(OidcSessionService.perServiceIssuer(base, svc), equals(base));
+        }
+      },
+    );
 
     test('perServiceClientId returns arrstack in arrstack mode', () {
       const base = 'https://auth.piracyhub.win/application/o/arrstack/';
-      expect(OidcSessionService.perServiceClientId('sonarr', base),
-          equals('arrstack'));
-      expect(OidcSessionService.perServiceClientId('sonarr'),
-          equals('sonarr'));
+      expect(
+        OidcSessionService.perServiceClientId('sonarr', base),
+        equals('arrstack'),
+      );
+      expect(OidcSessionService.perServiceClientId('sonarr'), equals('sonarr'));
     });
   });
 
@@ -245,13 +297,15 @@ void main() {
           req.response
             ..statusCode = tokenStatus
             ..headers.contentType = ContentType.json
-            ..write(tokenStatus == 200
-                ? jsonEncode({
-                    'access_token': 'new-access',
-                    'refresh_token': 'new-refresh',
-                    'expires_in': 3600,
-                  })
-                : jsonEncode({'error': 'invalid_grant'}));
+            ..write(
+              tokenStatus == 200
+                  ? jsonEncode({
+                      'access_token': 'new-access',
+                      'refresh_token': 'new-refresh',
+                      'expires_in': 3600,
+                    })
+                  : jsonEncode({'error': 'invalid_grant'}),
+            );
           await req.response.close();
         } else {
           req.response.statusCode = 404;
@@ -269,8 +323,10 @@ void main() {
         refresh: 'old-refresh',
         expiryEpoch: 0,
       );
-      expect(await sess.refreshFor('sonarr', base, 'sonarr'),
-          equals(RefreshOutcome.refreshed));
+      expect(
+        await sess.refreshFor('sonarr', base, 'sonarr'),
+        equals(RefreshOutcome.refreshed),
+      );
       expect(await sess.accessTokenFor('sonarr'), equals('new-access'));
       expect(await sess.refreshTokenFor('sonarr'), equals('new-refresh'));
     });
@@ -284,17 +340,21 @@ void main() {
         refresh: 'old-refresh',
         expiryEpoch: 0,
       );
-      expect(await sess.refreshFor('sonarr', base, 'sonarr'),
-          equals(RefreshOutcome.rejected));
+      expect(
+        await sess.refreshFor('sonarr', base, 'sonarr'),
+        equals(RefreshOutcome.rejected),
+      );
       expect(await sess.accessTokenFor('sonarr'), isNull);
       expect(await sess.refreshTokenFor('sonarr'), equals('old-refresh'));
     });
 
     test('refreshFor rejected with no stored refresh token', () async {
       expect(
-          await OidcSessionService(fakeStore)
-              .refreshFor('sonarr', base, 'sonarr'),
-          equals(RefreshOutcome.rejected));
+        await OidcSessionService(
+          fakeStore,
+        ).refreshFor('sonarr', base, 'sonarr'),
+        equals(RefreshOutcome.rejected),
+      );
     });
 
     test('refreshFor transient on 500 and keeps the stored pair', () async {
@@ -306,8 +366,10 @@ void main() {
         refresh: 'old-refresh',
         expiryEpoch: 0,
       );
-      expect(await sess.refreshFor('sonarr', base, 'sonarr'),
-          equals(RefreshOutcome.transient));
+      expect(
+        await sess.refreshFor('sonarr', base, 'sonarr'),
+        equals(RefreshOutcome.transient),
+      );
       expect(await sess.accessTokenFor('sonarr'), equals('old-access'));
       expect(await sess.refreshTokenFor('sonarr'), equals('old-refresh'));
     });
@@ -328,11 +390,13 @@ void main() {
           req.response
             ..statusCode = 200
             ..headers.contentType = ContentType.json
-            ..write(jsonEncode({
-              'access_token': 'new-access',
-              'refresh_token': 'new-refresh',
-              'expires_in': 3600,
-            }));
+            ..write(
+              jsonEncode({
+                'access_token': 'new-access',
+                'refresh_token': 'new-refresh',
+                'expires_in': 3600,
+              }),
+            );
           await req.response.close();
         } else {
           req.response.statusCode = 404;
@@ -351,8 +415,7 @@ void main() {
         sess.refreshFor('sonarr', base, 'sonarr'),
         sess.refreshFor('sonarr', base, 'sonarr'),
       ]);
-      expect(results,
-          everyElement(equals(RefreshOutcome.refreshed)));
+      expect(results, everyElement(equals(RefreshOutcome.refreshed)));
       expect(tokenHits, equals(1));
     });
   });

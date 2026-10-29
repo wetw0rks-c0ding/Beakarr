@@ -17,15 +17,15 @@ class ApiClient {
     String? issuerUrl,
     String? clientId,
   }) : _dio = Dio(
-          BaseOptions(
-            baseUrl: baseUrl,
-            headers: {
-              ...auth.headers(),
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-            },
-          ),
-        ) {
+         BaseOptions(
+           baseUrl: baseUrl,
+           headers: {
+             ...auth.headers(),
+             'Content-Type': 'application/json',
+             'Accept': 'application/json',
+           },
+         ),
+       ) {
     // TEMP-DIAG: temporary redacted HTTP logging for live session (revert after).
     // DIAGNOSTIC: app-level OIDC auth interceptor (slice 1) — injects Bearer
     // when session active + per-service map allows; 401 triggers refresh once.
@@ -39,36 +39,44 @@ class ApiClient {
         error: true,
         logPrint: (Object? o) {
           final raw = o?.toString() ?? '';
-          final redacted = raw.split('\n').map((line) {
-            var out = line.replaceAllMapped(
-              RegExp(
-                r'^(.*?(?:x-api-key|authorization)\s*:\s*).+$',
-                caseSensitive: false,
-              ),
-              (m) => '${m.group(1)}***',
-            );
-            if (out.length > 500) {
-              out = out.substring(0, 500);
-            }
-            return out;
-          }).join('\n');
+          final redacted = raw
+              .split('\n')
+              .map((line) {
+                var out = line.replaceAllMapped(
+                  RegExp(
+                    r'^(.*?(?:x-api-key|authorization)\s*:\s*).+$',
+                    caseSensitive: false,
+                  ),
+                  (m) => '${m.group(1)}***',
+                );
+                if (out.length > 500) {
+                  out = out.substring(0, 500);
+                }
+                return out;
+              })
+              .join('\n');
           // ignore: avoid_print
           print(redacted);
         },
       ),
     );
-    if (session != null && issuerUrl != null && issuerUrl.isNotEmpty && clientId != null) {
-      _dio.interceptors.add(OidcAuthInterceptor(
-        session,
-        issuerUrl: issuerUrl,
-        clientId: clientId,
-        serviceKey: serviceKey,
-        // Pilot services resolve their own host for origin-scoped
-        // Bearer use; everything else stays API-key-only.
-        baseUrl: (serviceKey == 'sonarr' || serviceKey == 'radarr')
-            ? baseUrl
-            : null,
-      ));
+    if (session != null &&
+        issuerUrl != null &&
+        issuerUrl.isNotEmpty &&
+        clientId != null) {
+      _dio.interceptors.add(
+        OidcAuthInterceptor(
+          session,
+          issuerUrl: issuerUrl,
+          clientId: clientId,
+          serviceKey: serviceKey,
+          // Pilot services resolve their own host for origin-scoped
+          // Bearer use; everything else stays API-key-only.
+          baseUrl: (serviceKey == 'sonarr' || serviceKey == 'radarr')
+              ? baseUrl
+              : null,
+        ),
+      );
     }
   }
 
