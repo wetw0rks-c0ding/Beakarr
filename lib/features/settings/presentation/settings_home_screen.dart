@@ -453,12 +453,18 @@ class SettingsHomeScreen extends ConsumerWidget {
     final progress = ValueNotifier<double?>(null);
 
     BuildContext? downloadDialogContext;
+    var downloadDismissRequested = false;
     if (context.mounted) {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) {
           downloadDialogContext = ctx;
+          if (downloadDismissRequested && ctx.mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            });
+          }
           return AlertDialog(
           title: Text('Downloading ${asset.name}'),
           content: ValueListenableBuilder<double?>(
@@ -498,6 +504,7 @@ class SettingsHomeScreen extends ConsumerWidget {
       return;
     }
 
+    downloadDismissRequested = true;
     final dlg = downloadDialogContext;
     if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
 
@@ -533,12 +540,18 @@ class SettingsHomeScreen extends ConsumerWidget {
     final progress = ValueNotifier<double?>(null);
 
     BuildContext? ipaDialogContext;
+    var ipaDismissRequested = false;
     if (context.mounted) {
       showDialog<void>(
         context: context,
         barrierDismissible: false,
         builder: (ctx) {
           ipaDialogContext = ctx;
+          if (ipaDismissRequested && ctx.mounted) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (ctx.mounted) Navigator.of(ctx).pop();
+            });
+          }
           return AlertDialog(
           title: Text('Downloading ${asset.name}'),
           content: ValueListenableBuilder<double?>(
@@ -578,6 +591,7 @@ class SettingsHomeScreen extends ConsumerWidget {
       return;
     }
 
+    ipaDismissRequested = true;
     final dlg = ipaDialogContext;
     if (dlg != null && dlg.mounted) Navigator.of(dlg).pop();
 

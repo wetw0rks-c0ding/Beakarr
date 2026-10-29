@@ -35,12 +35,12 @@ class TorrentSelectionBar extends ConsumerWidget {
                 },
                 child: const Text('Cancel'),
               ),
-              const Spacer(),
+              const SizedBox(width: 16),
               Text(
                 '${selectedHashes.length} selected',
                 style: Theme.of(context).textTheme.bodySmall,
               ),
-              const Spacer(),
+              const SizedBox(width: 16),
               TextButton.icon(
                 onPressed: () => runTorrentAction(
                   context,
