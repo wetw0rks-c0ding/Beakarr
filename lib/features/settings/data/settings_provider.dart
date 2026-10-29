@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 
@@ -47,9 +48,32 @@ class SettingsNotifier extends Notifier<SettingsModel> {
     return ref.watch(initialSettingsProvider);
   }
 
+  /// Serializes persistence work so overlapping calls (one per keystroke)
+  /// cannot save out of order.
+  Future<void> _pending = Future.value();
+
   Future<void> updateSettings(SettingsModel newSettings) async {
-    await _service.saveSettings(newSettings);
+    // Issuer switch invalidates every stored token: the old Authentik
+    // pairs were minted under the old issuer and every *arr fork rejects
+    // them with 401 invalid_token (exact ValidIssuer match, fail closed).
+    // Compare normalized (trimmed, no trailing slash) so a cosmetic edit
+    // does not wipe sessions. State assigns before the awaits so a second
+    // keystroke reads fresh state instead of overwriting the first change.
+    String norm(String s) => s.trim().replaceAll(RegExp(r'/+$'), '');
+    final issuerChanged = norm(state.oidcIssuer) != norm(newSettings.oidcIssuer);
     state = newSettings;
+    final work = _pending.then((_) async {
+      if (issuerChanged) {
+        await _service.clearOidcSessions();
+        SonarrOidcSessionProvider.clearAll();
+      }
+      // Persist the latest state, not the captured snapshot: a newer call
+      // may have updated state while this work was queued.
+      await _service.saveSettings(state);
+    });
+    // Keep the chain alive on failure, but still surface the error here.
+    _pending = work.then((_) {}, onError: (_) {});
+    await work;
   }
 
   Future<void> resetSettings() async {

@@ -44,7 +44,23 @@ class OidcAuthInterceptor extends Interceptor {
     handler.next(options);
   }
 
+  // Slice-1 Seekarr-UI refresh helper. Unused by the Sonarr pilot (which
+  // uses [_doSonarrRefresh]), retained for the remaining slice-1 Bearer
+  // services until they migrate to per-service pairs.
+  // ignore: unused_element
   Future<bool> _doRefresh() => _session.refresh(_issuerUrl, _clientId);
+
+  /// Per-service Authentik identity for Sonarr: the exchange `subject_token`
+  /// must be minted by the `sonarr` provider (`iss .../o/sonarr/`,
+  /// `aud=sonarr`). The Seekarr-UI pair (`aud=seekarr`) is never sent here.
+  String get _sonarrIssuer =>
+      OidcSessionService.perServiceIssuer(_issuerUrl, 'sonarr');
+  String get _sonarrClientId =>
+      OidcSessionService.perServiceClientId('sonarr');
+  Future<bool> _doSonarrRefresh() =>
+      _session.refreshFor('sonarr', _sonarrIssuer, _sonarrClientId);
+  Future<String?> _sonarrAuthToken() => _session.accessTokenFor('sonarr');
+  Future<void> _clearSonarrAuth() => _session.clearFor('sonarr');
 
   Future<bool> _postExchange(String urlBase, String authToken) async {
     try {
@@ -88,7 +104,7 @@ class OidcAuthInterceptor extends Interceptor {
         return;
       }
       try {
-        final authToken = await _session.accessToken;
+        final authToken = await _sonarrAuthToken();
         if (authToken == null || authToken.isEmpty) {
           handler.next(err);
           return;
@@ -107,9 +123,9 @@ class OidcAuthInterceptor extends Interceptor {
               } catch (_) {}
             }
           } else {
-            final refreshed = await _doRefresh();
+            final refreshed = await _doSonarrRefresh();
             if (refreshed) {
-              final newAuth = await _session.accessToken;
+              final newAuth = await _sonarrAuthToken();
               if (newAuth != null && newAuth.isNotEmpty) {
                 final ok2 = await _postExchange(baseUrl!, newAuth);
                 if (ok2) {
@@ -123,29 +139,32 @@ class OidcAuthInterceptor extends Interceptor {
                     } catch (_) {}
                   }
                 } else {
-                  await _session.clear();
+                  await _clearSonarrAuth();
+                  SonarrOidcSessionProvider.clear(baseUrl);
                   handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
                   return;
                 }
               } else {
-                await _session.clear();
+                await _clearSonarrAuth();
+                SonarrOidcSessionProvider.clear(baseUrl);
                 handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
                 return;
               }
             } else {
-              await _session.clear();
+              await _clearSonarrAuth();
+              SonarrOidcSessionProvider.clear(baseUrl);
               handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
               return;
             }
           }
         } else {
-          final refreshed = await _doRefresh();
+          final refreshed = await _doSonarrRefresh();
           if (refreshed) {
             final opts = err.requestOptions;
             final s = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
             if (s != null) opts.headers['Authorization'] = 'Bearer ${s.serviceToken}';
             else {
-              final newAuth = await _session.accessToken;
+              final newAuth = await _sonarrAuthToken();
               if (newAuth != null && newAuth.isNotEmpty) {
                 await _postExchange(baseUrl!, newAuth);
                 final s2 = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
@@ -158,7 +177,8 @@ class OidcAuthInterceptor extends Interceptor {
               return;
             } catch (_) {}
           } else {
-            await _session.clear();
+            await _clearSonarrAuth();
+            SonarrOidcSessionProvider.clear(baseUrl);
             handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
             return;
           }

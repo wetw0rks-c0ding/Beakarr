@@ -72,12 +72,205 @@ class OidcSessionService {
     await _store.delete(key: _kPkceV);
   }
 
-  /// Clear all OIDC session data.
+  // ---------------------------------------------------------------------------
+  // Per-service Authentik sessions (sonarr, radarr, lidarr, …).
+  //
+  // Each *arr has its own Authentik provider (`.../o/<app>/`, `aud=<app>`),
+  // so the app holds one Authentik token pair per service in addition to the
+  // Seekarr-UI session above. The Sonarr pilot uses the `sonarr` pair as the
+  // `subject_token` for `POST /api/auth/oidc/exchange`; the `seekarr` pair
+  // is never sent to *arr hosts.
+  // ---------------------------------------------------------------------------
+
+  /// Services with their own Authentik provider (per-service PKCE).
+  static const List<String> perServiceApps = <String>[
+    'sonarr',
+    'radarr',
+    'lidarr',
+    'prowlarr',
+    'bazarr',
+    'seerr',
+  ];
+
+  static String _accessFor(String service) => 'oidc_access_token_$service';
+  static String _refreshFor(String service) => 'oidc_refresh_token_$service';
+  static String _expiryFor(String service) => 'oidc_token_expiry_$service';
+  static String _pkceFor(String service) => 'oidc_pkce_verifier_$service';
+
+  /// Derive a per-service issuer from the configured base issuer.
+  ///
+  /// The base is normally the Seekarr provider issuer
+  /// (`https://auth.<host>/application/o/seekarr/`); per-service issuers
+  /// share the origin (`https://auth.<host>/application/o/<service>/`).
+  /// If [baseIssuer] is already a per-service issuer, re-deriving for the
+  /// same service is idempotent.
+  static String perServiceIssuer(String baseIssuer, String service) {
+    final trimmed = baseIssuer.trim().replaceAll(RegExp(r'/+$'), '');
+    if (trimmed.isEmpty || service.isEmpty) return '';
+    final uri = Uri.tryParse(trimmed);
+    if (uri == null || !uri.hasScheme || uri.host.isEmpty) return '';
+    final origin =
+        '${uri.scheme}://${uri.host}${uri.hasPort ? ':${uri.port}' : ''}';
+    return '$origin/application/o/$service/';
+  }
+
+  /// Authentik client_id convention: one client per app, named for the app.
+  static String perServiceClientId(String service) => service;
+
+  Future<String?> accessTokenFor(String service) =>
+      _store.read(key: _accessFor(service));
+
+  Future<String?> refreshTokenFor(String service) =>
+      _store.read(key: _refreshFor(service));
+
+  Future<String?> pkceVerifierFor(String service) =>
+      _store.read(key: _pkceFor(service));
+
+  Future<int?> expiryEpochFor(String service) async {
+    final s = await _store.read(key: _expiryFor(service));
+    return s == null ? null : int.tryParse(s);
+  }
+
+  Future<SessionStatus> sessionStateFor(String service) async {
+    final token = await accessTokenFor(service);
+    if (token == null || token.isEmpty) return SessionStatus.disabled;
+    final expiry = await expiryEpochFor(service);
+    if (expiry != null &&
+        DateTime.now().millisecondsSinceEpoch >= expiry * 1000) {
+      return SessionStatus.error;
+    }
+    return SessionStatus.active;
+  }
+
+  Future<void> saveTokensFor({
+    required String service,
+    required String access,
+    required String refresh,
+    required int expiryEpoch,
+    String? pkceVerifier,
+  }) async {
+    await _store.write(key: _accessFor(service), value: access);
+    await _store.write(key: _refreshFor(service), value: refresh);
+    await _store.write(
+        key: _expiryFor(service), value: expiryEpoch.toString());
+    if (pkceVerifier != null) {
+      await _store.write(key: _pkceFor(service), value: pkceVerifier);
+    }
+  }
+
+  Future<void> clearFor(String service) async {
+    await _store.delete(key: _accessFor(service));
+    await _store.delete(key: _refreshFor(service));
+    await _store.delete(key: _expiryFor(service));
+    await _store.delete(key: _pkceFor(service));
+  }
+
+  /// Persist only a PKCE verifier for [service] (login-flow start).
+  /// Unlike [saveTokensFor], this never touches the stored token pair, so
+  /// cancelling a login cannot wipe an existing session.
+  Future<void> savePkceVerifierFor(String service, String verifier) =>
+      _store.write(key: _pkceFor(service), value: verifier);
+
+  Future<void> deletePkceVerifierFor(String service) =>
+      _store.delete(key: _pkceFor(service));
+
+  /// Exchange an authorization code against a per-service provider.
+  /// Stores the resulting pair under the per-service keys.
+  Future<bool> exchangeTokenFor({
+    required String service,
+    required String issuerUrl,
+    required String clientId,
+    required String authorizationCode,
+    required String pkceVerifier,
+    required String redirectUri,
+  }) async {
+    try {
+      final config = await discover(issuerUrl);
+      final tokenUrl = config['token_endpoint'] as String?;
+      if (tokenUrl == null) {
+        throw Exception('No token endpoint in OIDC discovery');
+      }
+      final res = await http.post(
+        Uri.parse(tokenUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: <String, String>{
+          'grant_type': 'authorization_code',
+          'code': authorizationCode,
+          'redirect_uri': redirectUri,
+          'code_verifier': pkceVerifier,
+          'client_id': clientId,
+        },
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        await saveTokensFor(
+          service: service,
+          access: body['access_token'] as String,
+          refresh: body['refresh_token'] as String? ?? '',
+          expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+              (body['expires_in'] as int? ?? 3600),
+        );
+        await _store.delete(key: _pkceFor(service));
+        return true;
+      } else if (res.statusCode == 400) {
+        final errorBody = jsonDecode(res.body) as Map<String, dynamic>?;
+        final error = errorBody?['error'] as String?;
+        final errorMessage = errorBody?['error_description'] ?? error;
+        throw Exception('Token exchange failed: $errorMessage');
+      }
+      throw Exception('Token exchange HTTP error: ${res.statusCode}');
+    } catch (_) {
+      await _store.delete(key: _pkceFor(service));
+      rethrow;
+    }
+  }
+
+  /// Refresh a per-service Authentik pair. Returns false (no throw) on
+  /// failure; clears only the per-service access token, keeping the refresh
+  /// token for a later retry. Never touches the Seekarr-UI session.
+  Future<bool> refreshFor(
+      String service, String issuerUrl, String clientId) async {
+    final storedRefresh = await refreshTokenFor(service);
+    if (storedRefresh == null || storedRefresh.isEmpty) return false;
+    try {
+      final config = await discover(issuerUrl);
+      final tokenUrl = config['token_endpoint'] as String?;
+      if (tokenUrl == null) return false;
+      final res = await http.post(
+        Uri.parse(tokenUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: <String, String>{
+          'grant_type': 'refresh_token',
+          'refresh_token': storedRefresh,
+          'client_id': clientId,
+        },
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        await saveTokensFor(
+          service: service,
+          access: body['access_token'] as String,
+          refresh: body['refresh_token'] as String? ?? storedRefresh,
+          expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 +
+              (body['expires_in'] as int? ?? 3600),
+        );
+        return true;
+      }
+      await _store.delete(key: _accessFor(service));
+      return false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<void> clearAll() async {
     await _store.delete(key: _kAccess);
     await _store.delete(key: _kRefresh);
     await _store.delete(key: _kExpiry);
     await _store.delete(key: _kPkceV);
+    for (final svc in perServiceApps) {
+      await clearFor(svc);
+    }
     SonarrOidcSessionProvider.clearAll();
   }
 

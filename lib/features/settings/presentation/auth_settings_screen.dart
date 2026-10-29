@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/features/auth/data/pkce.dart';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
+import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
 import 'package:seekarr/features/auth/data/oidc_link_handler.dart';
 import 'package:seekarr/features/auth/data/oidc_loopback_listener.dart';
 import 'package:seekarr/features/auth/presentation/oidc_webview_screen.dart';
@@ -17,9 +18,28 @@ class AuthSettingsScreen extends ConsumerStatefulWidget {
 
 class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
   SessionStatus _sessionStatus = SessionStatus.disabled;
+  SessionStatus _sonarrStatus = SessionStatus.disabled;
   late final TextEditingController _issuerController;
   late final TextEditingController _clientIdController;
   bool _controllersSeeded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadStatuses();
+  }
+
+  Future<void> _loadStatuses() async {
+    final sess = OidcSessionService(createSecureSettingsStore());
+    final seekarr = await sess.sessionState();
+    final sonarr = await sess.sessionStateFor('sonarr');
+    if (mounted) {
+      setState(() {
+        _sessionStatus = seekarr;
+        _sonarrStatus = sonarr;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -55,9 +75,10 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
             TextField(
               controller: _issuerController,
               decoration: const InputDecoration(labelText: 'Authentik Issuer URL'),
-              onChanged: (v) {
+              onChanged: (v) async {
                 final latest = ref.read(settingsProvider);
-                ref.read(settingsProvider.notifier).updateSettings(latest.copyWith(oidcIssuer: v));
+                await ref.read(settingsProvider.notifier).updateSettings(latest.copyWith(oidcIssuer: v));
+                await _loadStatuses();
               },
             ),
             const SizedBox(height: 8),
@@ -166,6 +187,101 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                     }
                   },
                   child: const Text('Logout'),
+                ),
+              ],
+            ),
+            const Divider(),
+            Text('Sonarr (pilot)', style: const TextStyle(fontWeight: FontWeight.bold)),
+            Text(_sonarrStatus.toString()),
+            Row(
+              children: [
+                ElevatedButton(
+                  onPressed: () async {
+                    if (settings.oidcIssuer.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please configure OIDC issuer first')),
+                      );
+                      return;
+                    }
+                    try {
+                      final sess = OidcSessionService(createSecureSettingsStore());
+                      final sonarrIssuer = OidcSessionService.perServiceIssuer(settings.oidcIssuer, 'sonarr');
+                      final sonarrClient = OidcSessionService.perServiceClientId('sonarr');
+                      final pkce = generatePkce();
+                      final v = pkce.codeVerifier.replaceAll('=', '');
+                      // Verifier only: a cancelled login must not wipe the
+                      // existing Sonarr token pair.
+                      await sess.savePkceVerifierFor('sonarr', v);
+
+                      final disc = await sess.discover(sonarrIssuer);
+                      final authUrl = disc['authorization_endpoint'] as String?;
+                      if (authUrl == null) {
+                        throw Exception('No authorization endpoint in discovery');
+                      }
+                      final url = Uri.parse(authUrl).replace(queryParameters: <String, String>{
+                        'client_id': sonarrClient,
+                        'response_type': 'code',
+                        'scope': 'openid profile email offline_access',
+                        'redirect_uri': OidcLoopbackListener.redirectUri,
+                        'code_challenge': pkce.codeChallenge,
+                        'code_challenge_method': 'S256',
+                      });
+
+                      final result = await Navigator.of(context).push<String>(
+                        MaterialPageRoute(
+                          builder: (context) => OidcWebViewScreen(authorizeUrl: url),
+                        ),
+                      );
+                      if (result == null || result.isEmpty) {
+                        await sess.deletePkceVerifierFor('sonarr');
+                        return;
+                      }
+                      if (result.startsWith('error:')) {
+                        await sess.deletePkceVerifierFor('sonarr');
+                        throw Exception('Login failed: ${result.substring('error:'.length)}');
+                      }
+                      final ok = await sess.exchangeTokenFor(
+                        service: 'sonarr',
+                        issuerUrl: sonarrIssuer,
+                        clientId: sonarrClient,
+                        authorizationCode: result,
+                        pkceVerifier: v,
+                        redirectUri: OidcLoopbackListener.redirectUri,
+                      );
+                      if (context.mounted) {
+                        setState(() {
+                          _sonarrStatus = ok ? SessionStatus.active : SessionStatus.error;
+                        });
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(ok ? 'Sonarr login successful' : 'Sonarr login failed')),
+                        );
+                      }
+                    } catch (e) {
+                      await OidcSessionService(createSecureSettingsStore())
+                          .deletePkceVerifierFor('sonarr');
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Sonarr login failed: ${e.toString()}')),
+                        );
+                      }
+                    }
+                  },
+                  child: const Text('Sonarr login'),
+                ),
+                const SizedBox(width: 12),
+                ElevatedButton(
+                  onPressed: () async {
+                    final sess = OidcSessionService(createSecureSettingsStore());
+                    await sess.clearFor('sonarr');
+                    SonarrOidcSessionProvider.clearAll();
+                    if (context.mounted) {
+                      setState(() => _sonarrStatus = SessionStatus.disabled);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Sonarr session cleared')),
+                      );
+                    }
+                  },
+                  child: const Text('Sonarr logout'),
                 ),
               ],
             ),

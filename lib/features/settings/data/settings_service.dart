@@ -175,6 +175,41 @@ class SettingsService {
     await _prefs.setBool(_kOnboardingComplete, true);
   }
 
+  /// Delete every OIDC token (Seekarr-UI session + all per-service pairs).
+  /// Call when the issuer changes: tokens minted by the old issuer fail
+  /// `ValidIssuer` validation on every *arr fork and would otherwise
+  /// surface as `401 invalid_token` on the next exchange.
+  Future<void> clearOidcSessions() async {
+    const baseKeys = [
+      'oidc_access_token',
+      'oidc_refresh_token',
+      'oidc_token_expiry',
+      'oidc_pkce_verifier',
+    ];
+    for (final k in baseKeys) {
+      await _secureStore.delete(key: k);
+    }
+    const services = [
+      'sonarr',
+      'radarr',
+      'lidarr',
+      'prowlarr',
+      'bazarr',
+      'seerr',
+    ];
+    const suffixes = [
+      'oidc_access_token',
+      'oidc_refresh_token',
+      'oidc_token_expiry',
+      'oidc_pkce_verifier',
+    ];
+    for (final svc in services) {
+      for (final s in suffixes) {
+        await _secureStore.delete(key: '${s}_$svc');
+      }
+    }
+  }
+
   /// Wipes all Seekarr-persisted data: SharedPreferences keys (service URLs,
   /// credentials, region, theme, onboarding flag, legacy keys) and every
   /// secure-storage entry. Clears secure storage first so a Keychain failure
