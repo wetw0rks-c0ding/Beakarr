@@ -327,12 +327,29 @@ class _DiscoverSection extends StatelessWidget {
                       .map(
                         (item) => ListTile(
                           contentPadding: EdgeInsets.zero,
+                          leading: item.coverUrl == null
+                              ? const Icon(Icons.music_note_rounded)
+                              : ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.network(
+                                    item.coverUrl!,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    errorBuilder: (_, __, ___) => const Icon(
+                                      Icons.music_note_rounded,
+                                    ),
+                                  ),
+                                ),
                           title: Text(
                             item.title.isEmpty ? 'Unknown' : item.title,
                           ),
                           subtitle: item.subtitle.isEmpty
                               ? null
                               : Text(item.subtitle),
+                          trailing: item.formattedDuration == null
+                              ? null
+                              : Text(item.formattedDuration!),
                         ),
                       )
                       .toList(),

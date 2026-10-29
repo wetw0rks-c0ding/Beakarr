@@ -8,11 +8,15 @@ class SoulSyncDiscoverItem {
   final String id;
   final String title;
   final String subtitle;
+  final String? coverUrl;
+  final int? durationMs;
 
   const SoulSyncDiscoverItem({
     required this.id,
     required this.title,
     this.subtitle = '',
+    this.coverUrl,
+    this.durationMs,
   });
 
   factory SoulSyncDiscoverItem.fromJson(Map<String, dynamic>? json) {
@@ -35,11 +39,29 @@ class SoulSyncDiscoverItem {
             data['label'] ??
             '')
         .toString();
+    int? durationMs;
+    final rawDuration = data['duration_ms'];
+    if (rawDuration is num) {
+      durationMs = rawDuration.toInt();
+    } else if (rawDuration is String) {
+      durationMs = int.tryParse(rawDuration);
+    }
+    final cover = (data['album_cover_url'] ?? data['thumb_url'] ?? data['image_url'])?.toString();
     return SoulSyncDiscoverItem(
       id: (data['id'] ?? '').toString(),
       title: title,
       subtitle: subtitle,
+      coverUrl: (cover != null && cover.isNotEmpty) ? cover : null,
+      durationMs: durationMs,
     );
+  }
+
+  /// `m:ss` duration or null when unknown.
+  String? get formattedDuration {
+    final ms = durationMs;
+    if (ms == null || ms <= 0) return null;
+    final totalSeconds = ms ~/ 1000;
+    return '${totalSeconds ~/ 60}:${(totalSeconds % 60).toString().padLeft(2, '0')}';
   }
 
   /// A bubble entry (`{name, value, genre}` or `{query, count}`) labelled
