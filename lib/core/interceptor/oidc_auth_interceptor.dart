@@ -76,6 +76,10 @@ class OidcAuthInterceptor extends Interceptor {
         body: jsonEncode(<String, String>{'subject_token': authToken}),
       );
       if (kDebugMode) debugPrint('Sonarr OIDC exchange -> ${res.statusCode}');
+      if (res.statusCode != 200 && kDebugMode) {
+        final snippet = res.body.length > 200 ? res.body.substring(0, 200) : res.body;
+        debugPrint('Sonarr OIDC exchange body: $snippet');
+      }
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         final token = body['token'] as String?;
