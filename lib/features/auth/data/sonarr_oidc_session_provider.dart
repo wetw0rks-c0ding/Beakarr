@@ -34,7 +34,7 @@ class _HostSession {
 /// In-memory Map<String, _HostSession> keyed by base URL.
 /// 
 /// This provider manages the cached Sonarr service tokens and permissions
-/// per host. Tokens are cached until expiry - 5 minutes buffer.
+/// per host. Tokens are cached until one minute before expiry.
 class SonarrOidcSessionProvider {
   static final Map<String, _HostSession> _cache = <String, _HostSession>{};
 
@@ -79,7 +79,7 @@ class SonarrOidcSessionProvider {
     final raw = _cache[baseUrl];
     if (raw == null) return null;
     
-    // Check if expired (including 5 minute buffer)
+    // Check if expired (including 1 minute buffer)
     if (raw.isExpired()) {
       debugPrint('SonarrOidcSessionProvider: Session expired for $baseUrl');
       _cache.remove(baseUrl);
