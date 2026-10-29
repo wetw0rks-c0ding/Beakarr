@@ -297,8 +297,10 @@ class OidcAuthInterceptor extends Interceptor {
           if (outcome == RefreshOutcome.refreshed) {
             token = await _freshServiceToken(baseUrl!);
           } else if (outcome == RefreshOutcome.rejected) {
+            // Identity confirmed dead: drop it plus every cached service
+            // token fleet-wide (a sibling host's cache would only 401).
             await _clearSonarrAuth();
-            SonarrOidcSessionProvider.clear(baseUrl);
+            SonarrOidcSessionProvider.clearAll();
             handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
             return;
           } else {
