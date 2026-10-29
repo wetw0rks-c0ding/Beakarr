@@ -63,6 +63,7 @@ class ApiClient {
         issuerUrl: issuerUrl,
         clientId: clientId,
         serviceKey: serviceKey,
+        baseUrl: (serviceKey == 'sonarr') ? baseUrl : null,
       ));
     }
   }

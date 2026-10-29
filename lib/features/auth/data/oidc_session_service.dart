@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
 
 /// Session status strings.
@@ -71,6 +72,15 @@ class OidcSessionService {
     await _store.delete(key: _kPkceV);
   }
 
+  /// Clear all OIDC session data.
+  Future<void> clearAll() async {
+    await _store.delete(key: _kAccess);
+    await _store.delete(key: _kRefresh);
+    await _store.delete(key: _kExpiry);
+    await _store.delete(key: _kPkceV);
+    SonarrOidcSessionProvider.clearAll();
+  }
+
   /// Token exchange endpoint.
   Future<bool> exchangeToken({
     required String issuerUrl,
@@ -118,32 +128,63 @@ class OidcSessionService {
     }
   }
 
-  /// Refresh flow.
+  /// Refresh flow - exchanges Authentik token for new access token.
   Future<bool> refresh(String issuerUrl, String clientId) async {
-    final refresh = await refreshToken;
-    if (refresh == null || refresh.isEmpty) return false;
-    final config = await discover(issuerUrl);
-    final tokenUrl = config['token_endpoint'] as String?;
-    if (tokenUrl == null) return false;
-    final res = await http.post(
-      Uri.parse(tokenUrl),
-      headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-      body: <String, String>{
-        'grant_type': 'refresh_token',
-        'refresh_token': refresh,
-        'client_id': clientId,
-      },
-    );
-    if (res.statusCode == 200) {
-      final body = jsonDecode(res.body) as Map<String, dynamic>;
-      await saveTokens(
-        access: body['access_token'] as String,
-        refresh: body['refresh_token'] as String? ?? refresh,
-        expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 + (body['expires_in'] as int? ?? 3600),
+    final refreshToken = await this.refreshToken;
+    if (refreshToken == null || refreshToken.isEmpty) return false;
+    
+    try {
+      final config = await discover(issuerUrl);
+      final tokenUrl = config['token_endpoint'] as String?;
+      if (tokenUrl == null) return false;
+      
+      final res = await http.post(
+        Uri.parse(tokenUrl),
+        headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+        body: <String, String>{
+          'grant_type': 'refresh_token',
+          'refresh_token': refreshToken,
+          'client_id': clientId,
+        },
       );
-      return true;
+      
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        await saveTokens(
+          access: body['access_token'] as String,
+          refresh: body['refresh_token'] as String? ?? refreshToken,
+          expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 + (body['expires_in'] as int? ?? 3600),
+        );
+        return true;
+      }
+      
+      // Refresh failed - clear access token but keep refresh token for retry
+      await _store.delete(key: _kAccess);
+      return false;
+    } catch (_) {
+      // Network error or other exception - return false, caller may retry
+      return false;
     }
-    return false;
+  }
+
+  /// Validate session status (Active, Expired, or No Session).
+  Future<SessionStatus> validateSession() async {
+    return await sessionState();
+  }
+
+  /// Get permissions cache for a specific host.
+  List<String> getPermissionsCache(String baseUrl) {
+    return SonarrOidcSessionProvider.getPermissions(baseUrl);
+  }
+
+  /// Get role from cache for a specific host.
+  String getRoleCache(String baseUrl) {
+    return SonarrOidcSessionProvider.getRole(baseUrl);
+  }
+
+  /// Check if there's a valid session for a host.
+  bool hasValidSession(String baseUrl) {
+    return SonarrOidcSessionProvider.hasValidSession(baseUrl);
   }
 }
 

@@ -1,5 +1,9 @@
 import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
+import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
+import 'package:flutter/foundation.dart';
 
 final Map<String, bool> bearerCapableServices = {
   'seerr': true,
@@ -16,17 +20,23 @@ class OidcAuthInterceptor extends Interceptor {
   final String _clientId;
   final String _issuerUrl;
   final String? serviceKey;
+  final String? baseUrl;
   Future<bool>? _refreshFuture;
 
-  OidcAuthInterceptor(this._session, {required String issuerUrl, required String clientId, this.serviceKey})
+  OidcAuthInterceptor(this._session, {required String issuerUrl, required String clientId, this.serviceKey, this.baseUrl})
       : _clientId = clientId,
         _issuerUrl = issuerUrl;
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) async {
-    final serviceKey = this.serviceKey ?? _inferServiceFromPath(options.path);
-    final allowBearer = bearerCapableServices[serviceKey] ?? false;
-    if (allowBearer && _issuerUrl.isNotEmpty) {
+    final svc = serviceKey ?? 'unknown';
+    final allowBearer = bearerCapableServices[svc] ?? false;
+    if (allowBearer && _issuerUrl.isNotEmpty && baseUrl != null && baseUrl!.isNotEmpty && svc == 'sonarr') {
+      final session = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+      if (session != null && !session.isExpired()) {
+        options.headers['Authorization'] = 'Bearer ${session.serviceToken}';
+      }
+    } else if (allowBearer && _issuerUrl.isNotEmpty) {
       final token = await _session.accessToken;
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
@@ -35,45 +45,133 @@ class OidcAuthInterceptor extends Interceptor {
     handler.next(options);
   }
 
+  Future<bool> _doRefresh() => _session.refresh(_issuerUrl, _clientId);
+
+  Future<bool> _postExchange(String urlBase, String authToken) async {
+    try {
+      final res = await http.post(
+        Uri.parse('$urlBase/api/auth/oidc/exchange'),
+        headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $authToken'},
+        body: jsonEncode(<String, String>{'subject_token': authToken}),
+      );
+      if (res.statusCode == 200) {
+        final body = jsonDecode(res.body) as Map<String, dynamic>;
+        final token = body['token'] as String?;
+        if (token == null || token.isEmpty) return false;
+        final meRes = await http.get(Uri.parse('$urlBase/api/auth/me'), headers: {'Authorization': 'Bearer $token'});
+        if (meRes.statusCode == 200) {
+          final meBody = jsonDecode(meRes.body) as Map<String, dynamic>;
+          SonarrOidcSessionProvider.update(urlBase, <String, dynamic>{
+            ...body,
+            'permissions': meBody['permissions'] ?? body['permissions'] ?? <String>[],
+            'role': meBody['role'] ?? body['role'] ?? 'ReadOnly',
+          });
+          if (kDebugMode) debugPrint('Sonarr OIDC cached for $urlBase');
+          return true;
+        }
+        SonarrOidcSessionProvider.update(urlBase, body);
+        return true;
+      }
+      return res.statusCode == 401 ? false : false;
+    } catch (e) {
+      if (kDebugMode) debugPrint('Exchange error: $e');
+      return false;
+    }
+  }
+
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) async {
     final status = err.response?.statusCode;
-    if (status == 401) {
-      final svcKey = this.serviceKey ?? _inferServiceFromPath(err.requestOptions.path);
-      final allowBearer = bearerCapableServices[svcKey] ?? false;
+    if (status == 401 && baseUrl != null && baseUrl!.isNotEmpty && (serviceKey == 'sonarr' || (serviceKey ?? '') == 'sonarr')) {
       final carriedBearer = (err.requestOptions.headers['Authorization'] as String?)?.startsWith('Bearer ') ?? false;
-      if (!allowBearer || !carriedBearer) {
+      if (!carriedBearer) {
         handler.next(err);
         return;
       }
       try {
-        if (_refreshFuture == null) {
-          _refreshFuture = _doRefresh();
+        final authToken = await _session.accessToken;
+        if (authToken == null || authToken.isEmpty) {
+          handler.next(err);
+          return;
         }
-        final ok = await _refreshFuture!;
-        if (ok) {
-          final opts = err.requestOptions;
-          final newToken = await _session.accessToken;
-          if (newToken != null && newToken.isNotEmpty) {
-            opts.headers['Authorization'] = 'Bearer $newToken';
+        final hasValid = SonarrOidcSessionProvider.hasValidSession(baseUrl!);
+        if (!hasValid) {
+          final ok = await _postExchange(baseUrl!, authToken);
+          if (ok) {
+            final s = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+            if (s != null) {
+              final opts = err.requestOptions..headers['Authorization'] = 'Bearer ${s.serviceToken}';
+              try {
+                final retry = await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
+                handler.resolve(retry);
+                return;
+              } catch (_) {}
+            }
+          } else {
+            final refreshed = await _doRefresh();
+            if (refreshed) {
+              final newAuth = await _session.accessToken;
+              if (newAuth != null && newAuth.isNotEmpty) {
+                final ok2 = await _postExchange(baseUrl!, newAuth);
+                if (ok2) {
+                  final s2 = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+                  if (s2 != null) {
+                    final opts = err.requestOptions..headers['Authorization'] = 'Bearer ${s2.serviceToken}';
+                    try {
+                      final retry = await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
+                      handler.resolve(retry);
+                      return;
+                    } catch (_) {}
+                  }
+                } else {
+                  await _session.clear();
+                  handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
+                  return;
+                }
+              } else {
+                await _session.clear();
+                handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
+                return;
+              }
+            } else {
+              await _session.clear();
+              handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
+              return;
+            }
           }
-          try {
-            final retry = await Dio().fetch(opts);
-            handler.resolve(retry);
+        } else {
+          final refreshed = await _doRefresh();
+          if (refreshed) {
+            final opts = err.requestOptions;
+            final s = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+            if (s != null) opts.headers['Authorization'] = 'Bearer ${s.serviceToken}';
+            else {
+              final newAuth = await _session.accessToken;
+              if (newAuth != null && newAuth.isNotEmpty) {
+                await _postExchange(baseUrl!, newAuth);
+                final s2 = SonarrOidcSessionProvider.getSonarrSession(baseUrl!);
+                if (s2 != null) opts.headers['Authorization'] = 'Bearer ${s2.serviceToken}';
+              }
+            }
+            try {
+              final retry = await Dio(BaseOptions(baseUrl: baseUrl!)).fetch(opts);
+              handler.resolve(retry);
+              return;
+            } catch (_) {}
+          } else {
+            await _session.clear();
+            handler.reject(DioException(requestOptions: err.requestOptions, error: 'Session expired — log in again', response: err.response));
             return;
-          } catch (_) {
-            // fall through to rethrow
           }
         }
-      } finally {
-        _refreshFuture = null;
+      } catch (e) {
+        if (kDebugMode) debugPrint('Interceptor error: $e');
       }
     }
+    if (err.requestOptions.headers['Authorization'] != null) {
+      err.requestOptions.headers.remove('Authorization');
+    }
     handler.next(err);
-  }
-
-  Future<bool> _doRefresh() async {
-    return await _session.refresh(_issuerUrl, _clientId);
   }
 
   String _inferServiceFromPath(String path) => serviceKey ?? 'unknown';
