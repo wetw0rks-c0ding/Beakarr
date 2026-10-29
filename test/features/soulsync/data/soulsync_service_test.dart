@@ -199,7 +199,8 @@ void main() {
     await server.close();
   });
 
-  test('requestDownload throws on failed envelope', () async {    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  test('requestDownload throws on failed envelope', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
     server.listen((request) async {
       request.response.headers.contentType = ContentType.json;
       request.response.write(
@@ -223,6 +224,93 @@ void main() {
       service.requestDownload(''),
       throwsA(isA<StateError>()),
     );
+
+    await server.close();
+  });
+
+  test('discovery pool parses track shapes and paginates', () async {
+    var pages = 0;
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      pages++;
+      final page = int.tryParse(request.uri.queryParameters['page'] ?? '1') ?? 1;
+      final hasNext = page < 2;
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'success': true,
+          'data': {
+            'tracks': [
+              {
+                'id': page,
+                'track_name': 'Something About Us',
+                'artist_name': 'Daft Punk',
+                'album_name': 'Discovery',
+              },
+            ],
+          },
+          'pagination': {'page': page, 'has_next': hasNext},
+        }),
+      );
+      await request.response.close();
+    });
+
+    final service = SoulSyncService(
+      ApiClient(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        auth: const SoulSyncAuth('sk_test'),
+      ),
+    );
+
+    final page1 = await service.getDiscoveryPoolPage(page: 1);
+    expect(pages, 1);
+    expect(page1.items.map((e) => e.title), ['Something About Us']);
+    expect(page1.items.first.subtitle, 'Daft Punk');
+    expect(page1.hasNext, isTrue);
+
+    final page2 = await service.getDiscoveryPoolPage(page: 2);
+    expect(pages, 2);
+    expect(page2.hasNext, isFalse);
+
+    await server.close();
+  });
+
+  test('discovery bubbles flatten snapshots with type labels', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    server.listen((request) async {
+      request.response.headers.contentType = ContentType.json;
+      request.response.write(
+        jsonEncode({
+          'success': true,
+          'data': {
+            'snapshots': {
+              'artist_bubbles': {
+                'data': {
+                  'bubbles': [
+                    {'name': 'Radiohead', 'value': 45, 'genre': 'alternative rock'},
+                  ],
+                },
+                'timestamp': '2026-03-04T06:00:00',
+              },
+              'discover_downloads': null,
+            },
+          },
+        }),
+      );
+      await request.response.close();
+    });
+
+    final service = SoulSyncService(
+      ApiClient(
+        baseUrl: 'http://127.0.0.1:${server.port}',
+        auth: const SoulSyncAuth('sk_test'),
+      ),
+    );
+
+    final items = await service.getDiscoveryBubbles();
+    expect(items, hasLength(1));
+    expect(items.first.title, 'Radiohead');
+    expect(items.first.subtitle, 'artist_bubbles · alternative rock · 45');
 
     await server.close();
   });

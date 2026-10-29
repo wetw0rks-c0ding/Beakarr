@@ -7,6 +7,7 @@ import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/soulsync/domain/models/soulsync_profile.dart';
 import 'package:seekarr/features/soulsync/domain/models/soulsync_wishlist_item.dart';
 import 'package:seekarr/features/soulsync/domain/models/soulsync_download.dart';
+import 'package:seekarr/features/soulsync/domain/models/soulsync_discover_item.dart';
 
 final soulsyncServiceProvider = Provider<SoulSyncService>((ref) {
   final settings = ref.watch(currentSettingsProvider);
@@ -61,6 +62,8 @@ dynamic _asNestedList(dynamic value) {
       'tracks',
       'downloads',
       'profiles',
+      'artists',
+      'releases',
       'results',
       'items',
       'data',
@@ -132,6 +135,115 @@ class SoulSyncService {
         if (id != null) return id.toString();
       }
       return 'Requested';
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
+      rethrow;
+    }
+  }
+
+  /// One discovery-pool page (`GET /api/v1/discover/pool`).
+  ///
+  /// Returns the items plus whether further pages exist. Callers page
+  /// explicitly so large pools are never silently truncated.
+  Future<({List<SoulSyncDiscoverItem> items, bool hasNext})>
+  getDiscoveryPoolPage({int page = 1, int limit = 100}) async {
+    try {
+      final response = await client
+          .get(
+            '/api/v1/discover/pool',
+            queryParameters: {'page': page, 'limit': limit},
+          )
+          .timeout(const Duration(seconds: 15));
+      final root = response.data;
+      final data = _asNestedList(unwrapSoulSyncEnvelope(root));
+      final items = _asListOfMaps(
+        data,
+      ).map(SoulSyncDiscoverItem.fromJson).toList(growable: false);
+      final pagination = root is Map ? root['pagination'] : null;
+      final hasNext =
+          pagination is Map && pagination['has_next'] == true;
+      return (items: items, hasNext: hasNext);
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
+      rethrow;
+    }
+  }
+
+  /// Discovery pool recommendations (`GET /api/v1/discover/pool`).
+  ///
+  /// Convenience for callers that only need the first page.
+  Future<List<SoulSyncDiscoverItem>> getDiscoveryPool() async {
+    final page = await getDiscoveryPoolPage();
+    return page.items;
+  }
+
+  /// Similar artists (`GET /api/v1/discover/similar-artists`).
+  Future<List<SoulSyncDiscoverItem>> getSimilarArtists() async {
+    try {
+      final response = await client
+          .get('/api/v1/discover/similar-artists')
+          .timeout(const Duration(seconds: 15));
+      final data = _asNestedList(unwrapSoulSyncEnvelope(response.data));
+      return _asListOfMaps(data)
+          .map(SoulSyncDiscoverItem.fromJson)
+          .toList(growable: false);
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
+      rethrow;
+    }
+  }
+
+  /// Recent releases from watched artists (`GET /api/v1/discover/recent-releases`).
+  Future<List<SoulSyncDiscoverItem>> getRecentReleases() async {
+    try {
+      final response = await client
+          .get('/api/v1/discover/recent-releases')
+          .timeout(const Duration(seconds: 15));
+      final data = _asNestedList(unwrapSoulSyncEnvelope(response.data));
+      return _asListOfMaps(data)
+          .map(SoulSyncDiscoverItem.fromJson)
+          .toList(growable: false);
+    } catch (e) {
+      if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
+      rethrow;
+    }
+  }
+
+  /// Discovery bubble snapshots (`GET /api/v1/discover/bubbles`).
+  ///
+  /// Shape: `data.snapshots.<type>.data.bubbles[]` (a snapshot type may be
+  /// null when never generated). Each item keeps its snapshot type label.
+  Future<List<SoulSyncDiscoverItem>> getDiscoveryBubbles() async {
+    try {
+      final response = await client
+          .get('/api/v1/discover/bubbles')
+          .timeout(const Duration(seconds: 15));
+      final data = unwrapSoulSyncEnvelope(response.data);
+      final items = <SoulSyncDiscoverItem>[];
+      final snapshots =
+          data is Map<String, dynamic> ? data['snapshots'] : null;
+      if (snapshots is Map) {
+        for (final entry in snapshots.entries) {
+          final type = entry.key.toString();
+          final snapshot = entry.value;
+          final bubbles = snapshot is Map
+              ? (snapshot['data'] is Map
+                  ? (snapshot['data'] as Map)['bubbles']
+                  : null)
+              : null;
+          if (bubbles is List) {
+            for (final bubble in bubbles.whereType<Map>()) {
+              items.add(
+                SoulSyncDiscoverItem.fromBubble(
+                  Map<String, dynamic>.from(bubble),
+                  type,
+                ),
+              );
+            }
+          }
+        }
+      }
+      return items;
     } catch (e) {
       if (e is DioException && e.type == DioExceptionType.cancel) rethrow;
       rethrow;
