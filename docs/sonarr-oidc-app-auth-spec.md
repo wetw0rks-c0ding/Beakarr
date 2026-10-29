@@ -123,7 +123,8 @@ Error responses:
    present.
 4. **Service token minting**: standard JWT, `aud=sonarr`, TTL 5 minutes
    (300s). Include `sub` (the OidcSubject) and `role` claims. Sign with
-   Sonarr's own signing key (not Authentik's).
+   Sonarr's own signing key (not Authentik's). Signing key must be at
+   least 256 bits (32 bytes, HS256 minimum) — fail closed (500) if shorter.
 5. **No secrets in logs**: redact tokens in any diagnostic output, same
    as the app's redacted HTTP logging.
 
@@ -160,6 +161,7 @@ Error responses:
 - Do not implement OIDC for other services in this pass — Sonarr is the
   pilot. Prowlarr, then Sonarr's siblings, reuse this exact contract.
 - Do not touch the backchannel logout or `OnTokenValidated` flow.
+- Rate limit `POST /exchange` (e.g. 10/min per IP) — it's unauthed until validated.
 
 ## Acceptance criteria
 
