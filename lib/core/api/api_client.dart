@@ -63,7 +63,11 @@ class ApiClient {
         issuerUrl: issuerUrl,
         clientId: clientId,
         serviceKey: serviceKey,
-        baseUrl: (serviceKey == 'sonarr') ? baseUrl : null,
+        // Pilot services resolve their own host for origin-scoped
+        // Bearer use; everything else stays API-key-only.
+        baseUrl: (serviceKey == 'sonarr' || serviceKey == 'radarr')
+            ? baseUrl
+            : null,
       ));
     }
   }

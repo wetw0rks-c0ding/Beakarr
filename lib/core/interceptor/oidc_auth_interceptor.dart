@@ -41,7 +41,10 @@ class OidcAuthInterceptor extends Interceptor {
       if (session != null && !session.isExpired()) {
         options.headers['Authorization'] = 'Bearer ${session.serviceToken}';
       }
-    } else if (allowBearer && _issuerUrl.isNotEmpty) {
+    } else if (allowBearer && _issuerUrl.isNotEmpty && !_oidcService) {
+      // Slice-1 raw Authentik Bearer for non-pilot services only. Pilot
+      // services (Sonarr, ArrStack Radarr) authenticate via exchanged
+      // service tokens — never the raw Authentik pair.
       final token = await _session.accessToken;
       if (token != null && token.isNotEmpty) {
         options.headers['Authorization'] = 'Bearer $token';
