@@ -25,6 +25,8 @@ abstract interface class SecureSettingsStore {
   Future<void> delete({required String key});
 
   Future<void> deleteAll();
+
+  Future<Map<String, String>> readAll();
 }
 
 class FlutterSecureSettingsStore implements SecureSettingsStore {
@@ -50,6 +52,11 @@ class FlutterSecureSettingsStore implements SecureSettingsStore {
   @override
   Future<void> deleteAll() {
     return _storage.deleteAll();
+  }
+
+  @override
+  Future<Map<String, String>> readAll() {
+    return _storage.readAll();
   }
 }
 

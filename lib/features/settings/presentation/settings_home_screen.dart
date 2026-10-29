@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -5,7 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
@@ -18,6 +21,12 @@ import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/settings/data/donation_service.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
+import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
+import 'package:seekarr/features/settings/data/settings_service.dart';
+import 'package:seekarr/features/auth/data/oidc_session_service.dart';
+import 'package:seekarr/features/settings/data/settings_backup_service.dart';
+import 'package:seekarr/features/settings/data/settings_backup_service.dart';
+import 'package:seekarr/features/settings/data/backup_exceptions.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/regions.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
@@ -275,9 +284,76 @@ class SettingsHomeScreen extends ConsumerWidget {
             accentColor: colorScheme.error,
             onTap: () => _confirmReset(context, ref),
           ),
+          SettingsCard.grouped(
+            leading: const Icon(Icons.save_outlined),
+            title: 'Back up config',
+            subtitle: 'Encrypted password-protected backup file',
+            onTap: () => _backupConfig(context, ref),
+          ),
+          SettingsCard.grouped(
+            leading: const Icon(Icons.restore_rounded),
+            title: 'Restore config',
+            subtitle: 'Restore from an encrypted .enc backup file',
+            onTap: () => _restoreConfig(context, ref),
+          ),
         ],
       ),
     ];
+  }
+
+  Future<void> _backupConfig(BuildContext context, WidgetRef ref) async {
+    final prefs = await SharedPreferences.getInstance();
+    final store = createSecureSettingsStore();
+    String? pw1, pw2;
+    bool mismatch = false;
+    final ok = await showDialog<bool>(context: context, builder: (d) => StatefulBuilder(builder: (c, setState) => AlertDialog(title: const Text('Back up config'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(obscureText: true, decoration: const InputDecoration(labelText: 'Password (min 8)'), onChanged: (s) => pw1 = s), const SizedBox(height: 8), TextField(obscureText: true, decoration: const InputDecoration(labelText: 'Confirm'), onChanged: (s) => pw2 = s), if (mismatch) const Text('Passwords do not match', style: TextStyle(color: Colors.red))]), actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')), ElevatedButton(onPressed: () { if ((pw1?.length ?? 0) < 8 || pw1 != pw2) { setState(() => mismatch = true); } else { Navigator.pop(d, true); } }, child: const Text('Back up'))]))));
+    if (ok != true || pw1 == null || pw1!.isEmpty) return;
+    try {
+      final service = SettingsBackupService(prefs: prefs, secureStore: store);
+      final envelope = await service.exportBackup(password: pw1!);
+      final path = await FilePicker.platform.saveFile(fileName: 'seekarr-backup.enc', bytes: utf8.encode(envelope));
+      if (path != null && context.mounted) SnackBarHelper.success(context, 'Backup saved to $path');
+    } catch (e) {
+      if (context.mounted) SnackBarHelper.error(context, 'Backup failed: $e');
+    }
+  }
+
+  Future<void> _restoreConfig(BuildContext context, WidgetRef ref) async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['enc'], withData: true);
+    if (result == null || result.files.isEmpty || result.files.first.bytes == null) return;
+    final envelope = utf8.decode(result.files.first.bytes!);
+    final prefs = await SharedPreferences.getInstance();
+    final store = createSecureSettingsStore();
+    final service = SettingsBackupService(prefs: prefs, secureStore: store);
+    bool retry = true;
+    while (retry) {
+      retry = false;
+      String? pw;
+      final ok = await showDialog<bool>(context: context, builder: (d) => StatefulBuilder(builder: (c, setState) => AlertDialog(title: const Text('Enter password'), content: TextField(obscureText: true, decoration: const InputDecoration(labelText: 'Password'), onChanged: (s) => pw = s)), actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(d, true), child: const Text('Restore'))])));
+      if (ok != true || pw == null || pw.isEmpty) return;
+      try {
+        final import = await service.importBackup(envelope, password: pw);
+        for (final e in import.prefs.entries) {
+          final v = e.value;
+          if (v is bool) await prefs.setBool(e.key, v);
+          else if (v is int) await prefs.setInt(e.key, v);
+          else if (v is double) await prefs.setDouble(e.key, v);
+          else if (v is String) await prefs.setString(e.key, v);
+        }
+        for (final e in import.secure.entries) {
+          await store.write(key: e.key, value: e.value);
+        }
+        await prefs.setBool('onboarding_complete', true);
+        await OidcSessionService(prefs, store).clearOidcSessions();
+        SonarrOidcSessionProvider.clearAll();
+        // reload path differs from reset (provider has no loadSettings()); manual reload skipped
+      } catch (e) {
+        if (e is BackupWrongPasswordException) {
+          retry = true;
+        } else if (context.mounted) SnackBarHelper.error(context, 'Restore failed: $e');
+        if (context.mounted) showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Wrong password'), content: const Text('Try again.'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))]));
+      }
+    }
   }
 
   Future<void> _confirmReset(BuildContext context, WidgetRef ref) async {
