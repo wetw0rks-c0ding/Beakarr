@@ -21,7 +21,6 @@ class OidcAuthInterceptor extends Interceptor {
   final String _issuerUrl;
   final String? serviceKey;
   final String? baseUrl;
-  Future<bool>? _refreshFuture;
 
   OidcAuthInterceptor(this._session, {required String issuerUrl, required String clientId, this.serviceKey, this.baseUrl})
       : _clientId = clientId,
@@ -173,6 +172,4 @@ class OidcAuthInterceptor extends Interceptor {
     }
     handler.next(err);
   }
-
-  String _inferServiceFromPath(String path) => serviceKey ?? 'unknown';
 }

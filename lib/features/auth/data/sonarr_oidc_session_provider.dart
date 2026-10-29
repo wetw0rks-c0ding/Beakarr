@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 /// In-memory model for Sonarr OIDC session per host.
@@ -15,10 +14,12 @@ class _HostSession {
     required this.expiresAtEpoch,
   });
 
-  /// Check if session is still valid (not expired + buffer for 5 min TTL)
+  /// Check if session is still valid (not expired + small skew buffer).
+  /// The buffer must stay well below the 5-minute service-token TTL or
+  /// fresh sessions read as expired.
   bool isExpired() {
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
-    final buffer = 300; // 5 minutes buffer
+    const buffer = 60;
     return now >= expiresAtEpoch - buffer;
   }
 
@@ -28,13 +29,6 @@ class _HostSession {
         'role': role,
         'expiresAtEpoch': expiresAtEpoch,
       };
-
-  factory _HostSession.fromJson(Map<String, dynamic> json) => _HostSession(
-        serviceToken: json['serviceToken'] as String,
-        permissions: (json['permissions'] as List<dynamic>).cast<String>(),
-        role: json['role'] as String,
-        expiresAtEpoch: json['expiresAtEpoch'] as int,
-      );
 }
 
 /// In-memory Map<String, _HostSession> keyed by base URL.

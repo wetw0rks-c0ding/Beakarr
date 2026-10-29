@@ -3,7 +3,6 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
-import 'package:seekarr/features/auth/data/sonarr_permissions_provider.dart';
 
 void main() {
   group('Sonarr OIDC pilot', () {
@@ -25,7 +24,11 @@ void main() {
     test('exchange caches token + permissions', () async {
       server.listen((req) async {
         if (req.uri.path == '/api/auth/oidc/exchange' && req.method == 'POST') {
-          final body = await req.cast<List<int>>().expand((x) => x).toList();
+          final requestBytes =
+              await req.cast<List<int>>().expand((x) => x).toList();
+          final sent = jsonDecode(utf8.decode(requestBytes)) as Map;
+          expect(sent['subject_token'], 'auth');
+          expect(req.headers.value('authorization'), 'Bearer auth');
           req.response
             ..statusCode = 200
             ..headers.contentType = ContentType.json
