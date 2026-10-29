@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:seekarr/features/settings/data/settings_backup_service.dart';
 import 'package:seekarr/features/settings/data/backup_exceptions.dart';
-import 'package:seekarr/features/settings/data/settings_service.dart';
 import '../../../../test/test_helpers/fake_secure_settings_store.dart';
 
 void main() {
@@ -47,24 +46,40 @@ void main() {
   test('wrong password throws BackupWrongPasswordException', () async {
     await prefs.setString('k', 'v');
     final env = await service.exportBackup(password: 'pw');
-    await expectLater(service.importBackup(env, password: 'bad'), throwsA(isA<BackupWrongPasswordException>()));
+    await expectLater(
+      service.importBackup(env, password: 'bad'),
+      throwsA(isA<BackupWrongPasswordException>()),
+    );
   });
 
   test('tampered ct throws BackupCorruptException', () async {
     await prefs.setString('k', 'v');
-    final env = json.decode(await service.exportBackup(password: 'pw')) as Map<String, dynamic>;
+    final env =
+        json.decode(await service.exportBackup(password: 'pw'))
+            as Map<String, dynamic>;
     env['ct'] = base64.encode([0, 1, 2]);
-    await expectLater(service.importBackup(json.encode(env), password: 'pw'), throwsA(isA<BackupCorruptException>()));
+    await expectLater(
+      service.importBackup(json.encode(env), password: 'pw'),
+      throwsA(isA<BackupCorruptException>()),
+    );
   });
 
   test('v:99 throws BackupUnsupportedVersionException', () async {
     await prefs.setString('k', 'v');
-    final env = json.decode(await service.exportBackup(password: 'pw')) as Map<String, dynamic>;
+    final env =
+        json.decode(await service.exportBackup(password: 'pw'))
+            as Map<String, dynamic>;
     env['v'] = 99;
-    await expectLater(service.importBackup(json.encode(env), password: 'pw'), throwsA(isA<BackupUnsupportedVersionException>()));
+    await expectLater(
+      service.importBackup(json.encode(env), password: 'pw'),
+      throwsA(isA<BackupUnsupportedVersionException>()),
+    );
   });
 
   test('empty password throws', () async {
-    await expectLater(service.exportBackup(password: ''), throwsA(isA<ArgumentError>()));
+    await expectLater(
+      service.exportBackup(password: ''),
+      throwsA(isA<ArgumentError>()),
+    );
   });
 }

@@ -23,8 +23,6 @@ import 'package:seekarr/features/settings/data/donation_service.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
-import 'package:seekarr/features/auth/data/oidc_session_service.dart';
-import 'package:seekarr/features/settings/data/settings_backup_service.dart';
 import 'package:seekarr/features/settings/data/settings_backup_service.dart';
 import 'package:seekarr/features/settings/data/backup_exceptions.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
@@ -306,11 +304,63 @@ class SettingsHomeScreen extends ConsumerWidget {
     final store = createSecureSettingsStore();
     String? pw1, pw2;
     bool mismatch = false;
-    final ok = await showDialog<bool>(context: context, builder: (d) => StatefulBuilder(builder: (c, setState) => AlertDialog(title: const Text('Back up config'), content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(obscureText: true, decoration: const InputDecoration(labelText: 'Password (min 8)'), onChanged: (s) => pw1 = s), const SizedBox(height: 8), TextField(obscureText: true, decoration: const InputDecoration(labelText: 'Confirm'), onChanged: (s) => pw2 = s), if (mismatch) const Text('Passwords do not match', style: TextStyle(color: Colors.red))]), actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')), ElevatedButton(onPressed: () { if ((pw1?.length ?? 0) < 8 || pw1 != pw2) { setState(() => mismatch = true); } else { Navigator.pop(d, true); } }, child: const Text('Back up'))]))));
-    if (ok != true || pw1 == null || pw1!.isEmpty) return;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (d) => StatefulBuilder(
+        builder: (c, setState) => AlertDialog(
+          title: const Text('Back up config'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password (min 8)',
+                ),
+                onChanged: (s) => pw1 = s,
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Confirm'),
+                onChanged: (s) => pw2 = s,
+              ),
+              if (mismatch)
+                const Text(
+                  'Passwords do not match',
+                  style: TextStyle(color: Colors.red),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(d, false),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                // Copy out of the closure-mutated locals for promotion.
+                final first = pw1;
+                if (first == null ||
+                    first.length < 8 ||
+                    first != pw2) {
+                  setState(() => mismatch = true);
+                } else {
+                  Navigator.pop(d, true);
+                }
+              },
+              child: const Text('Back up'),
+            ),
+          ],
+        ),
+      ),
+    );
+    // Copy out of the closure-mutated local so promotion applies.
+    final password = pw1;
+    if (ok != true || password == null || password.isEmpty) return;
     try {
       final service = SettingsBackupService(prefs: prefs, secureStore: store);
-      final envelope = await service.exportBackup(password: pw1!);
+      final envelope = await service.exportBackup(password: password);
       final path = await FilePicker.platform.saveFile(fileName: 'seekarr-backup.enc', bytes: utf8.encode(envelope));
       if (path != null && context.mounted) SnackBarHelper.success(context, 'Backup saved to $path');
     } catch (e) {
@@ -319,39 +369,107 @@ class SettingsHomeScreen extends ConsumerWidget {
   }
 
   Future<void> _restoreConfig(BuildContext context, WidgetRef ref) async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: ['enc'], withData: true);
-    if (result == null || result.files.isEmpty || result.files.first.bytes == null) return;
-    final envelope = utf8.decode(result.files.first.bytes!);
+    // Capture before any await: reading ref across async gaps risks a
+    // disposed provider scope.
+    final svc = ref.read(settingsServiceProvider);
+    final notifier = ref.read(settingsProvider.notifier);
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['enc'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    final bytes = result.files.first.bytes;
+    if (bytes == null) return;
+    final envelope = utf8.decode(bytes);
     final prefs = await SharedPreferences.getInstance();
     final store = createSecureSettingsStore();
     final service = SettingsBackupService(prefs: prefs, secureStore: store);
+    String? errorText;
     bool retry = true;
     while (retry) {
       retry = false;
       String? pw;
-      final ok = await showDialog<bool>(context: context, builder: (d) => StatefulBuilder(builder: (c, setState) => AlertDialog(title: const Text('Enter password'), content: TextField(obscureText: true, decoration: const InputDecoration(labelText: 'Password'), onChanged: (s) => pw = s)), actions: [TextButton(onPressed: () => Navigator.pop(d, false), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(d, true), child: const Text('Restore'))])));
-      if (ok != true || pw == null || pw.isEmpty) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (d) => StatefulBuilder(
+          builder: (c, setState) => AlertDialog(
+            title: const Text('Enter password'),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                  ),
+                  onChanged: (s) => pw = s,
+                ),
+                if (errorText != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    errorText,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ],
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(d, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(d, true),
+                child: const Text('Restore'),
+              ),
+            ],
+          ),
+        ),
+      );
+      // Copy out of the closure-mutated local so promotion applies.
+      final password = pw;
+      if (ok != true || password == null || password.isEmpty) return;
       try {
-        final import = await service.importBackup(envelope, password: pw);
+        final import = await service.importBackup(
+          envelope,
+          password: password,
+        );
         for (final e in import.prefs.entries) {
           final v = e.value;
-          if (v is bool) await prefs.setBool(e.key, v);
-          else if (v is int) await prefs.setInt(e.key, v);
-          else if (v is double) await prefs.setDouble(e.key, v);
-          else if (v is String) await prefs.setString(e.key, v);
+          if (v is bool) {
+            await prefs.setBool(e.key, v);
+          } else if (v is int) {
+            await prefs.setInt(e.key, v);
+          } else if (v is double) {
+            await prefs.setDouble(e.key, v);
+          } else if (v is String) {
+            await prefs.setString(e.key, v);
+          }
         }
         for (final e in import.secure.entries) {
           await store.write(key: e.key, value: e.value);
         }
         await prefs.setBool('onboarding_complete', true);
-        await OidcSessionService(prefs, store).clearOidcSessions();
+        await svc.clearOidcSessions();
         SonarrOidcSessionProvider.clearAll();
-        // reload path differs from reset (provider has no loadSettings()); manual reload skipped
+        // Reload the restored raw stores into provider state so every
+        // watcher (dashboard, service tabs, SSO dots) rebuilds. Tokens
+        // are excluded from backups, so the user must log in again.
+        await notifier.updateSettings(await svc.loadSettings());
+        if (context.mounted) {
+          SnackBarHelper.success(
+            context,
+            'Config restored — please log in again',
+          );
+        }
+      } on BackupWrongPasswordException {
+        errorText = 'Wrong password — try again.';
+        retry = true;
       } catch (e) {
-        if (e is BackupWrongPasswordException) {
-          retry = true;
-        } else if (context.mounted) SnackBarHelper.error(context, 'Restore failed: $e');
-        if (context.mounted) showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Wrong password'), content: const Text('Try again.'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('OK'))]));
+        if (context.mounted) {
+          SnackBarHelper.error(context, 'Restore failed: $e');
+        }
       }
     }
   }

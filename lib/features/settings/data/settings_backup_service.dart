@@ -15,9 +15,11 @@ class SettingsBackupService {
   static const int _kdfIterations = 200000;
   static final Random _rng = Random.secure();
 
-  SettingsBackupService({required SharedPreferences prefs, required SecureSettingsStore secureStore})
-      : _prefs = prefs,
-      _secureStore = secureStore;
+  SettingsBackupService({
+    required SharedPreferences prefs,
+    required SecureSettingsStore secureStore,
+  }) : _prefs = prefs,
+       _secureStore = secureStore;
 
   Future<String> exportBackup({required String password}) async {
     if (password.isEmpty) throw ArgumentError('Password required');
@@ -32,9 +34,15 @@ class SettingsBackupService {
       secretKey: SecretKey(key),
       nonce: nonce,
     );
-    final ctBytes = Uint8List(secretBox.cipherText.length + secretBox.mac.bytes.length);
+    final ctBytes = Uint8List(
+      secretBox.cipherText.length + secretBox.mac.bytes.length,
+    );
     ctBytes.setRange(0, secretBox.cipherText.length, secretBox.cipherText);
-    ctBytes.setRange(secretBox.cipherText.length, ctBytes.length, secretBox.mac.bytes);
+    ctBytes.setRange(
+      secretBox.cipherText.length,
+      ctBytes.length,
+      secretBox.mac.bytes,
+    );
     final envelope = {
       'v': _supportedVersion,
       'kdf': 'pbkdf2-sha256/$_kdfIterations',
@@ -45,7 +53,8 @@ class SettingsBackupService {
     return json.encode(envelope);
   }
 
-  Future<({Map<String, Object?> prefs, Map<String, String> secure})> importBackup(String envelopeJson, {required String password}) async {
+  Future<({Map<String, Object?> prefs, Map<String, String> secure})>
+  importBackup(String envelopeJson, {required String password}) async {
     if (password.isEmpty) throw ArgumentError('Password required');
     final Map<String, dynamic> env;
     try {
@@ -54,7 +63,8 @@ class SettingsBackupService {
       throw BackupCorruptException();
     }
     final v = env['v'] as int?;
-    if (v == null || v > _supportedVersion) throw BackupUnsupportedVersionException(v ?? 0);
+    if (v == null || v > _supportedVersion)
+      throw BackupUnsupportedVersionException(v ?? 0);
     if (v < 1) throw BackupUnsupportedVersionException(v);
     final salt = base64.decode(env['salt'] as String);
     final nonce = base64.decode(env['nonce'] as String);
@@ -73,8 +83,10 @@ class SettingsBackupService {
       );
       final payload = utf8.decode(plaintext);
       final data = json.decode(payload) as Map<String, dynamic>;
-      final prefs = (data['prefs'] as Map<String, dynamic>).map<String, Object?>((k, v) => MapEntry(k, v));
-      final secure = (data['secure'] as Map<String, dynamic>).map<String, String>((k, v) => MapEntry(k, v as String));
+      final prefs = (data['prefs'] as Map<String, dynamic>)
+          .map<String, Object?>((k, v) => MapEntry(k, v));
+      final secure = (data['secure'] as Map<String, dynamic>)
+          .map<String, String>((k, v) => MapEntry(k, v as String));
       return (prefs: prefs, secure: secure);
     } on SecretBoxAuthenticationError {
       throw BackupWrongPasswordException();
@@ -106,21 +118,33 @@ class SettingsBackupService {
       if (k.startsWith('oidc_access_token') ||
           k.startsWith('oidc_refresh_token') ||
           k.startsWith('oidc_token_expiry') ||
-          k.startsWith('oidc_pkce_verifier')) continue;
+          k.startsWith('oidc_pkce_verifier'))
+        continue;
       bool? boolV;
-      try { boolV = _prefs.getBool(k); } catch (_) {}
-      if (boolV != null) prefsMap[k] = boolV;
+      try {
+        boolV = _prefs.getBool(k);
+      } catch (_) {}
+      if (boolV != null)
+        prefsMap[k] = boolV;
       else {
         int? intV;
-        try { intV = _prefs.getInt(k); } catch (_) {}
-        if (intV != null) prefsMap[k] = intV;
+        try {
+          intV = _prefs.getInt(k);
+        } catch (_) {}
+        if (intV != null)
+          prefsMap[k] = intV;
         else {
           double? doubleV;
-          try { doubleV = _prefs.getDouble(k); } catch (_) {}
-          if (doubleV != null) prefsMap[k] = doubleV;
+          try {
+            doubleV = _prefs.getDouble(k);
+          } catch (_) {}
+          if (doubleV != null)
+            prefsMap[k] = doubleV;
           else {
             String? strV;
-            try { strV = _prefs.getString(k); } catch (_) {}
+            try {
+              strV = _prefs.getString(k);
+            } catch (_) {}
             if (strV != null) prefsMap[k] = strV;
           }
         }
@@ -133,7 +157,8 @@ class SettingsBackupService {
       if (k.startsWith('oidc_access_token_') ||
           k.startsWith('oidc_refresh_token_') ||
           k.startsWith('oidc_token_expiry_') ||
-          k.startsWith('oidc_pkce_verifier_')) continue;
+          k.startsWith('oidc_pkce_verifier_'))
+        continue;
       secureMap[k] = e.value;
     }
     return json.encode({'prefs': prefsMap, 'secure': secureMap});
