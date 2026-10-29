@@ -25,8 +25,10 @@ class TorrentSelectionBar extends ConsumerWidget {
         top: false,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
               TextButton(
                 onPressed: () {
                   ref.read(selectedTorrentHashesProvider.notifier).state = {};
@@ -88,7 +90,8 @@ class TorrentSelectionBar extends ConsumerWidget {
                 tooltip: 'Delete',
                 onPressed: onConfirmDelete,
               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
