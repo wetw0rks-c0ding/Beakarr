@@ -60,6 +60,7 @@ class SettingsService {
   static const _kOidcIssuer = 'oidc_issuer';
   static const _kOidcClientId = 'oidc_client_id';
   static const _kSoulSyncProfileId = 'soulsync_profile_id';
+  static const _kJailbroken = 'jailbroken';
 
   static const Map<ServiceKey, _ServiceStorageKeys> _serviceStorageKeys = {
     ServiceKey.seerr: _ServiceStorageKeys(
@@ -202,6 +203,7 @@ class SettingsService {
     await _prefs.remove(_kOidcIssuer);
     await _prefs.remove(_kOidcClientId);
     await _prefs.remove(_kSoulSyncProfileId);
+    await _prefs.remove(_kJailbroken);
   }
 
   Future<SettingsModel> loadSettings() async {
@@ -240,6 +242,7 @@ class SettingsService {
       themeMode: AppThemeMode.fromName(_prefs.getString(_kThemeMode)),
       oidcIssuer: _prefs.getString(_kOidcIssuer) ?? '',
       oidcClientId: _prefs.getString(_kOidcClientId) ?? 'seekarr',
+      jailbroken: _prefs.getBool(_kJailbroken) ?? false,
     );
   }
 
@@ -251,6 +254,7 @@ class SettingsService {
     await _prefs.setString(_kThemeMode, settings.themeMode.name);
     await _prefs.setString(_kOidcIssuer, settings.oidcIssuer);
     await _prefs.setString(_kOidcClientId, settings.oidcClientId);
+    await _prefs.setBool(_kJailbroken, settings.jailbroken);
     if (settings.soulsyncProfileId.isNotEmpty) {
       await _prefs.setString(_kSoulSyncProfileId, settings.soulsyncProfileId);
     } else {

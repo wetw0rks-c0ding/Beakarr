@@ -51,6 +51,8 @@ dependencies:
   flutter_svg: ^2.2.3
   infinite_scroll_pagination: ^5.1.1
   url_launcher: ^6.3.2
+  path_provider: ^2.1.5
+  share_plus: ^12.0.2
   in_app_purchase: ^3.2.3
   file_picker: ^8.1.4
   crypto: ^3.0.6

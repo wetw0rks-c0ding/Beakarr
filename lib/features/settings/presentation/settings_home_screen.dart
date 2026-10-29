@@ -1,11 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/app_version.dart';
 import 'package:seekarr/core/theme.dart';
+import 'package:seekarr/core/updater/app_updater.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/core/widgets/app_card.dart';
 import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
@@ -36,11 +42,11 @@ class SettingsHomeScreen extends ConsumerWidget {
       context,
     );
     final content = [
-      ..._buildGeneralSection(context, settings),
+      ..._buildGeneralSection(context, ref, settings),
       const SizedBox(height: AppSpacing.lg),
       ..._buildServicesSection(context, ref, settings),
       const SizedBox(height: AppSpacing.lg),
-      ..._buildAboutSection(context),
+      ..._buildAboutSection(context, ref),
       const SizedBox(height: AppSpacing.lg),
       ..._buildDangerZoneSection(context, ref),
     ];
@@ -70,6 +76,7 @@ class SettingsHomeScreen extends ConsumerWidget {
 
   List<Widget> _buildGeneralSection(
     BuildContext context,
+    WidgetRef ref,
     SettingsModel settings,
   ) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -105,6 +112,21 @@ class SettingsHomeScreen extends ConsumerWidget {
             subtitle: 'Single sign-on',
             accentColor: colorScheme.primary,
             onTap: () => context.push('/settings/auth'),
+          ),
+          SettingsCard.grouped(
+            leading: const Icon(Icons.security_rounded),
+            title: 'Jailbroken',
+            subtitle: 'Enable TrollStore install path on iOS',
+            accentColor: colorScheme.primary,
+            trailing: Switch.adaptive(
+              value: settings.jailbroken,
+              onChanged: (value) async {
+                final current = ref.read(currentSettingsProvider);
+                await ref
+                    .read(settingsProvider.notifier)
+                    .updateSettings(current.copyWith(jailbroken: value));
+              },
+            ),
           ),
         ],
       ),
@@ -193,7 +215,7 @@ class SettingsHomeScreen extends ConsumerWidget {
     );
   }
 
-  List<Widget> _buildAboutSection(BuildContext context) {
+  List<Widget> _buildAboutSection(BuildContext context, WidgetRef ref) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return [
@@ -212,6 +234,7 @@ class SettingsHomeScreen extends ConsumerWidget {
             title: 'Version',
             subtitle: kAppVersion,
             accentColor: colorScheme.onSurfaceVariant,
+            onTap: () => _checkForUpdates(context, ref),
           ),
           SettingsCard.grouped(
             leading: const Icon(Icons.code_rounded),
@@ -351,6 +374,208 @@ class SettingsHomeScreen extends ConsumerWidget {
       final launched = await DonationService.launchKofi();
       if (!launched && context.mounted) {
         SnackBarHelper.info(context, 'Unable to open the donation page.');
+      }
+    }
+  }
+
+  Future<void> _checkForUpdates(BuildContext context, WidgetRef ref) async {
+    final updater = AppUpdater();
+    GitHubRelease? latest;
+    try {
+      latest = await updater.checkForUpdate();
+    } catch (e) {
+      if (context.mounted) {
+        SnackBarHelper.error(context, "Couldn't check for updates. ($e)");
+      }
+      return;
+    }
+    if (!context.mounted) return;
+
+    if (latest == null) {
+      SnackBarHelper.info(context, "You're up to date");
+      return;
+    }
+
+    final jailbroken = ref.read(currentSettingsProvider).jailbroken;
+
+    if (Platform.isAndroid) {
+      final asset = pickAsset(latest, '-android.apk');
+      if (asset == null) {
+        SnackBarHelper.info(
+          context,
+          'No Android update asset found for ${latest.version}.',
+        );
+        return;
+      }
+      await _downloadAndInstallAndroid(context, updater, asset);
+      return;
+    }
+
+    if (Platform.isIOS) {
+      if (jailbroken) {
+        final asset = pickAsset(latest, '-ios.ipa');
+        if (asset == null) {
+          SnackBarHelper.info(
+            context,
+            'No iOS update asset found for ${latest.version}.',
+          );
+          return;
+        }
+        await _downloadIpaForTrollStore(context, updater, asset);
+        return;
+      }
+      // Not jailbroken: open releases page.
+      await _launchExternalUri(
+        context: context,
+        uri: Uri.parse(
+          'https://github.com/wetw0rks-c0ding/seekarr/releases',
+        ),
+        failureMessage: 'Unable to open the releases page.',
+      );
+      return;
+    }
+
+    // Other platforms: open releases page.
+    await _launchExternalUri(
+      context: context,
+      uri: Uri.parse('https://github.com/wetw0rks-c0ding/seekarr/releases'),
+      failureMessage: 'Unable to open the releases page.',
+    );
+  }
+
+  Future<void> _downloadAndInstallAndroid(
+    BuildContext context,
+    AppUpdater updater,
+    GitHubAsset asset,
+  ) async {
+    final dir = await getTemporaryDirectory();
+    final savePath = '${dir.path}/${asset.name}';
+    final progress = ValueNotifier<double?>(null);
+
+    if (context.mounted) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Downloading ${asset.name}'),
+          content: ValueListenableBuilder<double?>(
+            valueListenable: progress,
+            builder: (_, p, __) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(value: p),
+                const SizedBox(height: 8),
+                Text(
+                  p == null
+                      ? 'Starting...'
+                      : '${(p * 100).toStringAsFixed(0)}%',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    try {
+      await updater.downloadAsset(
+        asset,
+        savePath,
+        onProgress: (received, total) {
+          if (total > 0) progress.value = received / total;
+        },
+      );
+    } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        SnackBarHelper.error(context, "Couldn't download update. ($e)");
+      }
+      return;
+    }
+
+    if (context.mounted) Navigator.of(context).pop();
+
+    // Trigger system install prompt via platform channel.
+    try {
+      const channel = MethodChannel('seekarr/installer');
+      final result = await channel.invokeMethod<String>('installApk', {
+        'path': savePath,
+      });
+      if (result == 'needs_permission' && context.mounted) {
+        SnackBarHelper.info(
+          context,
+          'Enable "Install unknown apps" for Seekarr, then tap Version again.',
+        );
+      }
+    } on PlatformException catch (e) {
+      if (context.mounted) {
+        SnackBarHelper.error(
+          context,
+          "Couldn't start installer. (${e.message})",
+        );
+      }
+    }
+  }
+
+  Future<void> _downloadIpaForTrollStore(
+    BuildContext context,
+    AppUpdater updater,
+    GitHubAsset asset,
+  ) async {
+    final dir = await getApplicationDocumentsDirectory();
+    final savePath = '${dir.path}/${asset.name}';
+    final progress = ValueNotifier<double?>(null);
+
+    if (context.mounted) {
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          title: Text('Downloading ${asset.name}'),
+          content: ValueListenableBuilder<double?>(
+            valueListenable: progress,
+            builder: (_, p, __) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                LinearProgressIndicator(value: p),
+                const SizedBox(height: 8),
+                Text(
+                  p == null
+                      ? 'Starting...'
+                      : '${(p * 100).toStringAsFixed(0)}%',
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    try {
+      await updater.downloadAsset(
+        asset,
+        savePath,
+        onProgress: (received, total) {
+          if (total > 0) progress.value = received / total;
+        },
+      );
+    } catch (e) {
+      if (context.mounted) Navigator.of(context).pop();
+      if (context.mounted) {
+        SnackBarHelper.error(context, "Couldn't download update. ($e)");
+      }
+      return;
+    }
+
+    if (context.mounted) Navigator.of(context).pop();
+
+    try {
+      await SharePlus.instance.share(
+        ShareParams(files: [XFile(savePath)], text: 'Open in TrollStore'),
+      );
+    } catch (e) {
+      if (context.mounted) {
+        SnackBarHelper.error(context, "Couldn't hand off to TrollStore. ($e)");
       }
     }
   }

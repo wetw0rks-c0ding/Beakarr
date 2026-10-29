@@ -53,6 +53,7 @@ class SettingsModel {
   final AppThemeMode themeMode;
   final String oidcIssuer; // empty = disabled; plain URL-like field (NOT secret)
   final String oidcClientId; // default 'seekarr'
+  final bool jailbroken; // iOS TrollStore install path (default off)
 
   static final Map<ServiceKey, _ServiceSettingsAccess> _serviceSettingsAccess =
       {
@@ -149,6 +150,7 @@ class SettingsModel {
     this.themeMode = AppThemeMode.system,
     this.oidcIssuer = '',
     this.oidcClientId = 'seekarr',
+    this.jailbroken = false,
   });
 
   SettingsModel copyWith({
@@ -177,6 +179,7 @@ class SettingsModel {
     AppThemeMode? themeMode,
     String? oidcIssuer,
     String? oidcClientId,
+    bool? jailbroken,
   }) {
     return SettingsModel(
       seerrUrl: seerrUrl ?? this.seerrUrl,
@@ -204,6 +207,7 @@ class SettingsModel {
       themeMode: themeMode ?? this.themeMode,
       oidcIssuer: oidcIssuer ?? this.oidcIssuer,
       oidcClientId: oidcClientId ?? this.oidcClientId,
+      jailbroken: jailbroken ?? this.jailbroken,
     );
   }
 
