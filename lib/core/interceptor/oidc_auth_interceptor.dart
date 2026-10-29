@@ -75,6 +75,7 @@ class OidcAuthInterceptor extends Interceptor {
         headers: {'Content-Type': 'application/json', 'Authorization': 'Bearer $authToken'},
         body: jsonEncode(<String, String>{'subject_token': authToken}),
       );
+      if (kDebugMode) debugPrint('Sonarr OIDC exchange -> ${res.statusCode}');
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         final token = body['token'] as String?;
@@ -130,6 +131,10 @@ class OidcAuthInterceptor extends Interceptor {
         // token. No identity or failed exchange → fall through to the
         // normal API-key error path untouched.
         try {
+          if (kDebugMode) {
+            debugPrint('Sonarr OIDC lazy 401 for $baseUrl '
+                'identity=${(await _sonarrAuthToken())?.isNotEmpty == true}');
+          }
           // Belt-and-braces: getSonarrSession already evicts expired
           // entries, but a session valid at lookup must never be retried
           // if it aged out during the exchange calls above.
