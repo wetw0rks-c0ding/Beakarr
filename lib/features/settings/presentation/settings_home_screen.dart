@@ -341,9 +341,7 @@ class SettingsHomeScreen extends ConsumerWidget {
               onPressed: () {
                 // Copy out of the closure-mutated locals for promotion.
                 final first = pw1;
-                if (first == null ||
-                    first.length < 8 ||
-                    first != pw2) {
+                if (first == null || first.length < 8 || first != pw2) {
                   setState(() => mismatch = true);
                 } else {
                   Navigator.pop(d, true);
@@ -361,8 +359,12 @@ class SettingsHomeScreen extends ConsumerWidget {
     try {
       final service = SettingsBackupService(prefs: prefs, secureStore: store);
       final envelope = await service.exportBackup(password: password);
-      final path = await FilePicker.platform.saveFile(fileName: 'seekarr-backup.enc', bytes: utf8.encode(envelope));
-      if (path != null && context.mounted) SnackBarHelper.success(context, 'Backup saved to $path');
+      final path = await FilePicker.platform.saveFile(
+        fileName: 'seekarr-backup.enc',
+        bytes: utf8.encode(envelope),
+      );
+      if (path != null && context.mounted)
+        SnackBarHelper.success(context, 'Backup saved to $path');
     } catch (e) {
       if (context.mounted) SnackBarHelper.error(context, 'Backup failed: $e');
     }
@@ -373,9 +375,12 @@ class SettingsHomeScreen extends ConsumerWidget {
     // disposed provider scope.
     final svc = ref.read(settingsServiceProvider);
     final notifier = ref.read(settingsProvider.notifier);
+    // Note: FileType.custom with allowedExtensions throws
+    // PlatformException(Unsupported filter) on some Android targets, so
+    // accept any file here and let envelope validation reject non-backups
+    // with a clear error instead of a native crash.
     final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['enc'],
+      type: FileType.any,
       withData: true,
     );
     if (result == null || result.files.isEmpty) return;
@@ -400,17 +405,12 @@ class SettingsHomeScreen extends ConsumerWidget {
               children: [
                 TextField(
                   obscureText: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Password',
-                  ),
+                  decoration: const InputDecoration(labelText: 'Password'),
                   onChanged: (s) => pw = s,
                 ),
                 if (errorText != null) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    errorText,
-                    style: const TextStyle(color: Colors.red),
-                  ),
+                  Text(errorText, style: const TextStyle(color: Colors.red)),
                 ],
               ],
             ),
@@ -431,10 +431,7 @@ class SettingsHomeScreen extends ConsumerWidget {
       final password = pw;
       if (ok != true || password == null || password.isEmpty) return;
       try {
-        final import = await service.importBackup(
-          envelope,
-          password: password,
-        );
+        final import = await service.importBackup(envelope, password: password);
         for (final e in import.prefs.entries) {
           final v = e.value;
           if (v is bool) {
@@ -621,9 +618,7 @@ class SettingsHomeScreen extends ConsumerWidget {
       // Not jailbroken: open releases page.
       await _launchExternalUri(
         context: context,
-        uri: Uri.parse(
-          'https://github.com/wetw0rks-c0ding/seekarr/releases',
-        ),
+        uri: Uri.parse('https://github.com/wetw0rks-c0ding/seekarr/releases'),
         failureMessage: 'Unable to open the releases page.',
       );
       return;
@@ -660,23 +655,23 @@ class SettingsHomeScreen extends ConsumerWidget {
             });
           }
           return AlertDialog(
-          title: Text('Downloading ${asset.name}'),
-          content: ValueListenableBuilder<double?>(
-            valueListenable: progress,
-            builder: (_, p, __) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LinearProgressIndicator(value: p),
-                const SizedBox(height: 8),
-                Text(
-                  p == null
-                      ? 'Starting...'
-                      : '${(p * 100).toStringAsFixed(0)}%',
-                ),
-              ],
+            title: Text('Downloading ${asset.name}'),
+            content: ValueListenableBuilder<double?>(
+              valueListenable: progress,
+              builder: (_, p, __) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(value: p),
+                  const SizedBox(height: 8),
+                  Text(
+                    p == null
+                        ? 'Starting...'
+                        : '${(p * 100).toStringAsFixed(0)}%',
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
+          );
         },
       );
     }
@@ -747,23 +742,23 @@ class SettingsHomeScreen extends ConsumerWidget {
             });
           }
           return AlertDialog(
-          title: Text('Downloading ${asset.name}'),
-          content: ValueListenableBuilder<double?>(
-            valueListenable: progress,
-            builder: (_, p, __) => Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                LinearProgressIndicator(value: p),
-                const SizedBox(height: 8),
-                Text(
-                  p == null
-                      ? 'Starting...'
-                      : '${(p * 100).toStringAsFixed(0)}%',
-                ),
-              ],
+            title: Text('Downloading ${asset.name}'),
+            content: ValueListenableBuilder<double?>(
+              valueListenable: progress,
+              builder: (_, p, __) => Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  LinearProgressIndicator(value: p),
+                  const SizedBox(height: 8),
+                  Text(
+                    p == null
+                        ? 'Starting...'
+                        : '${(p * 100).toStringAsFixed(0)}%',
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
+          );
         },
       );
     }
