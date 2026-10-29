@@ -7,16 +7,23 @@ import 'package:seekarr/core/api/base_arr_service.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_episode.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_series.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
+import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 
 final sonarrServiceProvider = Provider<SonarrService>((ref) {
   final settings = ref.watch(currentSettingsProvider);
-  if (settings.sonarrUrl.isEmpty || settings.sonarrApiKey.isEmpty) {
+  if (settings.sonarrUrl.isEmpty ||
+      (settings.sonarrApiKey.isEmpty && settings.oidcIssuer.isEmpty)) {
     throw Exception('Sonarr not configured');
   }
+  final store = ref.watch(secureSettingsStoreProvider);
   return SonarrService(
     ApiClient(
       baseUrl: settings.sonarrUrl,
       auth: ApiKeyHeaderAuth(settings.sonarrApiKey),
+      serviceKey: 'sonarr',
+      session: OidcSessionService(store),
+      issuerUrl: settings.oidcIssuer,
+      clientId: settings.oidcClientId,
     ),
   );
 });
