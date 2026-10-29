@@ -32,7 +32,11 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
   Future<void> _loadStatuses() async {
     final sess = OidcSessionService(createSecureSettingsStore());
     final seekarr = await sess.sessionState();
-    final sonarr = await sess.sessionStateFor('sonarr');
+    final settings = ref.read(settingsProvider);
+    // ArrStack mode: Sonarr shares the main pair, so mirror its status.
+    final sonarr = OidcSessionService.isArrstackMode(settings.oidcIssuer)
+        ? seekarr
+        : await sess.sessionStateFor('sonarr');
     if (mounted) {
       setState(() {
         _sessionStatus = seekarr;
@@ -89,6 +93,41 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                 final latest = ref.read(settingsProvider);
                 ref.read(settingsProvider.notifier).updateSettings(latest.copyWith(oidcClientId: v));
               },
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                OutlinedButton(
+                  onPressed: () async {
+                    final latest = ref.read(settingsProvider);
+                    await ref.read(settingsProvider.notifier).updateSettings(
+                      latest.copyWith(
+                        oidcIssuer: OidcSessionService.arrstackIssuer,
+                        oidcClientId: OidcSessionService.arrstackClientId,
+                      ),
+                    );
+                    _issuerController.text =
+                        OidcSessionService.arrstackIssuer;
+                    _clientIdController.text =
+                        OidcSessionService.arrstackClientId;
+                    // Re-tap edge: issuer unchanged means updateSettings
+                    // skipped its wipe, but a cached service token from a
+                    // previous identity must not survive the switch.
+                    SonarrOidcSessionProvider.clearAll();
+                    await _loadStatuses();
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'ArrStack preset applied — please log in again',
+                          ),
+                        ),
+                      );
+                    }
+                  },
+                  child: const Text('Use ArrStack preset'),
+                ),
+              ],
             ),
             const SizedBox(height: 24),
             Text(_sessionStatus.toString(), style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -157,6 +196,14 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                           _sessionStatus = ok
                               ? SessionStatus.active
                               : SessionStatus.error;
+                          // ArrStack mode: Sonarr shares the main pair, so
+                          // mirror it (and drop any cache from a previous
+                          // identity — the new login owns the token now).
+                          if (OidcSessionService.isArrstackMode(
+                              settings.oidcIssuer)) {
+                            _sonarrStatus = _sessionStatus;
+                            SonarrOidcSessionProvider.clearAll();
+                          }
                         });
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -182,6 +229,13 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                   onPressed: () async {
                     final sess = OidcSessionService(createSecureSettingsStore());
                     await sess.clear();
+                    // ArrStack mode: the Sonarr service token belongs to
+                    // the main identity — drop it on logout so the next
+                    // login cannot reuse the previous user's token.
+                    if (OidcSessionService.isArrstackMode(
+                        settings.oidcIssuer)) {
+                      SonarrOidcSessionProvider.clearAll();
+                    }
                     if (context.mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Session cleared')));
                     }
@@ -192,7 +246,10 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
             ),
             const Divider(),
             Text('Sonarr (pilot)', style: const TextStyle(fontWeight: FontWeight.bold)),
-            Text(_sonarrStatus.toString()),
+            if (OidcSessionService.isArrstackMode(settings.oidcIssuer))
+              const Text('Single-tile mode: covered by the main login above.'),
+            Text((OidcSessionService.isArrstackMode(settings.oidcIssuer) ? _sessionStatus : _sonarrStatus).toString()),
+            if (!OidcSessionService.isArrstackMode(settings.oidcIssuer))
             Row(
               children: [
                 ElevatedButton(
@@ -206,7 +263,7 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                     try {
                       final sess = OidcSessionService(createSecureSettingsStore());
                       final sonarrIssuer = OidcSessionService.perServiceIssuer(settings.oidcIssuer, 'sonarr');
-                      final sonarrClient = OidcSessionService.perServiceClientId('sonarr');
+                      final sonarrClient = OidcSessionService.perServiceClientId('sonarr', settings.oidcIssuer);
                       final pkce = generatePkce();
                       final v = pkce.codeVerifier.replaceAll('=', '');
                       // Verifier only: a cancelled login must not wipe the

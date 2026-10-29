@@ -1,4 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:convert';
+import 'dart:io';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 import '../../test_helpers/fake_secure_settings_store.dart';
 
@@ -177,6 +179,181 @@ void main() {
 
       expect(await OidcSessionService(fakeStore).accessTokenFor('sonarr'), isNull);
       expect(await OidcSessionService(fakeStore).accessTokenFor('radarr'), equals(radarrAccess));
+    });
+  });
+
+  group('arrstack single-tile mode', () {
+    test('isArrstackMode detects the arrstack issuer', () {
+      expect(
+        OidcSessionService.isArrstackMode(
+            'https://auth.piracyhub.win/application/o/arrstack/'),
+        isTrue,
+      );
+      expect(
+        OidcSessionService.isArrstackMode(
+            'https://auth.piracyhub.win/application/o/arrstack'),
+        isTrue,
+      );
+      expect(
+        OidcSessionService.isArrstackMode(
+            'https://auth.piracyhub.win/application/o/sonarr/'),
+        isFalse,
+      );
+      expect(OidcSessionService.isArrstackMode(''), isFalse);
+    });
+
+    test('perServiceIssuer returns base for every service in arrstack mode',
+        () {
+      const base = 'https://auth.piracyhub.win/application/o/arrstack/';
+      for (final svc in ['sonarr', 'radarr', 'lidarr']) {
+        expect(OidcSessionService.perServiceIssuer(base, svc), equals(base));
+      }
+    });
+
+    test('perServiceClientId returns arrstack in arrstack mode', () {
+      const base = 'https://auth.piracyhub.win/application/o/arrstack/';
+      expect(OidcSessionService.perServiceClientId('sonarr', base),
+          equals('arrstack'));
+      expect(OidcSessionService.perServiceClientId('sonarr'),
+          equals('sonarr'));
+    });
+  });
+
+  group('refresh outcome', () {
+    late HttpServer server;
+    late String base;
+
+    setUp(() async {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      base = 'http://localhost:${server.port}';
+    });
+
+    tearDown(() async {
+      await server.close();
+      await OidcSessionService(fakeStore).clearFor('sonarr');
+    });
+
+    Future<void> stubIdp({required int tokenStatus}) async {
+      server.listen((req) async {
+        if (req.uri.path == '/.well-known/openid-configuration') {
+          req.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode({'token_endpoint': '$base/token'}));
+          await req.response.close();
+        } else if (req.uri.path == '/token') {
+          req.response
+            ..statusCode = tokenStatus
+            ..headers.contentType = ContentType.json
+            ..write(tokenStatus == 200
+                ? jsonEncode({
+                    'access_token': 'new-access',
+                    'refresh_token': 'new-refresh',
+                    'expires_in': 3600,
+                  })
+                : jsonEncode({'error': 'invalid_grant'}));
+          await req.response.close();
+        } else {
+          req.response.statusCode = 404;
+          await req.response.close();
+        }
+      });
+    }
+
+    test('refreshFor refreshed on 200 and stores the new pair', () async {
+      await stubIdp(tokenStatus: 200);
+      final sess = OidcSessionService(fakeStore);
+      await sess.saveTokensFor(
+        service: 'sonarr',
+        access: 'old-access',
+        refresh: 'old-refresh',
+        expiryEpoch: 0,
+      );
+      expect(await sess.refreshFor('sonarr', base, 'sonarr'),
+          equals(RefreshOutcome.refreshed));
+      expect(await sess.accessTokenFor('sonarr'), equals('new-access'));
+      expect(await sess.refreshTokenFor('sonarr'), equals('new-refresh'));
+    });
+
+    test('refreshFor rejected on 400 and drops access only', () async {
+      await stubIdp(tokenStatus: 400);
+      final sess = OidcSessionService(fakeStore);
+      await sess.saveTokensFor(
+        service: 'sonarr',
+        access: 'old-access',
+        refresh: 'old-refresh',
+        expiryEpoch: 0,
+      );
+      expect(await sess.refreshFor('sonarr', base, 'sonarr'),
+          equals(RefreshOutcome.rejected));
+      expect(await sess.accessTokenFor('sonarr'), isNull);
+      expect(await sess.refreshTokenFor('sonarr'), equals('old-refresh'));
+    });
+
+    test('refreshFor rejected with no stored refresh token', () async {
+      expect(
+          await OidcSessionService(fakeStore)
+              .refreshFor('sonarr', base, 'sonarr'),
+          equals(RefreshOutcome.rejected));
+    });
+
+    test('refreshFor transient on 500 and keeps the stored pair', () async {
+      await stubIdp(tokenStatus: 500);
+      final sess = OidcSessionService(fakeStore);
+      await sess.saveTokensFor(
+        service: 'sonarr',
+        access: 'old-access',
+        refresh: 'old-refresh',
+        expiryEpoch: 0,
+      );
+      expect(await sess.refreshFor('sonarr', base, 'sonarr'),
+          equals(RefreshOutcome.transient));
+      expect(await sess.accessTokenFor('sonarr'), equals('old-access'));
+      expect(await sess.refreshTokenFor('sonarr'), equals('old-refresh'));
+    });
+
+    test('concurrent refreshFor shares a single token call', () async {
+      var tokenHits = 0;
+      server.listen((req) async {
+        if (req.uri.path == '/.well-known/openid-configuration') {
+          req.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode({'token_endpoint': '$base/token'}));
+          await req.response.close();
+        } else if (req.uri.path == '/token') {
+          tokenHits++;
+          // Hold the first call so the others join it in-flight.
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          req.response
+            ..statusCode = 200
+            ..headers.contentType = ContentType.json
+            ..write(jsonEncode({
+              'access_token': 'new-access',
+              'refresh_token': 'new-refresh',
+              'expires_in': 3600,
+            }));
+          await req.response.close();
+        } else {
+          req.response.statusCode = 404;
+          await req.response.close();
+        }
+      });
+      final sess = OidcSessionService(fakeStore);
+      await sess.saveTokensFor(
+        service: 'sonarr',
+        access: 'old-access',
+        refresh: 'old-refresh',
+        expiryEpoch: 0,
+      );
+      final results = await Future.wait([
+        sess.refreshFor('sonarr', base, 'sonarr'),
+        sess.refreshFor('sonarr', base, 'sonarr'),
+        sess.refreshFor('sonarr', base, 'sonarr'),
+      ]);
+      expect(results,
+          everyElement(equals(RefreshOutcome.refreshed)));
+      expect(tokenHits, equals(1));
     });
   });
 }

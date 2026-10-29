@@ -11,6 +11,18 @@ enum SessionStatus {
 }
 
 /// App-level OIDC session service using Authentik discovery + PKCE.
+/// Outcome of an Authentik refresh attempt.
+///
+/// Only [rejected] means the identity is confirmed dead and its stored
+/// tokens safe to clear. [transient] (network error, unparseable reply)
+/// must never clear: the identity may be fine, and in ArrStack mode a
+/// wrongful clear logs the whole fleet out.
+enum RefreshOutcome {
+  refreshed,
+  rejected,
+  transient,
+}
+
 class OidcSessionService {
   final SecureSettingsStore _store;
   static const String _kAccess = 'oidc_access_token';
@@ -97,7 +109,24 @@ class OidcSessionService {
   static String _expiryFor(String service) => 'oidc_token_expiry_$service';
   static String _pkceFor(String service) => 'oidc_pkce_verifier_$service';
 
+  /// True when [baseIssuer] is the single-tile ArrStack provider.
+  /// In this mode every *arr service exchanges the same Authentik pair
+  /// (`iss .../o/arrstack/`, `aud=arrstack`); per-service PKCE is skipped.
+  static bool isArrstackMode(String baseIssuer) {
+    final trimmed = baseIssuer.trim().replaceAll(RegExp(r'/+$'), '');
+    return trimmed.endsWith('/o/arrstack');
+  }
+
+  /// Shared ArrStack issuer (normalized) for all services.
+  static String get arrstackIssuer =>
+      'https://auth.piracyhub.win/application/o/arrstack/';
+
+  /// Shared ArrStack client id for all services.
+  static String get arrstackClientId => 'arrstack';
+
   /// Derive a per-service issuer from the configured base issuer.
+  ///
+  /// ArrStack mode: the base issuer itself (one tile for the fleet).
   ///
   /// The base is normally the Seekarr provider issuer
   /// (`https://auth.<host>/application/o/seekarr/`); per-service issuers
@@ -106,6 +135,8 @@ class OidcSessionService {
   /// same service is idempotent.
   static String perServiceIssuer(String baseIssuer, String service) {
     final trimmed = baseIssuer.trim().replaceAll(RegExp(r'/+$'), '');
+    // ArrStack mode: one tile for the fleet, base issuer as-is.
+    if (isArrstackMode(baseIssuer)) return '$trimmed/';
     if (trimmed.isEmpty || service.isEmpty) return '';
     final uri = Uri.tryParse(trimmed);
     if (uri == null || !uri.hasScheme || uri.host.isEmpty) return '';
@@ -115,7 +146,13 @@ class OidcSessionService {
   }
 
   /// Authentik client_id convention: one client per app, named for the app.
-  static String perServiceClientId(String service) => service;
+  /// ArrStack mode: every service shares the single `arrstack` client.
+  static String perServiceClientId(String service, [String baseIssuer = '']) {
+    if (baseIssuer.isNotEmpty && isArrstackMode(baseIssuer)) {
+      return arrstackClientId;
+    }
+    return service;
+  }
 
   Future<String?> accessTokenFor(String service) =>
       _store.read(key: _accessFor(service));
@@ -225,17 +262,35 @@ class OidcSessionService {
     }
   }
 
-  /// Refresh a per-service Authentik pair. Returns false (no throw) on
-  /// failure; clears only the per-service access token, keeping the refresh
-  /// token for a later retry. Never touches the Seekarr-UI session.
-  Future<bool> refreshFor(
+  /// Refresh a per-service Authentik pair. Never throws. Clears only the
+  /// per-service access token on [RefreshOutcome.rejected], keeping the
+  /// refresh token. Concurrent callers for one service share a single
+  /// token call (see [_inflightRefreshes]). Never touches the
+  /// Seekarr-UI session.
+  Future<RefreshOutcome> refreshFor(
+      String service, String issuerUrl, String clientId) {
+    final existing = _inflightRefreshes[service];
+    if (existing != null) return existing;
+    final fut = _refreshForInner(service, issuerUrl, clientId);
+    _inflightRefreshes[service] = fut;
+    fut.whenComplete(() {
+      if (identical(_inflightRefreshes[service], fut)) {
+        _inflightRefreshes.remove(service);
+      }
+    }).then((_) {}, onError: (_) {});
+    return fut;
+  }
+
+  Future<RefreshOutcome> _refreshForInner(
       String service, String issuerUrl, String clientId) async {
-    final storedRefresh = await refreshTokenFor(service);
-    if (storedRefresh == null || storedRefresh.isEmpty) return false;
     try {
+      final storedRefresh = await refreshTokenFor(service);
+      if (storedRefresh == null || storedRefresh.isEmpty) {
+        return RefreshOutcome.rejected;
+      }
       final config = await discover(issuerUrl);
       final tokenUrl = config['token_endpoint'] as String?;
-      if (tokenUrl == null) return false;
+      if (tokenUrl == null) return RefreshOutcome.rejected;
       final res = await http.post(
         Uri.parse(tokenUrl),
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -254,12 +309,15 @@ class OidcSessionService {
           expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 +
               (body['expires_in'] as int? ?? 3600),
         );
-        return true;
+        return RefreshOutcome.refreshed;
       }
-      await _store.delete(key: _accessFor(service));
-      return false;
+      if (res.statusCode == 400 || res.statusCode == 401) {
+        await _store.delete(key: _accessFor(service));
+        return RefreshOutcome.rejected;
+      }
+      return RefreshOutcome.transient;
     } catch (_) {
-      return false;
+      return RefreshOutcome.transient;
     }
   }
 
@@ -321,16 +379,36 @@ class OidcSessionService {
     }
   }
 
+  /// Joined in-flight refreshes: concurrent 401s share one token call so
+  /// a rotating refresh token cannot be consumed twice. Key '' = base pair.
+  static final Map<String, Future<RefreshOutcome>> _inflightRefreshes = {};
+
   /// Refresh flow - exchanges Authentik token for new access token.
-  Future<bool> refresh(String issuerUrl, String clientId) async {
-    final refreshToken = await this.refreshToken;
-    if (refreshToken == null || refreshToken.isEmpty) return false;
-    
+  /// [RefreshOutcome.rejected] (400/401, no token/endpoint) is the only
+  /// outcome that permits clearing; 429/5xx and exceptions are
+  /// [RefreshOutcome.transient] and must never clear.
+  Future<RefreshOutcome> refresh(String issuerUrl, String clientId) {
+    final existing = _inflightRefreshes[''];
+    if (existing != null) return existing;
+    final fut = _refreshInner(issuerUrl, clientId);
+    _inflightRefreshes[''] = fut;
+    fut.whenComplete(() {
+      if (identical(_inflightRefreshes[''], fut)) _inflightRefreshes.remove('');
+    }).then((_) {}, onError: (_) {});
+    return fut;
+  }
+
+  Future<RefreshOutcome> _refreshInner(
+      String issuerUrl, String clientId) async {
     try {
+      final refreshToken = await this.refreshToken;
+      if (refreshToken == null || refreshToken.isEmpty) {
+        return RefreshOutcome.rejected;
+      }
       final config = await discover(issuerUrl);
       final tokenUrl = config['token_endpoint'] as String?;
-      if (tokenUrl == null) return false;
-      
+      if (tokenUrl == null) return RefreshOutcome.rejected;
+
       final res = await http.post(
         Uri.parse(tokenUrl),
         headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -340,7 +418,7 @@ class OidcSessionService {
           'client_id': clientId,
         },
       );
-      
+
       if (res.statusCode == 200) {
         final body = jsonDecode(res.body) as Map<String, dynamic>;
         await saveTokens(
@@ -348,15 +426,19 @@ class OidcSessionService {
           refresh: body['refresh_token'] as String? ?? refreshToken,
           expiryEpoch: DateTime.now().millisecondsSinceEpoch ~/ 1000 + (body['expires_in'] as int? ?? 3600),
         );
-        return true;
+        return RefreshOutcome.refreshed;
       }
-      
-      // Refresh failed - clear access token but keep refresh token for retry
-      await _store.delete(key: _kAccess);
-      return false;
+
+      // Definitive rejection only on 400/401 (invalid_grant etc.).
+      // 429/5xx are transient: leave the store untouched for retry.
+      if (res.statusCode == 400 || res.statusCode == 401) {
+        await _store.delete(key: _kAccess);
+        return RefreshOutcome.rejected;
+      }
+      return RefreshOutcome.transient;
     } catch (_) {
-      // Network error or other exception - return false, caller may retry
-      return false;
+      // Network error or other exception - transient, keep everything.
+      return RefreshOutcome.transient;
     }
   }
 

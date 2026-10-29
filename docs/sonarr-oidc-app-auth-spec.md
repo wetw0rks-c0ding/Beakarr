@@ -12,8 +12,13 @@ is the contract the app will consume; deviations break the pilot.
 
 ## Context (what already exists — reuse, do not rebuild)
 
-- Authentik provider `sonarr` (client_id `sonarr`, aud `sonarr`) — the
-  app logs in against Authentik, not against Sonarr.
+- Authentik provider `arrstack` (client_id `arrstack`, aud `arrstack`,
+  `issuer https://auth.piracyhub.win/application/o/arrstack/`) — the
+  app logs in against Authentik, not against Sonarr. Single tile for
+  the whole fleet; per-service providers (`sonarr` PK18, `radarr` PK19)
+  kept as fallback. History: pilot ran per-service (`aud=sonarr`) when
+  each fork validated its own issuer; single-tile trades aud-isolation
+  for one PKCE (`aud=arrstack` valid on every *arr).
 - `OidcGroupMapping.Resolve(groups)` already maps the Authentik groups
   (`pirates`, `homies`, `family`, `maintenance`, `authentik Admins`)
   to T1..T5 roles (`Admin`, `Manage`, `AddSearch`, `ReadOnly`, null).
@@ -105,10 +110,10 @@ Error responses:
 ## Validation rules (must match exactly)
 
 1. **Authentik JWT validation** (on `subject_token`):
-   - Issuer == `https://auth.piracyhub.win/application/o/sonarr/`
-     (trailing slash matters, per-provider issuer).
-   - Audience contains `sonarr` (the Authentik client_id the app logs
-     in with for this pilot). Reject if aud does not contain `sonarr`.
+   - Issuer == `https://auth.piracyhub.win/application/o/arrstack/`
+     (trailing slash matters, single-tile issuer).
+   - Audience contains `arrstack` (the Authentik client_id the app logs
+     in with). Reject if aud does not contain `arrstack`.
    - Signature verified against Authentik's JWKS.
    - JWKS refresh: cache with `RefreshInterval = 24h`, plus refresh on
      unknown `kid` (key rotation).
@@ -130,11 +135,11 @@ Error responses:
 
 ## App-side contract (what the app will do — do not change these shapes)
 
-- App logs in to Authentik once per service pilot (PKCE, `aud=sonarr`,
-  `issuer https://auth.piracyhub.win/application/o/sonarr/`,
-  `client_id sonarr`), stores the Authentik access + refresh tokens
-  in secure storage. `seekarr` app (`aud=seekarr`) stays for Seekarr's
-  own desktop PKCE, not for `*arr` exchange.
+- App logs in to Authentik once (PKCE, `aud=arrstack`,
+  `issuer https://auth.piracyhub.win/application/o/arrstack/`,
+  `client_id arrstack` — the in-app "Use ArrStack preset"), stores the
+  Authentik access + refresh tokens in secure storage. The same pair
+  feeds every *arr exchange (fleet-wide token).
 - On first call to a Sonarr endpoint, app gets `401` (no service token),
   then `POST /api/auth/oidc/exchange { subject_token }` with
   `Authorization: Bearer <authentik_token>`.

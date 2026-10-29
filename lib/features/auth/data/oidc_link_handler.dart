@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/legacy.dart';
 
 import 'package:seekarr/features/auth/data/callback_uri_helper.dart';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
+import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 
 /// Latest OIDC callback result for the UI to surface. Null = nothing yet.
@@ -51,6 +52,12 @@ final oidcLinkHandlerProvider = Provider<void>((ref) {
         pkceVerifier: verifier,
         redirectUri: 'seekarr://oauth/callback',
       );
+      if (ok &&
+          OidcSessionService.isArrstackMode(settings.oidcIssuer)) {
+        // New identity owns the fleet token now: drop any cached Sonarr
+        // service token from the previous identity.
+        SonarrOidcSessionProvider.clearAll();
+      }
       ref.read(oidcLinkResultProvider.notifier).state =
           ok ? 'Login successful' : 'Login failed: token rejected';
     } catch (e) {
