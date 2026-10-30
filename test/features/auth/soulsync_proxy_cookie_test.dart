@@ -7,20 +7,20 @@ WebViewCookie _cookie(String name, String value) =>
     WebViewCookie(name: name, value: value, domain: '.piracyhub.win');
 
 void main() {
-  group('findSoulSyncProxyCookie', () {
-    test('returns the session value when present and non-empty', () {
+  group('findSoulSyncSessionCookie', () {
+    test('returns the live session value when present and non-empty', () {
       expect(
-        findSoulSyncProxyCookie([
-          _cookie('color-scheme', 'dark'),
-          _cookie('_soulsync_proxy', 'abc123'),
+        findSoulSyncSessionCookie([
+          _cookie('_soulsync_proxy', ''),
+          _cookie('session', 'abc123'),
         ]),
         'abc123',
       );
     });
 
-    test('ignores an empty placeholder cookie (logged-out state)', () {
+    test('ignores the always-empty proxy placeholder alone', () {
       expect(
-        findSoulSyncProxyCookie([
+        findSoulSyncSessionCookie([
           _cookie('_soulsync_proxy', ''),
           _cookie('color-scheme', 'dark'),
         ]),
@@ -28,15 +28,16 @@ void main() {
       );
     });
 
-    test('returns null when the cookie is absent', () {
+    test('returns null when the session cookie is absent', () {
       expect(
-        findSoulSyncProxyCookie([_cookie('color-scheme', 'dark')]),
+        findSoulSyncSessionCookie([_cookie('color-scheme', 'dark')]),
         isNull,
       );
     });
 
     test('returns null for an empty jar', () {
-      expect(findSoulSyncProxyCookie(const []), isNull);
+      expect(findSoulSyncSessionCookie(const []), isNull,
+      );
     });
   });
 }

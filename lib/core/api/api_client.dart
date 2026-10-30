@@ -44,7 +44,7 @@ class ApiClient {
               .map((line) {
                 var out = line.replaceAllMapped(
                   RegExp(
-                    r'^(.*?(?:x-api-key|authorization)\s*:\s*).+$',
+                    r'^(.*?(?:x-api-key|authorization|cookie|set-cookie)\s*:\s*).+$',
                     caseSensitive: false,
                   ),
                   (m) => '${m.group(1)}***',

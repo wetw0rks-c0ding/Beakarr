@@ -16,12 +16,17 @@ class SoulSyncWebLoginScreen extends StatefulWidget {
 }
 
 /// Session-cookie lookup, extracted pure for unit testing.
-/// Returns the cookie value only when present AND non-empty: the proxy
-/// parks an empty `_soulsync_proxy` on logged-out/cleared states, which
-/// must not count as a session.
-String? findSoulSyncProxyCookie(Iterable<WebViewCookie> cookies) {
+/// Returns the cookie value only when present AND non-empty.
+///
+/// LIVE EVIDENCE (device jar, 2026-10-30): the proxy parks an always-empty
+/// `_soulsync_proxy` (logged-out/cleared placeholder) while the live
+/// session rides the `session` cookie (57 chars whenever the app loads
+/// authenticated). The homelab brief named `_soulsync_proxy`; the running
+/// system disagrees, so capture follows the running system. If the proxy
+/// ever mints `_soulsync_proxy` for real, this is a one-line change.
+String? findSoulSyncSessionCookie(Iterable<WebViewCookie> cookies) {
   for (final c in cookies) {
-    if (c.name == '_soulsync_proxy' && c.value.isNotEmpty) {
+    if (c.name == 'session' && c.value.isNotEmpty) {
       return c.value;
     }
   }
@@ -53,17 +58,22 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
 
   /// Single cookie-jar check shared by the page-finished hook and the
   /// poll timer. Only a non-empty session cookie finishes the flow.
+  /// NOTE: the jar must be queried with the full app URL, not the bare
+  /// domain: the proxy scopes `_soulsync_proxy` to Path=/soulsync and a
+  /// bare-domain query filters path-scoped cookies out.
+  static final Uri _cookieUrl = Uri.parse('https://piracyhub.win/soulsync/');
+
   Future<void> _checkCookies() async {
     if (_done || !mounted) return;
     try {
       final cookies = await WebViewCookieManager().getCookies(
-        domain: Uri.parse('https://piracyhub.win'),
+        domain: _cookieUrl,
       );
       // ignore: avoid_print
       print(
-        'DIAG-SOULSYNC cookies=${cookies.map((c) => c.name).join(",")}',
+        'DIAG-SOULSYNC jar=${cookies.map((c) => '${c.name}:${c.value.length}').join(",")}',
       );
-      final session = findSoulSyncProxyCookie(cookies);
+      final session = findSoulSyncSessionCookie(cookies);
       // ignore: avoid_print
       print('DIAG-SOULSYNC cookie=${session == null ? "null" : "len=${session.length}"}');
       if (session != null) _finish(session);

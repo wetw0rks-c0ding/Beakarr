@@ -60,7 +60,9 @@ class SoulSyncAuth implements ServiceAuth {
       h['X-Profile-Id'] = profileId!.trim();
     }
     if (proxyCookie != null && proxyCookie!.trim().isNotEmpty) {
-      h['Cookie'] = '_soulsync_proxy=${proxyCookie!.trim()}';
+      // LIVE EVIDENCE (device jar, 2026-10-30): the live session rides
+      // the `session` cookie; `_soulsync_proxy` is always parked empty.
+      h['Cookie'] = 'session=${proxyCookie!.trim()}';
     }
     return h;
   }
