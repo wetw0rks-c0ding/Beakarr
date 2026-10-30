@@ -38,7 +38,9 @@ class BearerAuth implements ServiceAuth {
   Map<String, dynamic> queryParams() => {};
 }
 
-/// SoulSync authentication: Bearer token plus optional profile scoping header.
+/// SoulSync authentication: Bearer token plus optional profile scoping
+/// header, plus an opaque proxy/app session cookie value (see
+/// findSoulSyncSessionCookie: one or more `name=value` pairs).
 class SoulSyncAuth implements ServiceAuth {
   final String token;
   final String? profileId;
@@ -60,9 +62,9 @@ class SoulSyncAuth implements ServiceAuth {
       h['X-Profile-Id'] = profileId!.trim();
     }
     if (proxyCookie != null && proxyCookie!.trim().isNotEmpty) {
-      // LIVE EVIDENCE (device jar, 2026-10-30): the live session rides
-      // the `session` cookie; `_soulsync_proxy` is always parked empty.
-      h['Cookie'] = 'session=${proxyCookie!.trim()}';
+      // Sent verbatim (may carry proxy session and/or app profile
+      // session pairs); servers ignore unknown cookies.
+      h['Cookie'] = proxyCookie!.trim();
     }
     return h;
   }

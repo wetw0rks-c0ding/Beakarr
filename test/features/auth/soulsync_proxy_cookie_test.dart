@@ -8,13 +8,23 @@ WebViewCookie _cookie(String name, String value) =>
 
 void main() {
   group('findSoulSyncSessionCookie', () {
-    test('returns the live session value when present and non-empty', () {
+    test('joins proxy session and app profile session', () {
+      expect(
+        findSoulSyncSessionCookie([
+          _cookie('_soulsync_proxy', 'proxy123'),
+          _cookie('session', 'abc123'),
+        ]),
+        '_soulsync_proxy=proxy123; session=abc123',
+      );
+    });
+
+    test('returns app session alone when proxy placeholder is empty', () {
       expect(
         findSoulSyncSessionCookie([
           _cookie('_soulsync_proxy', ''),
           _cookie('session', 'abc123'),
         ]),
-        'abc123',
+        'session=abc123',
       );
     });
 
@@ -28,7 +38,7 @@ void main() {
       );
     });
 
-    test('returns null when the session cookie is absent', () {
+    test('returns null when no session cookies exist', () {
       expect(
         findSoulSyncSessionCookie([_cookie('color-scheme', 'dark')]),
         isNull,

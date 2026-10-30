@@ -16,21 +16,30 @@ class SoulSyncWebLoginScreen extends StatefulWidget {
 }
 
 /// Session-cookie lookup, extracted pure for unit testing.
-/// Returns the cookie value only when present AND non-empty.
 ///
-/// LIVE EVIDENCE (device jar, 2026-10-30): the proxy parks an always-empty
-/// `_soulsync_proxy` (logged-out/cleared placeholder) while the live
-/// session rides the `session` cookie (57 chars whenever the app loads
-/// authenticated). The homelab brief named `_soulsync_proxy`; the running
-/// system disagrees, so capture follows the running system. If the proxy
-/// ever mints `_soulsync_proxy` for real, this is a one-line change.
+/// Returns a `Cookie`-header-ready value built from the non-empty
+/// session cookies the proxy/app mint, or null when no session exists.
+///
+/// LIVE EVIDENCE (device jar, 2026-10-30): `_soulsync_proxy` (the
+/// oauth2-proxy session, cf. `_soulsync_proxy_csrf` on the 302) is parked
+/// empty until a real Authentik login completes in this jar; `session`
+/// (SoulSync's own profile cookie, `{"profile_id":N}`) appears once a
+/// profile is picked. API calls need the proxy session; the profile
+/// cookie alone 401s. Both are sent — servers ignore unknown cookies —
+/// so whichever session is live authenticates.
 String? findSoulSyncSessionCookie(Iterable<WebViewCookie> cookies) {
+  final parts = <String>[];
+  String? proxy;
+  String? app;
   for (final c in cookies) {
-    if (c.name == 'session' && c.value.isNotEmpty) {
-      return c.value;
-    }
+    if (c.value.isEmpty) continue;
+    if (c.name == '_soulsync_proxy') proxy ??= '${c.name}=${c.value}';
+    if (c.name == 'session') app ??= '${c.name}=${c.value}';
   }
-  return null;
+  if (proxy != null) parts.add(proxy);
+  if (app != null) parts.add(app);
+  if (parts.isEmpty) return null;
+  return parts.join('; ');
 }
 
 class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {

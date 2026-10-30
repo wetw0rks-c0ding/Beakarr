@@ -10,18 +10,26 @@ void main() {
       expect(h['X-Profile-Id'], 'p1');
       expect(h.containsKey('Cookie'), false);
     });
-    test('cookie-only -> Cookie, no Bearer (empty token)', () {
-      final auth = SoulSyncAuth('', proxyCookie: 'abc');
+    test('cookie-only -> Cookie verbatim, no Bearer (empty token)', () {
+      // proxyCookie carries finder-built `name=value[; ...]` pairs.
+      final auth = SoulSyncAuth(
+        '',
+        proxyCookie: 'session=abc',
+      );
       final h = auth.headers();
       expect(h.containsKey('Authorization'), false); // never empty Bearer
       expect(h['Cookie'], 'session=abc');
     });
     test('both -> both headers', () {
-      final auth = SoulSyncAuth('t', profileId: 'p', proxyCookie: 'c');
+      final auth = SoulSyncAuth(
+        't',
+        profileId: 'p',
+        proxyCookie: '_soulsync_proxy=x; session=y',
+      );
       final h = auth.headers();
       expect(h['Authorization'], 'Bearer t');
       expect(h['X-Profile-Id'], 'p');
-      expect(h['Cookie'], 'session=c');
+      expect(h['Cookie'], '_soulsync_proxy=x; session=y');
     });
     test('neither -> no auth headers', () {
       final auth = SoulSyncAuth('');
