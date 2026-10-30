@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
@@ -13,9 +15,23 @@ class SoulSyncWebLoginScreen extends StatefulWidget {
   State<SoulSyncWebLoginScreen> createState() => _SoulSyncWebLoginScreenState();
 }
 
+/// Session-cookie lookup, extracted pure for unit testing.
+/// Returns the cookie value only when present AND non-empty: the proxy
+/// parks an empty `_soulsync_proxy` on logged-out/cleared states, which
+/// must not count as a session.
+String? findSoulSyncProxyCookie(Iterable<WebViewCookie> cookies) {
+  for (final c in cookies) {
+    if (c.name == '_soulsync_proxy' && c.value.isNotEmpty) {
+      return c.value;
+    }
+  }
+  return null;
+}
+
 class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
   late final WebViewController controller;
   bool _done = false;
+  Timer? _pollTimer;
 
   static bool _isAppPage(Uri uri) {
     final host = uri.host.toLowerCase();
@@ -27,12 +43,40 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
   void _finish(String? cookie) {
     if (_done || !mounted) return;
     _done = true;
+    _pollTimer?.cancel();
+    // ignore: avoid_print
+    print(
+      'DIAG-SOULSYNC finish cookie=${cookie == null ? "null" : "len=${cookie.length}"}',
+    );
     Navigator.of(context).pop(cookie);
+  }
+
+  /// Single cookie-jar check shared by the page-finished hook and the
+  /// poll timer. Only a non-empty session cookie finishes the flow.
+  Future<void> _checkCookies() async {
+    if (_done || !mounted) return;
+    try {
+      final cookies = await WebViewCookieManager().getCookies(
+        domain: Uri.parse('https://piracyhub.win'),
+      );
+      // ignore: avoid_print
+      print(
+        'DIAG-SOULSYNC cookies=${cookies.map((c) => c.name).join(",")}',
+      );
+      final session = findSoulSyncProxyCookie(cookies);
+      // ignore: avoid_print
+      print('DIAG-SOULSYNC cookie=${session == null ? "null" : "len=${session.length}"}');
+      if (session != null) _finish(session);
+    } catch (_) {
+      // Cookie store transiently unavailable; next poll retries.
+    }
   }
 
   @override
   void initState() {
     super.initState();
+    // ignore: avoid_print
+    print('DIAG-SOULSYNC opened');
     controller = WebViewController()
       ..setJavaScriptMode(JavaScriptMode.unrestricted)
       ..setNavigationDelegate(
@@ -46,33 +90,31 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
           },
           onPageFinished: (String url) async {
             final uri = Uri.tryParse(url);
+            // ignore: avoid_print
+            print('DIAG-SOULSYNC pageFinished url=$url app=${uri != null && _isAppPage(uri)}');
             if (uri != null && _isAppPage(uri)) {
-              try {
-                String? proxyCookie;
-                try {
-                  final cookies = await WebViewCookieManager()
-                      .getCookies(
-                        domain: Uri.parse('https://piracyhub.win'),
-                      );
-                  for (final c in cookies) {
-                    if (c.name == '_soulsync_proxy') {
-                      proxyCookie = c.value;
-                      break;
-                    }
-                  }
-                } catch (_) {
-                  proxyCookie = null;
-                }
-                _finish(proxyCookie);
-              } catch (_) {
-                // If cookie manager unavailable, fall back to finish with null
-                _finish(null);
-              }
+              // Only finish when the proxy actually minted a session
+              // cookie. Empty/missing values happen on redirect-chain
+              // finishes, cleared cookies, and error pages — popping
+              // then would close the screen before the user can log in.
+              await _checkCookies();
             }
           },
         ),
       )
       ..loadRequest(Uri.parse('https://piracyhub.win/soulsync/'));
+    // In-app actions (profile pick, SPA navigation) don't reload the
+    // page, so onPageFinished never fires for them. Poll the jar instead:
+    // the proxy sets the session cookie on login without navigating.
+    _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _checkCookies();
+    });
+  }
+
+  @override
+  void dispose() {
+    _pollTimer?.cancel();
+    super.dispose();
   }
 
   @override
