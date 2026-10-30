@@ -168,7 +168,7 @@ class _ServiceStatusCardBody extends StatelessWidget {
         : colorScheme.error.withValues(alpha: 0.18);
 
     return AppCard.outlined(
-      onTap: () => context.push('/services/${service.routeParam}'),
+      onTap: () => GoRouter.of(context).push('/services/${service.routeParam}'),
       backgroundColor: colorScheme.surfaceContainer,
       borderColor: borderColor,
       borderRadius: AppRadius.borderRadiusLg,
