@@ -17,6 +17,44 @@ class AuthSettingsScreen extends ConsumerStatefulWidget {
   ConsumerState<AuthSettingsScreen> createState() => _AuthSettingsScreenState();
 }
 
+/// SSO dot truth table, extracted pure for unit testing.
+///
+/// A cached service token (real 200 exchange + /me) proves SSO live.
+/// Otherwise an active identity plus a configured API key means the
+/// service is reachable (dashboard status proves it independently) while
+/// SSO idles — green, labelled honestly. Identity without key or token
+/// is the only true warning state (exchange pending/failed). No
+/// identity means no SSO connection, even if an API key exists.
+(Color, String) ssoDotStateFor({
+  required bool hasValidSession,
+  required SessionStatus identity,
+  required bool hasApiKey,
+}) {
+  if (hasValidSession) return (Colors.green, 'Connected (SSO)');
+  final identityUp =
+      identity == SessionStatus.active || identity == SessionStatus.error;
+  if (identityUp && hasApiKey) return (Colors.green, 'Connected (API key)');
+  if (identityUp) return (Colors.orange, 'Connecting / error');
+  return (Colors.red, 'No connection');
+}
+
+/// API key for an SSO row's service (dynamic settings, same pattern as
+/// the row builder below).
+String _apiKeyFor(dynamic settings, String serviceKey) {
+  final String key;
+  switch (serviceKey) {
+    case 'sonarr':
+      key = settings.sonarrApiKey as String;
+    case 'radarr':
+      key = settings.radarrApiKey as String;
+    case 'prowlarr':
+      key = settings.prowlarrApiKey as String;
+    default:
+      return '';
+  }
+  return key;
+}
+
 class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
   SessionStatus _sessionStatus = SessionStatus.disabled;
   SessionStatus _sonarrStatus = SessionStatus.disabled;
@@ -419,10 +457,11 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
     final isArrstack = OidcSessionService.isArrstackMode(settings.oidcIssuer);
     final host = baseUrl.trim().replaceAll(RegExp(r'/+$'), '');
     // Green = live service token cached for this host (real 200 exchange
-    // + /me, per the Sonarr/Radarr/Prowlarr fork contract). Orange = SSO
-    // identity exists but this host has no service token yet (exchange
-    // pending/failed, or fork endpoints missing as with Prowlarr pre-land).
-    // Red = no SSO identity at all.
+    // + /me, per the Sonarr/Radarr/Prowlarr fork contract), or an active
+    // identity plus a configured API key (traffic succeeds on keys, so
+    // no exchange ever fires — green, labelled honestly). Orange = SSO
+    // identity exists but this host has neither token nor key (exchange
+    // pending/failed). Red = no SSO identity at all.
     final hasValidSession =
         host.isNotEmpty && SonarrOidcSessionProvider.hasValidSession(host);
     // Identity behind this row: shared main pair in ArrStack mode, the
@@ -433,20 +472,13 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
         : (serviceKey == 'sonarr'
               ? _sonarrStatus
               : SessionStatus.disabled);
+    final hasApiKey = _apiKeyFor(settings, serviceKey).isNotEmpty;
 
-    Color dotColor;
-    String statusText;
-    if (hasValidSession) {
-      dotColor = Colors.green;
-      statusText = 'Connected (SSO)';
-    } else if (identityStatus == SessionStatus.active ||
-        identityStatus == SessionStatus.error) {
-      dotColor = Colors.orange;
-      statusText = 'Connecting / error';
-    } else {
-      dotColor = Colors.red;
-      statusText = 'No connection';
-    }
+    final (dotColor, statusText) = ssoDotStateFor(
+      hasValidSession: hasValidSession,
+      identity: identityStatus,
+      hasApiKey: hasApiKey,
+    );
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
