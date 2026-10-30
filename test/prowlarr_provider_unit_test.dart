@@ -24,7 +24,7 @@ class _FakeProwlarrService extends ProwlarrService {
     String query, {
     CancelToken? cancelToken,
   }) async {
-    final raw = File('/tmp/opencode/prowlarr-madmax.json').readAsStringSync();
+    final raw = File('test/testdata/prowlarr_madmax.json').readAsStringSync();
     final decoded = jsonDecode(raw) as List<dynamic>;
     return decoded
         .map((e) => ProwlarrSearchResult.fromJson(e as Map<String, dynamic>))

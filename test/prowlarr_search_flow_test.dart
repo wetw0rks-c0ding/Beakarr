@@ -28,7 +28,7 @@ class _FakeProwlarrService extends ProwlarrService {
     String query, {
     CancelToken? cancelToken,
   }) async {
-    final raw = File('/tmp/opencode/prowlarr-madmax.json').readAsStringSync();
+    final raw = File('test/testdata/prowlarr_madmax.json').readAsStringSync();
     final decoded = jsonDecode(raw) as List<dynamic>;
     return decoded
         .map((e) => ProwlarrSearchResult.fromJson(e as Map<String, dynamic>))
@@ -66,8 +66,7 @@ void main() {
       reason: 'TYPING PATH: debounced typing alone should show cards',
     );
     await tester.tap(find.byIcon(Icons.search).first);
-    await tester.pump();
-    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
 
     expect(find.textContaining('Mad Max'), findsWidgets);
   });
