@@ -70,4 +70,30 @@ void main() {
 
     expect(find.textContaining('Mad Max'), findsWidgets);
   });
+
+  testWidgets('tapping a result card opens the grab sheet', (tester) async {
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          prowlarrServiceProvider.overrideWithValue(_FakeProwlarrService()),
+        ],
+        child: const MaterialApp(home: SearchScreen()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'mad max');
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pumpAndSettle();
+
+    // Tap the first result card to open the grab bottom sheet. ResultCard
+    // wraps the card content in an InkWell; scope to cards so the search
+    // field's clear button is never hit instead.
+    // Tap result title text: hit-testing resolves to the card's InkWell.
+    await tester.tap(find.textContaining('Mad Max').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Grab for me'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+  });
 }

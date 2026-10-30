@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/theme.dart';
+import 'package:seekarr/core/utils/sheet_utils.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
 import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
@@ -230,9 +231,10 @@ class ResultCard extends StatelessWidget {
 
   void _showGrabDialog(BuildContext context, ProwlarrSearchResult result) {
     bool isGrabbing = false;
-    showModalBottomSheet(
+    // Root-navigator sheet: renders ABOVE the floating bottom nav bar,
+    // which otherwise covers the Grab button (shell uses extendBody).
+    SheetUtils.showSeekarrModalSheet(
       context: context,
-      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
