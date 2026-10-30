@@ -1,7 +1,7 @@
 /// Canonical app version shown in the UI (Settings → About).
 ///
 /// Keep in sync with the `version:` field in pubspec.yaml on every release.
-const String kAppVersion = '0.9.11-alpha';
+const String kAppVersion = '0.9.12-alpha';
 
 /// Short git commit baked in at build time via
 /// `--dart-define=GIT_HASH=...` (see scripts/build-debug.sh and
