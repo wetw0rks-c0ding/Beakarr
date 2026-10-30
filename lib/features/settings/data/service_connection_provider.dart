@@ -102,6 +102,7 @@ Future<ServiceConnectionStatus> _checkService(
       auth: SoulSyncAuth(
         settings.soulsyncApiKey,
         profileId: settings.soulsyncProfileId,
+        proxyCookie: settings.soulsyncProxyCookie,
       ),
     );
     try {
@@ -247,6 +248,7 @@ Future<({bool ok, String detail})> testServiceConnection(
       auth: SoulSyncAuth(
         settings.soulsyncApiKey,
         profileId: settings.soulsyncProfileId,
+        proxyCookie: settings.soulsyncProxyCookie,
       ),
     );
     try {

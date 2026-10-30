@@ -48,6 +48,7 @@ class SettingsModel {
   final String navidromePassword;
   final String soulsyncUrl;
   final String soulsyncApiKey;
+  final String soulsyncProxyCookie;
   final String soulsyncProfileId;
   final String region;
   final AppThemeMode themeMode;
@@ -117,6 +118,9 @@ class SettingsModel {
             soulsyncApiKey: apiKey,
           ),
         ),
+        // Note: soulsyncProxyCookie handled separately (secure store, not
+        // in _ServiceSettingsAccess) to keep cookie out of the generic
+        // apiKey path — it flows through SoulSyncAuth directly.
       };
 
   static String normalizeRegion(String? region) {
@@ -145,6 +149,7 @@ class SettingsModel {
     this.navidromePassword = '',
     this.soulsyncUrl = '',
     this.soulsyncApiKey = '',
+    this.soulsyncProxyCookie = '',
     this.soulsyncProfileId = '',
     this.region = 'US',
     this.themeMode = AppThemeMode.system,
@@ -174,6 +179,7 @@ class SettingsModel {
     String? navidromePassword,
     String? soulsyncUrl,
     String? soulsyncApiKey,
+    String? soulsyncProxyCookie,
     String? soulsyncProfileId,
     String? region,
     AppThemeMode? themeMode,
@@ -202,6 +208,7 @@ class SettingsModel {
       navidromePassword: navidromePassword ?? this.navidromePassword,
       soulsyncUrl: soulsyncUrl ?? this.soulsyncUrl,
       soulsyncApiKey: soulsyncApiKey ?? this.soulsyncApiKey,
+      soulsyncProxyCookie: soulsyncProxyCookie ?? this.soulsyncProxyCookie,
       soulsyncProfileId: soulsyncProfileId ?? this.soulsyncProfileId,
       region: region ?? this.region,
       themeMode: themeMode ?? this.themeMode,
@@ -273,11 +280,13 @@ class SettingsModel {
   SettingsModel copyWithSoulSync({
     String? url,
     String? apiKey,
+    String? proxyCookie,
     String? profileId,
   }) {
     return copyWith(
       soulsyncUrl: url,
       soulsyncApiKey: apiKey,
+      soulsyncProxyCookie: proxyCookie,
       soulsyncProfileId: profileId,
     );
   }
@@ -319,6 +328,10 @@ class SettingsModel {
       // Radarr provider runs URL-only in ArrStack mode only.
       return radarrUrl.isNotEmpty &&
           (radarrApiKey.isNotEmpty || _isArrstackMode);
+    }
+    if (service == ServiceKey.soulsync) {
+      return soulsyncUrl.isNotEmpty &&
+          (soulsyncApiKey.isNotEmpty || soulsyncProxyCookie.isNotEmpty);
     }
     return urlFor(service).isNotEmpty && apiKeyFor(service).isNotEmpty;
   }

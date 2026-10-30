@@ -11,7 +11,8 @@ import 'package:seekarr/features/soulsync/domain/models/soulsync_discover_item.d
 
 final soulsyncServiceProvider = Provider<SoulSyncService>((ref) {
   final settings = ref.watch(currentSettingsProvider);
-  if (settings.soulsyncUrl.isEmpty || settings.soulsyncApiKey.isEmpty) {
+  if (settings.soulsyncUrl.isEmpty ||
+      (settings.soulsyncApiKey.isEmpty && settings.soulsyncProxyCookie.isEmpty)) {
     throw Exception('SoulSync not configured');
   }
   return SoulSyncService(
@@ -20,6 +21,7 @@ final soulsyncServiceProvider = Provider<SoulSyncService>((ref) {
       auth: SoulSyncAuth(
         settings.soulsyncApiKey,
         profileId: settings.soulsyncProfileId,
+        proxyCookie: settings.soulsyncProxyCookie,
       ),
     ),
   );

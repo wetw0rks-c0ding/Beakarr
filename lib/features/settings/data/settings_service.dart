@@ -67,6 +67,7 @@ class SettingsService {
   static const _kOidcIssuer = 'oidc_issuer';
   static const _kOidcClientId = 'oidc_client_id';
   static const _kSoulSyncProfileId = 'soulsync_profile_id';
+  static const _kSoulSyncProxyCookie = 'secure_soulsync_proxy_cookie';
   static const _kJailbroken = 'jailbroken';
 
   static const Map<ServiceKey, _ServiceStorageKeys> _serviceStorageKeys = {
@@ -279,6 +280,7 @@ class SettingsService {
       navidromePassword: ndPassword,
       soulsyncUrl: serviceSettings[ServiceKey.soulsync]!.$1,
       soulsyncApiKey: serviceSettings[ServiceKey.soulsync]!.$2,
+      soulsyncProxyCookie: await _loadApiKey(_kSoulSyncProxyCookie),
       soulsyncProfileId: _prefs.getString(_kSoulSyncProfileId) ?? '',
       region: _loadRegion(),
       themeMode: AppThemeMode.fromName(_prefs.getString(_kThemeMode)),
@@ -302,6 +304,10 @@ class SettingsService {
     } else {
       await _prefs.remove(_kSoulSyncProfileId);
     }
+    await _saveApiKey(
+      _kSoulSyncProxyCookie,
+      settings.soulsyncProxyCookie,
+    );
     await _prefs.remove('hidden_tabs');
 
     await _saveServiceApiKeys(settings);

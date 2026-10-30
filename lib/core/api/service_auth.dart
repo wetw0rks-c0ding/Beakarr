@@ -42,15 +42,28 @@ class BearerAuth implements ServiceAuth {
 class SoulSyncAuth implements ServiceAuth {
   final String token;
   final String? profileId;
+  final String? proxyCookie;
 
-  const SoulSyncAuth(this.token, {this.profileId});
+  const SoulSyncAuth(
+    this.token, {
+    this.profileId,
+    this.proxyCookie,
+  });
 
   @override
-  Map<String, String> headers() => {
-        'Authorization': 'Bearer $token',
-        if (profileId != null && profileId!.trim().isNotEmpty)
-          'X-Profile-Id': profileId!.trim(),
-      };
+  Map<String, String> headers() {
+    final h = <String, String>{};
+    if (token.trim().isNotEmpty) {
+      h['Authorization'] = 'Bearer $token';
+    }
+    if (profileId != null && profileId!.trim().isNotEmpty) {
+      h['X-Profile-Id'] = profileId!.trim();
+    }
+    if (proxyCookie != null && proxyCookie!.trim().isNotEmpty) {
+      h['Cookie'] = '_soulsync_proxy=${proxyCookie!.trim()}';
+    }
+    return h;
+  }
 
   @override
   Map<String, dynamic> queryParams() => {};
