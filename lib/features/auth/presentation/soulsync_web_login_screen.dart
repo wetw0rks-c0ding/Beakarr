@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
-/// SoulSync cookie-login WebView: loads https://piracyhub.win/soulsync/,
-/// detects when the user is past the auth gate (host not auth.* and
-/// path not /oauth2/), reads the _soulsync_proxy cookie via
-/// WebViewCookieManager for https://piracyhub.win, pops with the value
+/// SoulSync cookie-login WebView: starts at the proxy login initiator
+/// (forces a deterministic handshake: 302 → Authentik → /oauth2/callback
+/// which mints `_soulsync_proxy` → rd back to the app), detects the
+/// authed app page, reads the session cookies, pops with the value
 /// (null on back-out). No token exchange.
 class SoulSyncWebLoginScreen extends StatefulWidget {
   const SoulSyncWebLoginScreen({super.key});
@@ -19,20 +19,25 @@ class SoulSyncWebLoginScreen extends StatefulWidget {
 ///
 /// Returns a `Cookie`-header-ready value, or null when no session exists.
 ///
-/// The ONLY cookie that counts is the oauth2-proxy session
+/// The ONLY gate that counts is the oauth2-proxy session
 /// `_soulsync_proxy` (non-empty, minted by /oauth2/callback after a real
-/// Authentik login). Everything else in the jar is decoration: `session`
-/// is SoulSync's own profile cookie and authenticates nothing at the
-/// proxy (verified: API with profile-cookie-only → 401 from oauth2-proxy,
-/// which 401s API-style requests instead of redirecting). Accepting
-/// `session` alone caused instant flash-close "logins" with no session.
+/// Authentik login): without it the flow must stay open, never pop.
+/// When it IS present, the full non-empty jar travels with it — the
+/// in-WebView app authenticates its API with the whole set (verified:
+/// single-cookie replays 401 while the page's own fetches succeed), and
+/// servers ignore unknown cookies. Cosmetic-only `color-scheme` is still
+/// excluded to keep the header to authentication material.
 String? findSoulSyncSessionCookie(Iterable<WebViewCookie> cookies) {
+  var proxyFound = false;
+  final parts = <String>[];
   for (final c in cookies) {
-    if (c.name == '_soulsync_proxy' && c.value.isNotEmpty) {
-      return '${c.name}=${c.value}';
-    }
+    if (c.value.isEmpty) continue;
+    if (c.name == '_soulsync_proxy') proxyFound = true;
+    if (c.name == 'color-scheme') continue;
+    parts.add('${c.name}=${c.value}');
   }
-  return null;
+  if (!proxyFound || parts.isEmpty) return null;
+  return parts.join('; ');
 }
 
 class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
@@ -63,7 +68,41 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
   /// NOTE: the jar must be queried with the full app URL, not the bare
   /// domain: the proxy scopes `_soulsync_proxy` to Path=/soulsync and a
   /// bare-domain query filters path-scoped cookies out.
+  /// Jar query URL: the full app URL, not the bare domain — the proxy
+  /// scopes `_soulsync_proxy` to Path=/soulsync and a bare-domain query
+  /// filters path-scoped cookies out.
   static final Uri _cookieUrl = Uri.parse('https://piracyhub.win/soulsync/');
+
+  /// Entry point: the proxy login initiator, so the handshake runs
+  /// deterministically — loading the app URL directly may serve cached
+  /// or anonymous content without ever hitting the gate.
+  static final Uri _startUrl =
+      Uri.parse('https://piracyhub.win/oauth2/start?rd=/soulsync/');
+
+  /// One-shot in-page probe (DIAG only): location, JS-visible cookie
+  /// names+lengths, and the status of the page's OWN profiles fetch.
+  /// Distinguishes live-authenticated pages from cached shells.
+  Future<void> _probePage() async {
+    if (_done || !mounted) return;
+    try {
+      final href =
+          await controller.runJavaScriptReturningResult('location.href');
+      // ignore: avoid_print
+      print('DIAG-SOULSYNC probe href=$href');
+      final jar =
+          await controller.runJavaScriptReturningResult('document.cookie');
+      // ignore: avoid_print
+      print('DIAG-SOULSYNC probe jscookies=$jar');
+      final st = await controller.runJavaScriptReturningResult(
+        "fetch('/soulsync/api/v1/profiles',{credentials:'same-origin'}).then(r=>r.status).catch(e=>'ERR:'+e)",
+      );
+      // ignore: avoid_print
+      print('DIAG-SOULSYNC probe apiStatus=$st');
+    } catch (e) {
+      // ignore: avoid_print
+      print('DIAG-SOULSYNC probe failed: $e');
+    }
+  }
 
   Future<void> _checkCookies() async {
     if (_done || !mounted) return;
@@ -122,7 +161,7 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
     controller.clearCache().whenComplete(() {
       print('DIAG-SOULSYNC cache cleared');
       if (mounted) {
-        controller.loadRequest(Uri.parse('https://piracyhub.win/soulsync/'));
+        controller.loadRequest(_startUrl);
       }
     });
     // In-app actions (profile pick, SPA navigation) don't reload the
@@ -131,6 +170,9 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
     _pollTimer = Timer.periodic(const Duration(seconds: 2), (_) {
       _checkCookies();
     });
+    // One in-page probe shortly after load settles (guarded: no-op once
+    // finished or disposed).
+    Future.delayed(const Duration(seconds: 10), () => _probePage());
   }
 
   @override
