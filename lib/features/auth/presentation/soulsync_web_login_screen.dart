@@ -19,25 +19,21 @@ class SoulSyncWebLoginScreen extends StatefulWidget {
 ///
 /// Returns a `Cookie`-header-ready value, or null when no session exists.
 ///
-/// The ONLY gate that counts is the oauth2-proxy session
-/// `_soulsync_proxy` (non-empty, minted by /oauth2/callback after a real
-/// Authentik login): without it the flow must stay open, never pop.
-/// When it IS present, the full non-empty jar travels with it — the
-/// in-WebView app authenticates its API with the whole set (verified:
-/// single-cookie replays 401 while the page's own fetches succeed), and
-/// servers ignore unknown cookies. Cosmetic-only `color-scheme` is still
-/// excluded to keep the header to authentication material.
+/// Captures the SoulSync app session cookie (`session`, non-empty).
+/// NOTE — honesty flag: this restores the pre-strict-gate behavior per
+/// user demand (green dot on profile session). Device-proven 2026-10-30:
+/// API calls with profile-cookie-only get oauth2-proxy 401 (it wants the
+/// proxy session `_soulsync_proxy`, minted only by a completed
+/// /oauth2/callback in this jar). So a green dot here means "app session
+/// captured", NOT "API proven". Re-tighten to proxy-gated capture once a
+/// real in-app callback is observed setting a non-empty _soulsync_proxy.
 String? findSoulSyncSessionCookie(Iterable<WebViewCookie> cookies) {
-  var proxyFound = false;
-  final parts = <String>[];
   for (final c in cookies) {
-    if (c.value.isEmpty) continue;
-    if (c.name == '_soulsync_proxy') proxyFound = true;
-    if (c.name == 'color-scheme') continue;
-    parts.add('${c.name}=${c.value}');
+    if (c.name == 'session' && c.value.isNotEmpty) {
+      return '${c.name}=${c.value}';
+    }
   }
-  if (!proxyFound || parts.isEmpty) return null;
-  return parts.join('; ');
+  return null;
 }
 
 class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {

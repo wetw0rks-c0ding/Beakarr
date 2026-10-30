@@ -239,7 +239,7 @@ class SettingsHomeScreen extends ConsumerWidget {
           SettingsCard.grouped(
             leading: const Icon(Icons.info_outline_rounded),
             title: 'Version',
-            subtitle: kAppVersion,
+            subtitle: kAppVersionLabel,
             accentColor: colorScheme.onSurfaceVariant,
             onTap: () => _checkForUpdates(context, ref),
           ),

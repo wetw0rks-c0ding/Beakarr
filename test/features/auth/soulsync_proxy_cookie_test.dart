@@ -8,40 +8,29 @@ WebViewCookie _cookie(String name, String value) =>
 
 void main() {
   group('findSoulSyncSessionCookie', () {
-    test('proxy session gates, app session travels with it', () {
-      expect(
-        findSoulSyncSessionCookie([
-          _cookie('_soulsync_proxy', 'proxy123'),
-          _cookie('session', 'abc123'),
-          _cookie('color-scheme', 'dark'),
-        ]),
-        '_soulsync_proxy=proxy123; session=abc123',
-      );
-    });
-
-    test('proxy session alone finishes', () {
-      expect(
-        findSoulSyncSessionCookie([_cookie('_soulsync_proxy', 'proxy123')]),
-        '_soulsync_proxy=proxy123',
-      );
-    });
-
-    test('stale app cookie alone never finishes (flash-close trap)', () {
+    test('captures the app session cookie when non-empty', () {
       expect(
         findSoulSyncSessionCookie([
           _cookie('_soulsync_proxy', ''),
           _cookie('session', 'abc123'),
+        ]),
+        'session=abc123',
+      );
+    });
+
+    test('ignores the empty proxy placeholder', () {
+      expect(
+        findSoulSyncSessionCookie([
+          _cookie('_soulsync_proxy', ''),
+          _cookie('color-scheme', 'dark'),
         ]),
         isNull,
       );
     });
 
-    test('empty proxy placeholder alone never finishes', () {
+    test('returns null when the session cookie is absent', () {
       expect(
-        findSoulSyncSessionCookie([
-          _cookie('_soulsync_proxy', ''),
-          _cookie('color-scheme', 'dark'),
-        ]),
+        findSoulSyncSessionCookie([_cookie('color-scheme', 'dark')]),
         isNull,
       );
     });
