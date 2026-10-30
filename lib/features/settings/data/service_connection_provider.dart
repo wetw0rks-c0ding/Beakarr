@@ -7,6 +7,8 @@ import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
+import 'package:seekarr/features/settings/data/settings_service.dart';
+import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 
@@ -117,7 +119,30 @@ Future<ServiceConnectionStatus> _checkService(
     }
   }
 
-  final client = ApiClient(baseUrl: url, auth: ApiKeyHeaderAuth(apiKey));
+  final isArrOidcService =
+      service == ServiceKey.sonarr ||
+      service == ServiceKey.radarr ||
+      service == ServiceKey.prowlarr;
+  final oidcIssuer = settings.oidcIssuer;
+  final useOidcClient = isArrOidcService &&
+      oidcIssuer.isNotEmpty &&
+      (apiKey.isEmpty || OidcSessionService.isArrstackMode(oidcIssuer)) &&
+      settings.oidcClientId.isNotEmpty;
+
+  final client = useOidcClient
+      ? ApiClient(
+          baseUrl: url,
+          auth: ApiKeyHeaderAuth(apiKey),
+          serviceKey: service == ServiceKey.radarr
+              ? 'radarr'
+              : service == ServiceKey.sonarr
+                  ? 'sonarr'
+                  : 'prowlarr',
+          session: OidcSessionService(createSecureSettingsStore()),
+          issuerUrl: oidcIssuer,
+          clientId: settings.oidcClientId,
+        )
+      : ApiClient(baseUrl: url, auth: ApiKeyHeaderAuth(apiKey));
   try {
     final statusCode =
         (await client
@@ -247,7 +272,35 @@ Future<({bool ok, String detail})> testServiceConnection(
   final url = settings.urlFor(service);
   final apiKey = settings.apiKeyFor(service);
 
-  final client = ApiClient(baseUrl: url, auth: ApiKeyHeaderAuth(apiKey));
+  // Reuse the OIDC-capable service client for pilot/ArrStack services so
+  // empty-key configs can lazy-exchange (401→POST /exchange→retry) just like
+  // real traffic through radarrServiceProvider / sonarrServiceProvider.
+  // API-key configs stay exactly as before.
+  final isArrOidcService =
+      service == ServiceKey.sonarr ||
+      service == ServiceKey.radarr ||
+      service == ServiceKey.prowlarr;
+  final oidcIssuer = settings.oidcIssuer;
+  final useOidcClient = isArrOidcService &&
+      oidcIssuer.isNotEmpty &&
+      (apiKey.isEmpty || OidcSessionService.isArrstackMode(oidcIssuer)) &&
+      settings.oidcClientId.isNotEmpty;
+
+  final client = useOidcClient
+      ? ApiClient(
+          baseUrl: url,
+          auth: ApiKeyHeaderAuth(apiKey),
+          serviceKey: service == ServiceKey.radarr
+              ? 'radarr'
+              : service == ServiceKey.sonarr
+                  ? 'sonarr'
+                  : 'prowlarr',
+          session: OidcSessionService(
+              createSecureSettingsStore()),
+          issuerUrl: oidcIssuer,
+          clientId: settings.oidcClientId,
+        )
+      : ApiClient(baseUrl: url, auth: ApiKeyHeaderAuth(apiKey));
   try {
     final response = await client
         .get(_healthEndpoint(service))
