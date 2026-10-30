@@ -17,29 +17,22 @@ class SoulSyncWebLoginScreen extends StatefulWidget {
 
 /// Session-cookie lookup, extracted pure for unit testing.
 ///
-/// Returns a `Cookie`-header-ready value built from the non-empty
-/// session cookies the proxy/app mint, or null when no session exists.
+/// Returns a `Cookie`-header-ready value, or null when no session exists.
 ///
-/// LIVE EVIDENCE (device jar, 2026-10-30): `_soulsync_proxy` (the
-/// oauth2-proxy session, cf. `_soulsync_proxy_csrf` on the 302) is parked
-/// empty until a real Authentik login completes in this jar; `session`
-/// (SoulSync's own profile cookie, `{"profile_id":N}`) appears once a
-/// profile is picked. API calls need the proxy session; the profile
-/// cookie alone 401s. Both are sent — servers ignore unknown cookies —
-/// so whichever session is live authenticates.
+/// The ONLY cookie that counts is the oauth2-proxy session
+/// `_soulsync_proxy` (non-empty, minted by /oauth2/callback after a real
+/// Authentik login). Everything else in the jar is decoration: `session`
+/// is SoulSync's own profile cookie and authenticates nothing at the
+/// proxy (verified: API with profile-cookie-only → 401 from oauth2-proxy,
+/// which 401s API-style requests instead of redirecting). Accepting
+/// `session` alone caused instant flash-close "logins" with no session.
 String? findSoulSyncSessionCookie(Iterable<WebViewCookie> cookies) {
-  final parts = <String>[];
-  String? proxy;
-  String? app;
   for (final c in cookies) {
-    if (c.value.isEmpty) continue;
-    if (c.name == '_soulsync_proxy') proxy ??= '${c.name}=${c.value}';
-    if (c.name == 'session') app ??= '${c.name}=${c.value}';
+    if (c.name == '_soulsync_proxy' && c.value.isNotEmpty) {
+      return '${c.name}=${c.value}';
+    }
   }
-  if (proxy != null) parts.add(proxy);
-  if (app != null) parts.add(app);
-  if (parts.isEmpty) return null;
-  return parts.join('; ');
+  return null;
 }
 
 class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
@@ -109,9 +102,10 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
           },
           onPageFinished: (String url) async {
             final uri = Uri.tryParse(url);
+            final isApp = uri != null && _isAppPage(uri);
             // ignore: avoid_print
-            print('DIAG-SOULSYNC pageFinished url=$url app=${uri != null && _isAppPage(uri)}');
-            if (uri != null && _isAppPage(uri)) {
+            print('DIAG-SOULSYNC pageFinished url=$url app=$isApp');
+            if (isApp) {
               // Only finish when the proxy actually minted a session
               // cookie. Empty/missing values happen on redirect-chain
               // finishes, cleared cookies, and error pages — popping
@@ -120,8 +114,17 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
             }
           },
         ),
-      )
-      ..loadRequest(Uri.parse('https://piracyhub.win/soulsync/'));
+      );
+    // Login must reflect LIVE auth state, never a cached shell: a cached
+    // app page would show logged-in UI with no session behind it. Clear
+    // first, then load.
+    // ignore: avoid_print
+    controller.clearCache().whenComplete(() {
+      print('DIAG-SOULSYNC cache cleared');
+      if (mounted) {
+        controller.loadRequest(Uri.parse('https://piracyhub.win/soulsync/'));
+      }
+    });
     // In-app actions (profile pick, SPA navigation) don't reload the
     // page, so onPageFinished never fires for them. Poll the jar instead:
     // the proxy sets the session cookie on login without navigating.

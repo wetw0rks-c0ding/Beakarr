@@ -24,12 +24,12 @@ void main() {
       final auth = SoulSyncAuth(
         't',
         profileId: 'p',
-        proxyCookie: '_soulsync_proxy=x; session=y',
+        proxyCookie: '_soulsync_proxy=x',
       );
       final h = auth.headers();
       expect(h['Authorization'], 'Bearer t');
       expect(h['X-Profile-Id'], 'p');
-      expect(h['Cookie'], '_soulsync_proxy=x; session=y');
+      expect(h['Cookie'], '_soulsync_proxy=x');
     });
     test('neither -> no auth headers', () {
       final auth = SoulSyncAuth('');
