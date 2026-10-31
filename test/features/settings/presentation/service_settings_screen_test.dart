@@ -154,6 +154,35 @@ void main() {
       });
     });
 
+    group('soulSyncDropdownValue', () {
+      SoulSyncProfile p(String id) => SoulSyncProfile(id: id, name: 'n$id');
+
+      test('passes through an id that matches a loaded item', () {
+        expect(
+          soulSyncDropdownValue(profiles: [p('1'), p('2')], selectedId: '2'),
+          '2',
+        );
+      });
+
+      test('nulls a stale id so the dropdown shows the re-pick hint', () {
+        expect(
+          soulSyncDropdownValue(profiles: [p('1'), p('2')], selectedId: '9'),
+          isNull,
+        );
+      });
+
+      test('nulls empty and null selections', () {
+        expect(
+          soulSyncDropdownValue(profiles: [p('1')], selectedId: null),
+          isNull,
+        );
+        expect(
+          soulSyncDropdownValue(profiles: [p('1')], selectedId: ''),
+          isNull,
+        );
+      });
+    });
+
     testWidgets('failed test connection never clobbers saved values', (
       tester,
     ) async {

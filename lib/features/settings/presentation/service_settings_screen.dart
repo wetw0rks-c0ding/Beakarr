@@ -26,13 +26,18 @@ class ServiceSettingsScreen extends ConsumerStatefulWidget {
       _ServiceSettingsScreenState();
 }
 
+/// Resolves which profile id the SoulSync picker should hold after a
+/// (re)load. Pure for unit testing.
+///
 /// - Empty/failed load (`profiles` empty): keep `savedId` untouched —
 ///   never wipe a stored selection on a network failure.
 /// - Saved id still present: keep it (no silent switches).
-/// - Saved id gone (e.g. deleted server-side): null, forcing an
-///   explicit re-pick. Must NOT keep the stale id (DropdownButton
-///   throws when its value matches no item) and must NOT silently fall
-///   back to first (wrong profile).
+/// - Saved id gone (e.g. deleted server-side): null, signalling the
+///   caller to force an explicit re-pick. The caller must KEEP the stale
+///   id in state for persistence (Save/Test must never wipe it without
+///   an explicit user pick) and render [soulSyncDropdownValue] (null)
+///   in the dropdown — passing the stale id as the dropdown value
+///   throws, and silently falling back to first picks the wrong profile.
 /// - No saved id: first profile, fresh-setup convenience.
 String? resolveSoulSyncProfileSelection({
   required List<SoulSyncProfile> profiles,
@@ -44,6 +49,19 @@ String? resolveSoulSyncProfileSelection({
     return null;
   }
   return savedId ?? profiles.first.id;
+}
+
+/// Null-safe value for the SoulSync profile dropdown. Returns
+/// [selectedId] only when it matches a loaded item, else null (hint).
+/// Pure for unit testing — lets a stale stored id survive in state
+/// (persistence) while the dropdown shows a re-pick hint instead of
+/// throwing on a value with no matching item.
+String? soulSyncDropdownValue({
+  required List<SoulSyncProfile> profiles,
+  required String? selectedId,
+}) {
+  if (selectedId == null || selectedId.isEmpty) return null;
+  return profiles.any((p) => p.id == selectedId) ? selectedId : null;
 }
 
 class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
@@ -63,6 +81,13 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   String? _selectedProfileId;
   List<SoulSyncProfile> _profiles = const [];
   bool _loadingProfiles = false;
+
+  /// What the profile dropdown renders. Null (hint) when the stored id
+  /// has no loaded item — state keeps the stale id so saves preserve it.
+  String? get _profileDropdownValue => soulSyncDropdownValue(
+    profiles: _profiles,
+    selectedId: _selectedProfileId,
+  );
 
   @override
   void initState() {
@@ -194,9 +219,6 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
     );
   }
 
-/// Resolves which profile id the SoulSync picker should hold after a
-/// (re)load. Pure for unit testing.
-///
   /// Loads SoulSync profiles into the picker. Silent mode (auto-load on
   /// open) skips the missing-credentials snackbar — the fields may
   /// legitimately be empty on first setup. Cookie-SSO setups (no API
@@ -225,12 +247,25 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
           .getProfiles()
           .timeout(const Duration(seconds: 10));
       if (!mounted) return;
+      // Fields edited mid-load: this response belongs to the old
+      // credentials — discard it instead of showing profiles (and a
+      // selection) for the wrong setup.
+      if (_urlController.text.trim() != url ||
+          _apiKeyController.text.trim() != key ||
+          ref.read(currentSettingsProvider).soulsyncProxyCookie != cookie) {
+        return;
+      }
       setState(() {
         _profiles = profiles;
-        _selectedProfileId = resolveSoulSyncProfileSelection(
+        final resolved = resolveSoulSyncProfileSelection(
           profiles: profiles,
           savedId: _selectedProfileId,
         );
+        // Stale saved id (resolved null): keep it in state so Save and
+        // Test auto-save never wipe the stored value without an explicit
+        // re-pick. The dropdown renders [_profileDropdownValue] (null +
+        // hint) instead — passing the stale id as its value throws.
+        _selectedProfileId = resolved ?? _selectedProfileId;
       });
     } catch (e) {
       if (!mounted) return;
@@ -273,8 +308,8 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
         if (_profiles.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
-            key: ValueKey(_selectedProfileId),
-            initialValue: _selectedProfileId,
+            key: ValueKey(_profileDropdownValue),
+            initialValue: _profileDropdownValue,
             decoration: const InputDecoration(labelText: 'Profile'),
             items: _profiles
                 .map(
@@ -304,7 +339,13 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
         // values on success (same path as Save, without popping).
         if (result.ok) {
           if (!_formKey.currentState!.validate()) return;
-          await ref.read(settingsProvider.notifier).updateSettings(updated);
+          // Rebuild from the live fields: the pre-test snapshot may be
+          // stale if the user kept typing during the check. Saving it
+          // would clobber the newer edits.
+          final latest = ref.read(currentSettingsProvider);
+          await ref
+              .read(settingsProvider.notifier)
+              .updateSettings(_updateServiceSettings(latest));
           if (!mounted) return;
           SnackBarHelper.success(
             context,
@@ -475,6 +516,18 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
 
   String? _validateApiKey(String? value) {
     if (value == null || value.trim().isEmpty) {
+      // SoulSync cookie-SSO setups authenticate via the stored proxy
+      // cookie — no API key needed. Without this carve-out the Test
+      // Connection auto-save below would silently skip persisting a
+      // green cookie-only test.
+      if (isSoulSync &&
+          ref
+              .read(currentSettingsProvider)
+              .soulsyncProxyCookie
+              .trim()
+              .isNotEmpty) {
+        return null;
+      }
       return 'API Key is required';
     }
 
