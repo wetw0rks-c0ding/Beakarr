@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+
+import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,39 +30,77 @@ class OpenMediaVaultScreen extends ConsumerStatefulWidget {
       _OpenMediaVaultScreenState();
 }
 
+const int _overviewTab = 0;
+const int _storageTab = 1;
+const int _disksTab = 2;
+const int _servicesTab = 3;
+
 class _OpenMediaVaultScreenState extends ConsumerState<OpenMediaVaultScreen> {
+  int _tab = _overviewTab;
+
   @override
   Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 4,
-      child: Scaffold(
-        appBar: widget.showAppBar
-            ? AppBar(title: const Text('OpenMediaVault'))
-            : null,
-        body: Column(
-          children: [
-            if (widget.topPadding > 0) SizedBox(height: widget.topPadding),
-            TabBar(
-              isScrollable: true,
-              tabs: const [
-                Tab(text: 'Overview'),
-                Tab(text: 'Storage'),
-                Tab(text: 'Disks'),
-                Tab(text: 'Services'),
+    // SegmentedButton + conditional child, same pattern as NzbgetScreen.
+    // (An earlier DefaultTabController + TabBarView version of this screen
+    // rendered blank on-device; bisecting proved the tab controller innocent
+    // — the blank came from OmvUsageBar used as OmvStatTile.trailing, which
+    // throws an unbounded-width layout exception that blanks the whole body
+    // in release builds. See the NOTE on the Memory tile below.)
+    return Scaffold(
+      appBar: widget.showAppBar
+          ? AppBar(title: const Text('OpenMediaVault'))
+          : null,
+      body: Column(
+        children: [
+          // The shell overlays a SafeArea-padded app bar (status bar +
+          // kToolbarHeight) on top of this body, so the spacer must clear
+          // both, not just widget.topPadding. Sibling screens absorb the
+          // overlap in their tall summary bars; OMV's switcher is first
+          // and would otherwise hide under the overlay.
+          if (widget.topPadding > 0)
+            SizedBox(
+              height:
+                  widget.topPadding + MediaQuery.paddingOf(context).top,
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.lg,
+              vertical: AppSpacing.xs,
+            ),
+            child: SegmentedButton<int>(
+              segments: const [
+                ButtonSegment(
+                  value: _overviewTab,
+                  label: Text('Overview'),
+                ),
+                ButtonSegment(
+                  value: _storageTab,
+                  label: Text('Storage'),
+                ),
+                ButtonSegment(
+                  value: _disksTab,
+                  label: Text('Disks'),
+                ),
+                ButtonSegment(
+                  value: _servicesTab,
+                  label: Text('Services'),
+                ),
               ],
+              selected: {_tab},
+              showSelectedIcon: false,
+              onSelectionChanged: (selection) =>
+                  setState(() => _tab = selection.first),
             ),
-            Expanded(
-              child: TabBarView(
-                children: [
-                  _OverviewTab(),
-                  _StorageTab(),
-                  _DisksTab(),
-                  _ServicesTab(),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+          Expanded(
+            child: switch (_tab) {
+              _storageTab => _StorageTab(),
+              _disksTab => _DisksTab(),
+              _servicesTab => _ServicesTab(),
+              _ => _OverviewTab(),
+            },
+          ),
+        ],
       ),
     );
   }
@@ -100,15 +140,21 @@ class _OverviewTab extends ConsumerWidget {
                 value: info.memTotal == null
                     ? '—'
                     : '${_fmtBytes(info.memUsed)} / ${_fmtBytes(info.memTotal)}',
-                trailing: info.memoryUsedRatio == null
-                    ? null
-                    : OmvUsageBar(
-                        label: '',
-                        ratio: info.memoryUsedRatio,
-                        valueLabel:
-                            '${(info.memoryUsedRatio! * 100).toStringAsFixed(0)}%',
-                      ),
               ),
+              // NOTE: OmvUsageBar must NOT be OmvStatTile.trailing. A Row
+              // gives non-flex children unbounded width constraints, and the
+              // bar's inner Row contains an Expanded -> layout exception
+              // ("RenderFlex children have non-zero flex but incoming width
+              // constraints are unbounded") that blanks the whole screen in
+              // release builds with zero logcat errors. Full-width below the
+              // tile, same as the Storage tab.
+              if (info.memoryUsedRatio != null)
+                OmvUsageBar(
+                  label: '',
+                  ratio: info.memoryUsedRatio,
+                  valueLabel:
+                      '${(info.memoryUsedRatio! * 100).toStringAsFixed(0)}%',
+                ),
               const Padding(
                 padding: EdgeInsets.all(16),
                 child: Text(
@@ -121,13 +167,17 @@ class _OverviewTab extends ConsumerWidget {
           ),
         );
       },
-    );
+      );
   }
 }
 
 String _fmtBytes(String? s) {
-  // lightweight; model already has bytes but here string. Use as-is.
-  return s ?? '—';
+  // OMV reports memory as decimal byte-count strings ("33586950144").
+  // Render in human units; fall back to the raw string when unparseable.
+  if (s == null) return '—';
+  final bytes = int.tryParse(s.trim());
+  if (bytes == null) return s;
+  return _fmtBytesNum(bytes);
 }
 
 class _StorageTab extends ConsumerWidget {

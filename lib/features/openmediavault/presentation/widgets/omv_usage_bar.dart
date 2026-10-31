@@ -1,5 +1,11 @@
 import 'package:flutter/material.dart';
 
+/// Full-width usage bar with label + percentage + progress indicator.
+///
+/// Requires bounded width from its parent (e.g. directly in a Column or
+/// Card). Do NOT place inside a Row as a non-flex child (such as
+/// [OmvStatTile.trailing]): rows pass unbounded width constraints and the
+/// inner Expanded then throws during layout.
 class OmvUsageBar extends StatelessWidget {
   final String label;
   final double? ratio; // 0..1
