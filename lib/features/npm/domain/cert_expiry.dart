@@ -40,6 +40,7 @@ String certExpiryLabel(
   if (resolved == CertExpiryStatus.expired) {
     return 'expired ${remaining.abs().inDays} d ago';
   }
+  if (remaining.inDays == 0) return 'expires today';
   return 'expires in ${remaining.inDays} d';
 }
 

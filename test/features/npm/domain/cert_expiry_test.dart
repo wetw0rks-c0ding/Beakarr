@@ -112,6 +112,13 @@ void main() {
       );
     });
 
+    test('same-day expiry reads "expires today"', () {
+      expect(
+        certExpiryLabel(now.add(const Duration(hours: 5)), now: now),
+        'expires today',
+      );
+    });
+
     test('expired reads "expired N d ago"', () {
       expect(
         certExpiryLabel(now.subtract(const Duration(days: 2)), now: now),
