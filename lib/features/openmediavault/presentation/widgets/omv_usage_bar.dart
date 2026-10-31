@@ -6,6 +6,17 @@ import 'package:flutter/material.dart';
 /// Card). Do NOT place inside a Row as a non-flex child (such as
 /// [OmvStatTile.trailing]): rows pass unbounded width constraints and the
 /// inner Expanded then throws during layout.
+///
+/// Correct placement (same as this screen's Storage tab and the Overview
+/// Memory row): as a full-width sibling below the tile —
+/// ```dart
+/// Column(
+///   children: [
+///     OmvStatTile(label: 'Memory', value: '23.7 GiB / 31.3 GiB'),
+///     if (ratio != null) OmvUsageBar(label: '', ratio: ratio, valueLabel: '76%'),
+///   ],
+/// )
+/// ```
 class OmvUsageBar extends StatelessWidget {
   final String label;
   final double? ratio; // 0..1
