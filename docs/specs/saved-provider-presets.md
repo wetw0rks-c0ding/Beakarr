@@ -26,16 +26,29 @@ provider there, and save it as a named, reusable preset.
 1. Two fields: server origin (e.g. `https://auth.example.com`) +
    provider slug (e.g. `arrstack`), plus Validate button.
 2. App GETs `{origin}/application/o/{slug}/.well-known/openid-configuration`.
-   - Must be HTTP 200 + JSON containing a string `issuer`, else a
-     per-field inline error: bad origin URL / unreachable /
-     slug 404 / not-OIDC metadata.
+   Origin is normalized first (trim, strip trailing `/` — a pasted
+   trailing slash otherwise 404s and misdiagnoses as a bad slug; same
+   norm convention the app already uses). Slug is trimmed + lowercased
+   (Authentik slugs are lowercase; uppercase 404s).
+   - Must be HTTP 200 + JSON containing a string `issuer` AND present
+     `authorization_endpoint` + `token_endpoint` — checking issuer
+     alone lets broken docs through to fail late and cryptically.
+     Per-field inline errors: bad origin URL / unreachable /
+     slug 404 / not-OIDC metadata / missing endpoints.
    - The document's `issuer` value is canonical (used verbatim, even
      if it differs textually from the constructed URL). Both sides are
-     normalized (trim, strip trailing `/`) before display.
+     normalized (trim, strip trailing `/`) before display. Live
+     verification (Authentik 2026.8.5): issuer is always
+     `{origin}/application/o/{slug}/` with trailing slash, and
+     endpoints are shared (`.../o/authorize/`, `.../o/token/`) — read
+     them from the doc, never constructed.
 3. On success the UI shows the validated issuer host (read-only) and an
-   editable client_id prefilled with the slug (convention:
-   client_id == slug; user overrides when their setup differs), plus a
-   name field and Save.
+   editable client_id prefilled with the slug. The prefill is a
+   DEFAULT GUESS, not a convention: verified counterexamples on our
+   own setup (`pirate-jellyseerr` → `8jzO…`, `pirate-audiobookshelf` →
+   `kBBK…`). There is no public endpoint that pre-validates a
+   client_id — only a login proves it — so the override field is
+   load-bearing, not a corner case. Name field and Save.
 4. List rows: name + issuer host, active-dot on the row matching the
    current settings, tap = activate, trash = delete. Empty state text
    when none. Cap: 10 presets. Duplicate names denied with a snackbar.
@@ -61,6 +74,11 @@ provider there, and save it as a named, reusable preset.
 - Service-token cache is cleared on EVERY activate (even same issuer,
   because a different `clientId` mints different tokens and the
   existing issuer-change wipe would miss it).
+- No-op reselect needs an equality check on BOTH fields (normalized
+  issuer AND clientId) before the update path: `updateSettings` only
+  compares issuer, so a same-issuer/different-client reselect would
+  otherwise wipe + rewrite unnecessarily. Skip the whole apply when
+  both match.
 - OIDC token pairs are cleared exactly when the existing
   issuer-or-client comparison says the identity changed.
 
