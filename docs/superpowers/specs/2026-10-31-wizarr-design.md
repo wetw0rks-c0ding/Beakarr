@@ -46,20 +46,17 @@ for file; no new patterns:
   `FloatingNavBarMetrics` bottom clearance, nav-clearance
   tripwire exemption check.
 
-## Endpoints (v1, verified live before freezing)
+## Endpoints (v1, verified live 2026-11-01 against owner's Wizarr v3)
 
-Base: `{url}/api`, header `Authorization: Bearer <key>` (scheme TBC
-against the owner's `/api/docs` — Wizarr v3 also accepts other
-schemes; whatever is verified on-device wins and is recorded here).
+Base: `{url}/api`. Auth header: `X-API-Key: <key>`
+(`securityDefinitions: apikey in header name X-API-Key`; a live probe
+confirmed `Authorization: Bearer` returns `401 Unauthorized`, so Bearer
+is NOT used).
 
-- `GET /invitations` (or v3 equivalent from swagger) → invitation list.
-- `GET /users` (or v3 equivalent) → managed-user list.
-- Test Connection: authenticated invitations call; green + auto-save
-  only on HTTP 200 with parseable body.
-
-Exact paths and field names are confirmed against the owner's live
-`/api/swagger.json` during implementation; any deviation from the
-names above is recorded in the project log, not silently adapted to.
+- `GET {url}/api/invitations` → `200`, `InvitationList`.
+- `GET {url}/api/users` → `200`, `UserList`.
+- Test Connection hits `GET /api/invitations` with `X-API-Key` and
+  requires `200`.
 
 ## Data flow
 
