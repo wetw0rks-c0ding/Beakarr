@@ -30,6 +30,11 @@ void main() {
     expect(() => inv.statusLabel, returnsNormally);
   });
 
+  test('invitation expiring exactly now is expired', () {
+    final inv = WizarrInvitation(expiresAt: DateTime.now());
+    expect(inv.isExpired, isTrue);
+  });
+
   test('invitation parses snake_case and computes', () {
     final inv = WizarrInvitation.fromJson({
       'code': 'xyz',

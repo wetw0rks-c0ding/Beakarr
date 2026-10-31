@@ -19,7 +19,7 @@ class ApiKeyHeaderAuth implements ServiceAuth {
   const ApiKeyHeaderAuth(this.apiKey);
 
   @override
-  Map<String, String> headers() => {'X-Api-Key': apiKey};
+  Map<String, String> headers() => {'X-API-Key': apiKey};
 
   @override
   Map<String, dynamic> queryParams() => {};

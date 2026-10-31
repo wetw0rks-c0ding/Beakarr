@@ -84,7 +84,8 @@ class WizarrInvitation {
   bool get isExpired {
     final e = expiresAt;
     if (e == null) return false;
-    return e.isBefore(DateTime.now());
+    // Expired inclusively: an invite whose expiry is exactly now is expired.
+    return !e.isAfter(DateTime.now());
   }
 
   bool get isExhausted {

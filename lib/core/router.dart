@@ -600,7 +600,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               _nzbgetRoutes(path: 'nzbget'),
               _npmRoutes(path: 'npm'),
               _openMediaVaultRoutes(path: 'openmediavault'),
-              _wizarrRoutes(path: 'wizarr'),            ],
+              _wizarrRoutes(path: 'wizarr'),
+            ],
           ),
           GoRoute(
             path: '/activity',

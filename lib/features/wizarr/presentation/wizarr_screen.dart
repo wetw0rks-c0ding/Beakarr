@@ -81,9 +81,12 @@ class _InvitationsTab extends ConsumerWidget {
         if (items.isEmpty) {
           return _emptyState(
             context,
-            ref,
             icon: Icons.mail_outline_rounded,
             label: 'No invitations',
+            onRefresh: () async {
+              ref.invalidate(wizarrInvitationsProvider);
+              await ref.read(wizarrInvitationsProvider.future);
+            },
           );
         }
         return RefreshIndicator(
@@ -119,9 +122,12 @@ class _UsersTab extends ConsumerWidget {
         if (items.isEmpty) {
           return _emptyState(
             context,
-            ref,
             icon: Icons.people_outline_rounded,
             label: 'No users',
+            onRefresh: () async {
+              ref.invalidate(wizarrUsersProvider);
+              await ref.read(wizarrUsersProvider.future);
+            },
           );
         }
         return RefreshIndicator(
@@ -144,24 +150,14 @@ class _UsersTab extends ConsumerWidget {
 }
 
 Widget _emptyState(
-  BuildContext context,
-  WidgetRef ref, {
+  BuildContext context, {
   required IconData icon,
   required String label,
+  required Future<void> Function() onRefresh,
 }) {
   final colorScheme = Theme.of(context).colorScheme;
-  // Determine which provider to refresh based on label.
-  final refresh = label == 'No users'
-      ? () async {
-          ref.invalidate(wizarrUsersProvider);
-          await ref.read(wizarrUsersProvider.future);
-        }
-      : () async {
-          ref.invalidate(wizarrInvitationsProvider);
-          await ref.read(wizarrInvitationsProvider.future);
-        };
   return RefreshIndicator(
-    onRefresh: refresh,
+    onRefresh: onRefresh,
     child: ListView(
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.only(

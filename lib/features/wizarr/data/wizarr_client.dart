@@ -34,12 +34,10 @@ class WizarrClient {
   final String apiKey;
 
   late final Dio _dio;
-  final String _apiKey;
 
   WizarrClient({required String url, required String apiKey, Dio? dio})
     : baseUrl = UrlUtils.normalizeBaseUrl(url),
-      apiKey = apiKey.trim(),
-      _apiKey = apiKey.trim() {
+      apiKey = apiKey.trim() {
     _dio =
         dio ??
         Dio(
@@ -53,7 +51,7 @@ class WizarrClient {
         );
     _dio.options.headers['User-Agent'] = _userAgent;
     if (dio == null) {
-      _dio.options.headers['X-API-Key'] = _apiKey;
+      _dio.options.headers['X-API-Key'] = this.apiKey;
     }
   }
 
@@ -79,7 +77,7 @@ class WizarrClient {
         path,
         queryParameters: params,
         options: Options(
-          headers: {'X-API-Key': _apiKey},
+          headers: {'X-API-Key': apiKey},
           responseType: ResponseType.plain,
         ),
       );
@@ -88,8 +86,12 @@ class WizarrClient {
       final status = e.response?.statusCode;
       final parsed = _extractError(e.response?.data);
       final message =
-          parsed ?? (status == 401 ? 'Unauthorized' : 'Request failed');
-      throw WizarrException(message: message, httpStatus: status, code: null);
+          parsed?.$1 ?? (status == 401 ? 'Unauthorized' : 'Request failed');
+      throw WizarrException(
+        message: message,
+        httpStatus: status,
+        code: parsed?.$2,
+      );
     }
   }
 
@@ -123,7 +125,7 @@ class WizarrClient {
     return data;
   }
 
-  String? _extractError(dynamic data) {
+  (String, int?)? _extractError(dynamic data) {
     dynamic decoded = data;
     if (decoded is String) {
       try {
@@ -135,15 +137,25 @@ class WizarrClient {
     final map = mapOrNull(decoded);
     if (map == null) return null;
     final err = map['error'];
-    if (err is String && err.trim().isNotEmpty) return err.trim();
+    if (err != null) {
+      final em = mapOrNull(err);
+      final message = em != null
+          ? (em['message']?.toString() ?? err.toString())
+          : err.toString();
+      final text = message.trim();
+      if (text.isNotEmpty) {
+        final code = em != null
+            ? intOrNull(em['code'])
+            : intOrNull(map['code']);
+        return (text, code);
+      }
+    }
     final message = map['message'] ?? map['detail'] ?? map['msg'];
     if (message != null) {
       final text = message.toString().trim();
-      if (text.isNotEmpty) return text;
-    }
-    if (err != null) {
-      final text = err.toString().trim();
-      if (text.isNotEmpty) return text;
+      if (text.isNotEmpty) {
+        return (text, intOrNull(map['code']));
+      }
     }
     return null;
   }

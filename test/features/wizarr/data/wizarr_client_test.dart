@@ -97,6 +97,29 @@ void main() {
     expect(data, isA<Map>());
   });
 
+  test('extracts int code from error envelope', () async {
+    final adapter = _ScriptAdapter(
+      script: [
+        (
+          400,
+          {
+            'error': {'message': 'Bad request', 'code': 42},
+          },
+        ),
+      ],
+    );
+    final client = _client(adapter);
+    Object? error;
+    try {
+      await client.rpc('Invitation', 'getAll');
+    } catch (e) {
+      error = e;
+    }
+    expect(error, isA<WizarrException>());
+    expect((error as WizarrException).code, 42);
+    expect(error.message, contains('Bad request'));
+  });
+
   test('sends X-API-Key header', () async {
     final adapter = _ScriptAdapter(
       script: [
