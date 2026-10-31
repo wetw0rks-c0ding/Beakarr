@@ -8,6 +8,7 @@ import 'package:seekarr/core/widgets/async_value_widget.dart';
 import 'package:seekarr/features/openmediavault/data/openmediavault_providers.dart';
 import 'package:seekarr/features/openmediavault/domain/models/omv_disk.dart';
 import 'package:seekarr/features/openmediavault/domain/models/omv_filesystem.dart';
+import 'package:seekarr/features/openmediavault/domain/models/omv_parse.dart';
 import 'package:seekarr/features/openmediavault/domain/models/omv_service_status.dart';
 import 'package:seekarr/features/openmediavault/domain/models/omv_smart_device.dart';
 import 'package:seekarr/features/openmediavault/domain/models/omv_system_info.dart';
@@ -172,12 +173,9 @@ class _OverviewTab extends ConsumerWidget {
 }
 
 String _fmtBytes(String? s) {
-  // OMV reports memory as decimal byte-count strings ("33586950144").
-  // Render in human units; fall back to the raw string when unparseable.
-  if (s == null) return '—';
-  final bytes = int.tryParse(s.trim());
-  if (bytes == null) return s;
-  return _fmtBytesNum(bytes);
+  // OMV uses "-1" for "unknown" and sends decimals as strings; reuse the
+  // model-layer formatter so sentinels and garbage render as "—".
+  return formatBytesFromString(s) ?? '—';
 }
 
 class _StorageTab extends ConsumerWidget {

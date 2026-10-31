@@ -86,7 +86,21 @@ void main() {
     expect(find.byType(OmvUsageBar), findsOneWidget);
   });
 
-  testWidgets('OMV overview falls back to raw unparseable memory strings', (
+  testWidgets('OMV overview renders unknown memory sentinel as em-dash', (
+    tester,
+  ) async {
+    await pumpOverview(tester, const {
+      'hostname': 'bertha',
+      'memTotal': '-1',
+      'memUsed': '-1',
+    });
+
+    // OMV's "-1" unknown sentinel must not render as "0 B".
+    expect(find.text('— / —'), findsOneWidget);
+    expect(find.byType(OmvUsageBar), findsNothing);
+  });
+
+  testWidgets('OMV overview falls back to em-dash for unparseable memory', (
     tester,
   ) async {
     await pumpOverview(tester, const {
@@ -95,8 +109,8 @@ void main() {
       'memUsed': 'def',
     });
 
-    // Defensive fallback: show the raw strings rather than crashing.
-    expect(find.text('def / abc'), findsOneWidget);
+    // Defensive fallback: em-dash rather than raw confusing strings.
+    expect(find.text('— / —'), findsOneWidget);
     expect(find.byType(OmvUsageBar), findsNothing);
   });
 }
