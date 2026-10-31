@@ -84,7 +84,7 @@ class SubsonicAuth implements ServiceAuth {
   const SubsonicAuth(
     this.username,
     this.password, {
-    this.clientName = 'Seekarr',
+    this.clientName = 'Beakarr',
   });
 
   @override

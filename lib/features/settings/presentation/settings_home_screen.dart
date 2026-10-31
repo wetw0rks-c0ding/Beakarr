@@ -19,7 +19,6 @@ import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/core/widgets/app_card.dart';
 import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
-import 'package:seekarr/features/settings/data/donation_service.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
@@ -29,7 +28,6 @@ import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/regions.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
-import 'package:seekarr/features/settings/presentation/widgets/donation_sheet.dart';
 
 class SettingsHomeScreen extends ConsumerWidget {
   const SettingsHomeScreen({super.key});
@@ -254,13 +252,6 @@ class SettingsHomeScreen extends ConsumerWidget {
             title: 'Send Feedback',
             accentColor: AppColors.warning,
             onTap: () => _sendFeedback(context),
-          ),
-          SettingsCard.grouped(
-            leading: const Icon(Icons.favorite_rounded),
-            title: 'Support Development',
-            subtitle: 'Buy me a coffee',
-            accentColor: AppColors.lidarr,
-            onTap: () => _openDonation(context),
           ),
         ],
       ),
@@ -541,34 +532,6 @@ class SettingsHomeScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _openDonation(BuildContext context) async {
-    if (DonationService.usesIAP) {
-      final useFallback = await showModalBottomSheet<bool>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(
-            top: Radius.circular(AppSpacing.lg),
-          ),
-        ),
-        builder: (_) => const DonationSheet(),
-      );
-      // Sheet returned true when IAP products aren't available — open Ko-fi.
-      if (useFallback == true && context.mounted) {
-        final launched = await DonationService.launchKofi();
-        if (!launched && context.mounted) {
-          SnackBarHelper.info(context, 'Unable to open the donation page.');
-        }
-      }
-    } else {
-      final launched = await DonationService.launchKofi();
-      if (!launched && context.mounted) {
-        SnackBarHelper.info(context, 'Unable to open the donation page.');
-      }
-    }
-  }
-
   Future<void> _checkForUpdates(BuildContext context, WidgetRef ref) async {
     final updater = AppUpdater();
     GitHubRelease? latest;
@@ -706,7 +669,7 @@ class SettingsHomeScreen extends ConsumerWidget {
       if (result == 'needs_permission' && context.mounted) {
         SnackBarHelper.info(
           context,
-          'Enable "Install unknown apps" for Seekarr, then tap Version again.',
+          'Enable "Install unknown apps" for Beakarr, then tap Version again.',
         );
       }
     } on PlatformException catch (e) {

@@ -477,7 +477,7 @@ class _HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Seekarr is the control surface for the services you run yourself, starting from the Arr stack and giving you one UI to manage requests, libraries, and activity.',
+            'Beakarr is the control surface for the services you run yourself, starting from the Arr stack and giving you one UI to manage requests, libraries, and activity.',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 14,
@@ -663,7 +663,7 @@ class _ServicesStep extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Every service depends on its own self-hosted instance. Seekarr helps you manage them with one unified UI, from wherever you are.',
+            'Every service depends on its own self-hosted instance. Beakarr helps you manage them with one unified UI, from wherever you are.',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 14,
@@ -916,7 +916,7 @@ class _ServiceConfig extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Point Seekarr to your ${serviceKey.title} instance and confirm it answers correctly.',
+                'Point Beakarr to your ${serviceKey.title} instance and confirm it answers correctly.',
                 style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 12,

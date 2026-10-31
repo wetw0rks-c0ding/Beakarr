@@ -65,7 +65,7 @@ class SeekarrApp extends ConsumerWidget {
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         return MaterialApp.router(
-          title: 'Seekarr',
+          title: 'Beakarr',
           theme: AppTheme.lightTheme(lightDynamic),
           darkTheme: AppTheme.darkTheme(darkDynamic),
           themeMode: themeMode,
