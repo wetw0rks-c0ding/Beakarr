@@ -382,5 +382,14 @@ Future<ServiceSummary> _summaryBuilder(Ref ref, ServiceKey service) async {
         itemCount: null,
         itemLabel: 'disks',
       );
+    case ServiceKey.wizarr:
+      return const ServiceSummary(
+        service: ServiceKey.wizarr,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'invitations',
+      );
   }
 }

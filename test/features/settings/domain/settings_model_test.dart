@@ -157,6 +157,7 @@ void main() {
         ServiceKey.prowlarr,
         ServiceKey.bazarr,
         ServiceKey.soulsync,
+        ServiceKey.wizarr,
       ]) {
         expect(service.credentialKind, ServiceCredentialKind.apiKey);
         expect(service.usesApiKey, isTrue);
@@ -208,6 +209,14 @@ void main() {
       expect(ServiceKey.npm.icon, Icons.router_rounded);
       expect(ServiceKey.nzbget.accent.toARGB32(), 0xFF26A69A);
       expect(ServiceKey.npm.accent.toARGB32(), 0xFFF1583A);
+    });
+
+    test('resolves Wizarr metadata', () {
+      expect(ServiceKey.wizarr.title, 'Wizarr');
+      expect(ServiceKey.wizarr.routeParam, 'wizarr');
+      expect(ServiceKey.wizarr.credentialKind, ServiceCredentialKind.apiKey);
+      expect(ServiceKey.wizarr.icon, Icons.mail_rounded);
+      expect(ServiceKey.wizarr.accent.toARGB32(), 0xFF8B5CF6);
     });
 
     test('maps NZBGet and NPM credential fields', () {
@@ -280,6 +289,8 @@ void main() {
         openmediavaultUrl: 'u',
         openmediavaultUsername: 'u',
         openmediavaultPassword: 'k',
+        wizarrUrl: 'u',
+        wizarrApiKey: 'k',
       );
       for (final service in ServiceKey.values) {
         final cleared = full.clearedService(service);

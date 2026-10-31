@@ -15,6 +15,7 @@ enum ServiceKey {
   nzbget,
   npm,
   openmediavault,
+  wizarr,
 }
 
 /// How [ServiceKey] collects credentials. Replaces the hand-rolled
@@ -43,6 +44,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'Nginx PM';
       case ServiceKey.openmediavault:
         return 'OpenMediaVault';
+      case ServiceKey.wizarr:
+        return 'Wizarr';
       case ServiceKey.prowlarr:
         return 'Prowlarr';
       case ServiceKey.bazarr:
@@ -72,6 +75,8 @@ extension ServiceKeyExtension on ServiceKey {
         return Icons.router_rounded;
       case ServiceKey.openmediavault:
         return Icons.storage_rounded;
+      case ServiceKey.wizarr:
+        return Icons.mail_rounded;
       case ServiceKey.prowlarr:
         return Icons.dns_rounded;
       case ServiceKey.bazarr:
@@ -101,6 +106,8 @@ extension ServiceKeyExtension on ServiceKey {
         return AppColors.npm;
       case ServiceKey.openmediavault:
         return AppColors.openmediavault;
+      case ServiceKey.wizarr:
+        return AppColors.wizarr;
       case ServiceKey.prowlarr:
         return AppColors.prowlarr;
       case ServiceKey.bazarr:
@@ -179,6 +186,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'REST';
       case ServiceKey.openmediavault:
         return 'RPC';
+      case ServiceKey.wizarr:
+        return 'REST';
     }
   }
 
@@ -200,6 +209,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'proxy hosts';
       case ServiceKey.openmediavault:
         return 'disks';
+      case ServiceKey.wizarr:
+        return 'invitations';
       case ServiceKey.prowlarr:
         return 'indexers';
       case ServiceKey.bazarr:
@@ -226,6 +237,7 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.nzbget:
       case ServiceKey.npm:
       case ServiceKey.openmediavault:
+      case ServiceKey.wizarr:
         return name;
     }
   }

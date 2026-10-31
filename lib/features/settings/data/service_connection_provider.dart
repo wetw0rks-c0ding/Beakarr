@@ -49,6 +49,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/nginx/proxy-hosts';
     case ServiceKey.openmediavault:
       return '/rpc.php';
+    case ServiceKey.wizarr:
+      return '/';
   }
 }
 

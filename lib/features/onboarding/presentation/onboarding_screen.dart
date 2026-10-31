@@ -39,6 +39,7 @@ const _serviceColors = {
   ServiceKey.nzbget: Color(0xFF26A69A), // NZBGet teal
   ServiceKey.npm: Color(0xFFF1583A), // NPM orange-red
   ServiceKey.openmediavault: Color(0xFF0EA5E9), // OMV sky
+  ServiceKey.wizarr: Color(0xFF8B5CF6), // Wizarr purple
 };
 
 /// Hint under the credential fields, per service auth shape.
@@ -60,6 +61,7 @@ String _credentialHint(ServiceKey service) {
     case ServiceKey.bazarr:
     case ServiceKey.soulsync:
     case ServiceKey.openmediavault:
+    case ServiceKey.wizarr:
       return '';
   }
 }
@@ -90,6 +92,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/nginx/proxy-hosts';
     case ServiceKey.openmediavault:
       return '/rpc.php';
+    case ServiceKey.wizarr:
+      return '/';
   }
 }
 

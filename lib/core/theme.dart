@@ -38,6 +38,7 @@ class AppColors {
   static const Color nzbget = Color(0xFF26A69A);
   static const Color npm = Color(0xFFF1583A);
   static const Color openmediavault = Color(0xFF0EA5E9);
+  static const Color wizarr = Color(0xFF8B5CF6);
   // === PRIMARY (Seerr Indigo) ===
   static const Color primary = seerr;
   static const Color primaryDark = Color(0xFF4F46E5); // indigo-600

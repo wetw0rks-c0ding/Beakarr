@@ -264,6 +264,8 @@ String _statusEndpointFor(ServiceKey service) {
       return '/api/nginx/proxy-hosts';
     case ServiceKey.openmediavault:
       return '/rpc.php';
+    case ServiceKey.wizarr:
+      return '/';
   }
 }
 
@@ -419,6 +421,8 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
               .getDisks()
               .timeout(const Duration(seconds: 5)))
           .length;
+    case ServiceKey.wizarr:
+      return 0;
   }
 }
 
@@ -641,7 +645,8 @@ Future<List<ServiceQueueItem>> _loadServiceQueueItems(
       ServiceKey.soulsync ||
       ServiceKey.nzbget ||
       ServiceKey.npm ||
-      ServiceKey.openmediavault => const <dynamic>[],
+      ServiceKey.openmediavault ||
+      ServiceKey.wizarr => const <dynamic>[],
     };
     return items
         .whereType<Map>()
@@ -687,6 +692,7 @@ String _queueTypeLabel(ServiceKey service) {
     ServiceKey.nzbget => 'NZBGet',
     ServiceKey.npm => 'Proxy',
     ServiceKey.openmediavault => 'Disk',
+    ServiceKey.wizarr => 'Invitation',
     ServiceKey.seerr || ServiceKey.qbittorrent => service.title,
   };
 }

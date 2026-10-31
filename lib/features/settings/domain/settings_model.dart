@@ -60,6 +60,8 @@ class SettingsModel {
   final String openmediavaultUrl;
   final String openmediavaultUsername;
   final String openmediavaultPassword;
+  final String wizarrUrl;
+  final String wizarrApiKey;
   final String region;
   final AppThemeMode themeMode;
   final String oidcIssuer; // empty = disabled; plain URL-like field (NOT secret)
@@ -153,6 +155,14 @@ class SettingsModel {
             openmediavaultPassword: apiKey,
           ),
         ),
+        ServiceKey.wizarr: _ServiceSettingsAccess(
+          url: (settings) => settings.wizarrUrl,
+          apiKey: (settings) => settings.wizarrApiKey,
+          update: (settings, {url, apiKey}) => settings.copyWith(
+            wizarrUrl: url,
+            wizarrApiKey: apiKey,
+          ),
+        ),
         // Note: soulsyncProxyCookie handled separately (secure store, not
         // in _ServiceSettingsAccess) to keep cookie out of the generic
         // apiKey path — it flows through SoulSyncAuth directly.
@@ -195,6 +205,8 @@ class SettingsModel {
     this.openmediavaultUrl = '',
     this.openmediavaultUsername = '',
     this.openmediavaultPassword = '',
+    this.wizarrUrl = '',
+    this.wizarrApiKey = '',
     this.region = 'US',
     this.themeMode = AppThemeMode.system,
     this.oidcIssuer = '',
@@ -235,6 +247,8 @@ class SettingsModel {
     String? openmediavaultUrl,
     String? openmediavaultUsername,
     String? openmediavaultPassword,
+    String? wizarrUrl,
+    String? wizarrApiKey,
     String? region,
     AppThemeMode? themeMode,
     String? oidcIssuer,
@@ -276,6 +290,8 @@ class SettingsModel {
           openmediavaultUsername ?? this.openmediavaultUsername,
       openmediavaultPassword:
           openmediavaultPassword ?? this.openmediavaultPassword,
+      wizarrUrl: wizarrUrl ?? this.wizarrUrl,
+      wizarrApiKey: wizarrApiKey ?? this.wizarrApiKey,
       region: region ?? this.region,
       themeMode: themeMode ?? this.themeMode,
       oidcIssuer: oidcIssuer ?? this.oidcIssuer,

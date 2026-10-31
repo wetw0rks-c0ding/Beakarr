@@ -142,6 +142,11 @@ class SettingsService {
       secureApiKey: 'secure_openmediavault_password',
       username: 'openmediavault_username',
     ),
+    ServiceKey.wizarr: _ServiceStorageKeys(
+      url: 'wizarr_url',
+      legacyApiKey: 'wizarr_api_key',
+      secureApiKey: 'secure_wizarr_api_key',
+    ),
   };
 
   final SharedPreferences _prefs;
