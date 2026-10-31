@@ -110,35 +110,6 @@ class WizarrClient {
           [Map<String, dynamic>? params]) =>
       rpc(service, method, params);
 
-  Future<Response<dynamic>> get(
-    String path, {
-    Map<String, dynamic>? query,
-    CancelToken? cancelToken,
-  }) async {
-    try {
-      final response = await _dio.get<dynamic>(
-        path,
-        queryParameters: query,
-        cancelToken: cancelToken,
-        options: Options(
-          headers: {'X-API-Key': _apiKey},
-          responseType: ResponseType.plain,
-        ),
-      );
-      response.data = _decode(response.data);
-      return response;
-    } on DioException catch (e) {
-      final status = e.response?.statusCode;
-      final parsed = _extractError(e.response?.data);
-      final message = parsed ?? (status == 401 ? 'Unauthorized' : 'Request failed');
-      throw WizarrException(
-        message: message,
-        httpStatus: status,
-        code: null,
-      );
-    }
-  }
-
   dynamic _decode(dynamic data) {
     if (data is String) {
       final trimmed = data.trim();

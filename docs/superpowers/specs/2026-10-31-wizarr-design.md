@@ -17,7 +17,7 @@ Mirrors `lib/features/openmediavault/` and `lib/features/npm/` file
 for file; no new patterns:
 
 - `lib/features/wizarr/data/wizarr_client.dart` — Dio client, Bearer
-  API key, `User-Agent: Beakarr`, 10/10/30 s timeouts. In-code
+  API key, `User-Agent: Beakarr`, 10/10/15 s timeouts. In-code
   read-only allowlist (same enforcement shape as
   `OpenMediaVaultClient._readOnly`); any non-listed call throws
   `StateError` before hitting the network.
@@ -76,7 +76,7 @@ precedent: no request-body logger on the auth path).
   codes); no secret persistence on failed test.
 - Unparseable rows are skipped item-wise (`whereType`-style), never
   whole-list failures; empty lists render explicit empty states.
-- Timeouts: 30 s receive. Release-build layout rule from OMV 0.9.17:
+- Timeouts: 15 s receive. Release-build layout rule from OMV 0.9.17:
   no flex widgets inside unbounded parents; the regression test
   below pins the previously-crashing shape.
 
