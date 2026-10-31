@@ -1,4 +1,4 @@
-package labs.matthw.seekarr
+package labs.matthw.beakarr
 
 import android.app.Activity
 import android.content.Intent
