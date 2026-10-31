@@ -105,6 +105,9 @@ class WizarrUserTile extends StatelessWidget {
   }
 
   String _formatDate(DateTime d) {
-    return '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+    // Server instants are UTC; render in the device timezone so the
+    // displayed day matches the user's calendar.
+    final local = d.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')}';
   }
 }

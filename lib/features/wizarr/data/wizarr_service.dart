@@ -17,6 +17,10 @@ class WizarrService {
     return _items(response, WizarrUser.fromJson, const ['users']);
   }
 
+  /// Unwraps a list from the RPC response. Envelope precedence:
+  /// explicit [envelopeKeys] first, then generic `data`/`results`/`items`/
+  /// `list`, then the first list-valued entry, then a bare top-level array.
+  /// Anything else yields an empty list (never throws).
   static List<T> _items<T>(
     dynamic response,
     T Function(Map<String, dynamic>) fromJson,

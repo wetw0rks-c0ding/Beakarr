@@ -55,6 +55,15 @@ void main() {
     expect(inv.statusLabel, 'Expired');
   });
 
+  test('usesLeft treats missing usedCount as zero used', () {
+    final inv = WizarrInvitation.fromJson(const {
+      'code': 'x',
+      'maxUses': 5,
+    });
+    expect(inv.usedCount, isNull);
+    expect(inv.usesLeft, 5);
+  });
+
   test('user tolerates missing keys', () {
     final u = WizarrUser.fromJson({});
     expect(u.username, isNull);
