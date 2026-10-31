@@ -6,8 +6,7 @@ void main() {
     test('toJson/fromJson', () {
       final p = OidcPreset(name: 'My', issuer: 'https://i/', clientId: 'id');
       final r = OidcPreset.fromJson(p.toJson());
-      expect(r, isNotNull);
-      expect(r!.name, 'My');
+      expect(r.name, 'My');
     });
     test('malformed skips without throw', () {
       expect(OidcPreset.tryFromJson({}), isNull);

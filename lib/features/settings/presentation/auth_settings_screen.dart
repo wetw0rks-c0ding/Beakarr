@@ -70,9 +70,9 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
   late final TextEditingController _presetNameController;
   late final TextEditingController _presetClientIdController;
   bool _validating = false;
-  OidcValidationError? _originErrorType;
   String? _originErrorText;
   String? _slugErrorText;
+  bool _presetClientEdited = false;
   bool _showSuccessPanel = false;
   String? _validatedIssuerHost;
 
@@ -138,337 +138,346 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-            TextField(
-              controller: _issuerController,
-              decoration: const InputDecoration(
-                labelText: 'Authentik Issuer URL',
-              ),
-              onChanged: (v) async {
-                final latest = ref.read(settingsProvider);
-                await ref
-                    .read(settingsProvider.notifier)
-                    .updateSettings(latest.copyWith(oidcIssuer: v));
-                await _loadStatuses();
-              },
-            ),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _clientIdController,
-              decoration: const InputDecoration(labelText: 'Client ID'),
-              onChanged: (v) {
-                final latest = ref.read(settingsProvider);
-                ref
-                    .read(settingsProvider.notifier)
-                    .updateSettings(latest.copyWith(oidcClientId: v));
-              },
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                OutlinedButton(
-                  onPressed: () async {
-                    final latest = ref.read(settingsProvider);
-                    await ref
-                        .read(settingsProvider.notifier)
-                        .updateSettings(
-                          latest.copyWith(
-                            oidcIssuer: OidcSessionService.arrstackIssuer,
-                            oidcClientId: OidcSessionService.arrstackClientId,
-                          ),
-                        );
-                    _issuerController.text = OidcSessionService.arrstackIssuer;
-                    _clientIdController.text =
-                        OidcSessionService.arrstackClientId;
-                    // Re-tap edge: issuer unchanged means updateSettings
-                    // skipped its wipe, but a cached service token from a
-                    // previous identity must not survive the switch.
-                    SonarrOidcSessionProvider.clearAll();
-                    await _loadStatuses();
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'ArrStack preset applied — please log in again',
-                          ),
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Use ArrStack preset'),
+              TextField(
+                controller: _issuerController,
+                decoration: const InputDecoration(
+                  labelText: 'Authentik Issuer URL',
                 ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const Text('Saved presets', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
-            _buildPresetsSection(context, settings),
-            const SizedBox(height: 24),
-            Text(
-              _sessionStatus.toString(),
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                ElevatedButton(
-                  onPressed: () async {
-                    if (settings.oidcIssuer.isEmpty ||
-                        settings.oidcClientId.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please configure OIDC settings first'),
-                        ),
-                      );
-                      return;
-                    }
-                    try {
-                      final sess = OidcSessionService(
-                        createSecureSettingsStore(),
-                      );
-                      final pkce = generatePkce();
-                      final v = pkce.codeVerifier.replaceAll('=', '');
-                      await sess.saveTokens(
-                        access: '',
-                        refresh: '',
-                        expiryEpoch: 0,
-                        pkceVerifier: v,
-                      );
-
-                      final disc = await sess.discover(settings.oidcIssuer);
-                      final authUrl = disc['authorization_endpoint'] as String?;
-                      if (authUrl == null) {
-                        throw Exception(
-                          'No authorization endpoint in discovery',
-                        );
-                      }
-                      // Build authorize URL with redirect_uri matching Authentik's registered
-                      // loopback URI (unchanged from original config). The WebView will intercept
-                      // both http://127.0.0.1:8765/callback and seekarr://oauth/callback redirects,
-                      // extracting ?code= or ?error= before the navigation completes.
-                      final url = Uri.parse(authUrl).replace(
-                        queryParameters: <String, String>{
-                          'client_id': settings.oidcClientId,
-                          'response_type': 'code',
-                          'scope': 'openid profile email offline_access',
-                          'redirect_uri': OidcLoopbackListener
-                              .redirectUri, // registered Authentik value
-                          'code_challenge': pkce.codeChallenge,
-                          'code_challenge_method': 'S256',
-                        },
-                      );
-
-                      // Push the WebView screen for in-app login. It pops
-                      // with the authorization code (or 'error:<desc>').
-                      final result = await Navigator.of(context).push<String>(
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              OidcWebViewScreen(authorizeUrl: url),
-                        ),
-                      );
-                      if (result == null || result.isEmpty) return;
-                      if (result.startsWith('error:')) {
-                        throw Exception(
-                          'Login failed: ${result.substring('error:'.length)}',
-                        );
-                      }
-                      final ok = await sess.exchangeToken(
-                        issuerUrl: settings.oidcIssuer,
-                        clientId: settings.oidcClientId,
-                        authorizationCode: result,
-                        pkceVerifier: v,
-                        redirectUri: OidcLoopbackListener.redirectUri,
-                      );
+                onChanged: (v) async {
+                  final latest = ref.read(settingsProvider);
+                  await ref
+                      .read(settingsProvider.notifier)
+                      .updateSettings(latest.copyWith(oidcIssuer: v));
+                  await _loadStatuses();
+                },
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _clientIdController,
+                decoration: const InputDecoration(labelText: 'Client ID'),
+                onChanged: (v) {
+                  final latest = ref.read(settingsProvider);
+                  ref
+                      .read(settingsProvider.notifier)
+                      .updateSettings(latest.copyWith(oidcClientId: v));
+                },
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  OutlinedButton(
+                    onPressed: () async {
+                      final latest = ref.read(settingsProvider);
+                      await ref
+                          .read(settingsProvider.notifier)
+                          .updateSettings(
+                            latest.copyWith(
+                              oidcIssuer: OidcSessionService.arrstackIssuer,
+                              oidcClientId: OidcSessionService.arrstackClientId,
+                            ),
+                          );
+                      _issuerController.text =
+                          OidcSessionService.arrstackIssuer;
+                      _clientIdController.text =
+                          OidcSessionService.arrstackClientId;
+                      // Re-tap edge: issuer unchanged means updateSettings
+                      // skipped its wipe, but a cached service token from a
+                      // previous identity must not survive the switch.
+                      SonarrOidcSessionProvider.clearAll();
+                      await _loadStatuses();
                       if (context.mounted) {
-                        setState(() {
-                          _sessionStatus = ok
-                              ? SessionStatus.active
-                              : SessionStatus.error;
-                          // ArrStack mode: Sonarr shares the main pair, so
-                          // mirror it (and drop any cache from a previous
-                          // identity — the new login owns the token now).
-                          if (OidcSessionService.isArrstackMode(
-                            settings.oidcIssuer,
-                          )) {
-                            _sonarrStatus = _sessionStatus;
-                            SonarrOidcSessionProvider.clearAll();
-                          }
-                        });
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
+                          const SnackBar(
                             content: Text(
-                              ok
-                                  ? 'Login successful'
-                                  : 'Login failed: token rejected',
+                              'ArrStack preset applied — please log in again',
                             ),
                           ),
                         );
                       }
-                    } catch (e) {
-                      if (context.mounted) {
+                    },
+                    child: const Text('Use ArrStack preset'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+              const Text(
+                'Saved presets',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              _buildPresetsSection(context, settings),
+              const SizedBox(height: 24),
+              Text(
+                _sessionStatus.toString(),
+                style: const TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (settings.oidcIssuer.isEmpty ||
+                          settings.oidcClientId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Login failed: ${e.toString()}'),
+                          const SnackBar(
+                            content: Text(
+                              'Please configure OIDC settings first',
+                            ),
                           ),
                         );
+                        return;
                       }
-                    }
-                  },
-                  child: const Text('Login'),
-                ),
-                const SizedBox(width: 12),
-                ElevatedButton(
-                  onPressed: () async {
-                    final sess = OidcSessionService(
-                      createSecureSettingsStore(),
-                    );
-                    await sess.clear();
-                    // ArrStack mode: the Sonarr service token belongs to
-                    // the main identity — drop it on logout so the next
-                    // login cannot reuse the previous user's token.
-                    if (OidcSessionService.isArrstackMode(
-                      settings.oidcIssuer,
-                    )) {
-                      SonarrOidcSessionProvider.clearAll();
-                    }
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Session cleared')),
+                      try {
+                        final sess = OidcSessionService(
+                          createSecureSettingsStore(),
+                        );
+                        final pkce = generatePkce();
+                        final v = pkce.codeVerifier.replaceAll('=', '');
+                        await sess.saveTokens(
+                          access: '',
+                          refresh: '',
+                          expiryEpoch: 0,
+                          pkceVerifier: v,
+                        );
+
+                        final disc = await sess.discover(settings.oidcIssuer);
+                        final authUrl =
+                            disc['authorization_endpoint'] as String?;
+                        if (authUrl == null) {
+                          throw Exception(
+                            'No authorization endpoint in discovery',
+                          );
+                        }
+                        // Build authorize URL with redirect_uri matching Authentik's registered
+                        // loopback URI (unchanged from original config). The WebView will intercept
+                        // both http://127.0.0.1:8765/callback and seekarr://oauth/callback redirects,
+                        // extracting ?code= or ?error= before the navigation completes.
+                        final url = Uri.parse(authUrl).replace(
+                          queryParameters: <String, String>{
+                            'client_id': settings.oidcClientId,
+                            'response_type': 'code',
+                            'scope': 'openid profile email offline_access',
+                            'redirect_uri': OidcLoopbackListener
+                                .redirectUri, // registered Authentik value
+                            'code_challenge': pkce.codeChallenge,
+                            'code_challenge_method': 'S256',
+                          },
+                        );
+
+                        // Push the WebView screen for in-app login. It pops
+                        // with the authorization code (or 'error:<desc>').
+                        final result = await Navigator.of(context).push<String>(
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                OidcWebViewScreen(authorizeUrl: url),
+                          ),
+                        );
+                        if (result == null || result.isEmpty) return;
+                        if (result.startsWith('error:')) {
+                          throw Exception(
+                            'Login failed: ${result.substring('error:'.length)}',
+                          );
+                        }
+                        final ok = await sess.exchangeToken(
+                          issuerUrl: settings.oidcIssuer,
+                          clientId: settings.oidcClientId,
+                          authorizationCode: result,
+                          pkceVerifier: v,
+                          redirectUri: OidcLoopbackListener.redirectUri,
+                        );
+                        if (context.mounted) {
+                          setState(() {
+                            _sessionStatus = ok
+                                ? SessionStatus.active
+                                : SessionStatus.error;
+                            // ArrStack mode: Sonarr shares the main pair, so
+                            // mirror it (and drop any cache from a previous
+                            // identity — the new login owns the token now).
+                            if (OidcSessionService.isArrstackMode(
+                              settings.oidcIssuer,
+                            )) {
+                              _sonarrStatus = _sessionStatus;
+                              SonarrOidcSessionProvider.clearAll();
+                            }
+                          });
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                ok
+                                    ? 'Login successful'
+                                    : 'Login failed: token rejected',
+                              ),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Login failed: ${e.toString()}'),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    child: const Text('Login'),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton(
+                    onPressed: () async {
+                      final sess = OidcSessionService(
+                        createSecureSettingsStore(),
                       );
-                    }
-                  },
-                  child: const Text('Logout'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Column(
-                  children: [
-                    Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: (settings.soulsyncUrl.isNotEmpty &&
-                                settings.soulsyncProxyCookie.isNotEmpty)
-                            ? Colors.green
-                            : Colors.red,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                      await sess.clear();
+                      // ArrStack mode: the Sonarr service token belongs to
+                      // the main identity — drop it on logout so the next
+                      // login cannot reuse the previous user's token.
+                      if (OidcSessionService.isArrstackMode(
+                        settings.oidcIssuer,
+                      )) {
+                        SonarrOidcSessionProvider.clearAll();
+                      }
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Session cleared')),
+                        );
+                      }
+                    },
+                    child: const Text('Logout'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Column(
                     children: [
-                      const Text(
-                        'SoulSync',
-                        style: TextStyle(fontWeight: FontWeight.bold),
+                      Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color:
+                              (settings.soulsyncUrl.isNotEmpty &&
+                                  settings.soulsyncProxyCookie.isNotEmpty)
+                              ? Colors.green
+                              : Colors.red,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                      Text(
-                        (settings.soulsyncUrl.isNotEmpty &&
-                                settings.soulsyncProxyCookie.isNotEmpty)
-                            ? 'Cookie session active'
-                            : 'Not logged in',
-                      ),
-                      Row(
-                        children: [
-                          ElevatedButton(
-                            onPressed: () async {
-                              final result = await Navigator.of(context).push<String?>(
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      const SoulSyncWebLoginScreen(),
-                                ),
-                              );
-                              if (result != null && result.isNotEmpty) {
+                    ],
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'SoulSync',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          (settings.soulsyncUrl.isNotEmpty &&
+                                  settings.soulsyncProxyCookie.isNotEmpty)
+                              ? 'Cookie session active'
+                              : 'Not logged in',
+                        ),
+                        Row(
+                          children: [
+                            ElevatedButton(
+                              onPressed: () async {
+                                final result = await Navigator.of(context)
+                                    .push<String?>(
+                                      MaterialPageRoute(
+                                        builder: (context) =>
+                                            const SoulSyncWebLoginScreen(),
+                                      ),
+                                    );
+                                if (result != null && result.isNotEmpty) {
+                                  final latest = ref.read(settingsProvider);
+                                  await ref
+                                      .read(settingsProvider.notifier)
+                                      .updateSettings(
+                                        latest.copyWithSoulSync(
+                                          url: latest.soulsyncUrl,
+                                          proxyCookie: result,
+                                        ),
+                                      );
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('SoulSync login saved'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              child: const Text('Login'),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton(
+                              onPressed: () async {
                                 final latest = ref.read(settingsProvider);
                                 await ref
                                     .read(settingsProvider.notifier)
                                     .updateSettings(
                                       latest.copyWithSoulSync(
                                         url: latest.soulsyncUrl,
-                                        proxyCookie: result,
+                                        proxyCookie: '',
                                       ),
                                     );
                                 if (context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(
-                                      content: Text('SoulSync login saved'),
+                                      content: Text('SoulSync session cleared'),
                                     ),
                                   );
                                 }
-                              }
-                            },
-                            child: const Text('Login'),
-                          ),
-                          const SizedBox(width: 8),
-                          ElevatedButton(
-                            onPressed: () async {
-                              final latest = ref.read(settingsProvider);
-                              await ref
-                                  .read(settingsProvider.notifier)
-                                  .updateSettings(
-                                    latest.copyWithSoulSync(
-                                      url: latest.soulsyncUrl,
-                                      proxyCookie: '',
-                                    ),
-                                  );
-                              if (context.mounted) {
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('SoulSync session cleared'),
-                                  ),
-                                );
-                              }
-                            },
-                            child: const Text('Logout'),
-                          ),
-                        ],
-                      ),
-                    ],
+                              },
+                              child: const Text('Logout'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            const Divider(),
-            const Text(
-              'SSO service connections',
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            _buildSsoServiceRow(
-              context,
-              label: 'Sonarr',
-              serviceKey: 'sonarr',
-              baseUrl: settings.sonarrUrl,
-              settings: settings,
-            ),
-            _buildSsoServiceRow(
-              context,
-              label: 'Radarr',
-              serviceKey: 'radarr',
-              baseUrl: settings.radarrUrl,
-              settings: settings,
-            ),
-            _buildSsoServiceRow(
-              context,
-              label: 'Prowlarr',
-              serviceKey: 'prowlarr',
-              baseUrl: settings.prowlarrUrl,
-              settings: settings,
-            ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 8),
-          ],
+                ],
+              ),
+              const SizedBox(height: 8),
+              const Divider(),
+              const Text(
+                'SSO service connections',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              _buildSsoServiceRow(
+                context,
+                label: 'Sonarr',
+                serviceKey: 'sonarr',
+                baseUrl: settings.sonarrUrl,
+                settings: settings,
+              ),
+              _buildSsoServiceRow(
+                context,
+                label: 'Radarr',
+                serviceKey: 'radarr',
+                baseUrl: settings.radarrUrl,
+                settings: settings,
+              ),
+              _buildSsoServiceRow(
+                context,
+                label: 'Prowlarr',
+                serviceKey: 'prowlarr',
+                baseUrl: settings.prowlarrUrl,
+                settings: settings,
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+            ],
           ),
-          ),
+        ),
       ),
     );
   }
@@ -490,7 +499,9 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                   helperText: 'e.g. https://auth.example.com',
                 ),
                 onChanged: (_) {
-                  setState(() { _originErrorText = null; _originErrorType = null; });
+                  setState(() {
+                    _originErrorText = null;
+                  });
                 },
               ),
             ),
@@ -503,7 +514,11 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                   errorText: _slugErrorText,
                 ),
                 onChanged: (_) {
-                  setState(() { _slugErrorText = null; });
+                  setState(() {
+                    _slugErrorText = null;
+                    // New slug → new client_id default; user-edit flag resets.
+                    _presetClientEdited = false;
+                  });
                 },
               ),
             ),
@@ -511,63 +526,74 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
         ),
         const SizedBox(height: 8),
         ElevatedButton(
-          onPressed: _validating ? null : () async {
-            setState(() {
-              _validating = true;
-              _originErrorText = null;
-              _slugErrorText = null;
-              _originErrorType = null;
-              _showSuccessPanel = false;
-            });
-            final validator = OidcPresetValidator(
-              fetch: (url) async {
-                try {
-                  final client = HttpClient();
-                  final req = await client.getUrl(Uri.parse(url));
-                  final resp = await req.close();
-                  final body = await resp.transform(utf8.decoder).join();
-                  return {'statusCode': resp.statusCode, 'body': body};
-                } catch (_) {
-                  return null;
-                }
-              },
-            );
-            final res = await validator.validate(
-              origin: _presetOriginController.text,
-              slug: _presetSlugController.text,
-            );
-            setState(() {
-              _validating = false;
-              if (res.valid) {
-                _showSuccessPanel = true;
-                _validatedIssuerHost = res.canonicalIssuer;
-                _presetClientIdController.text = _presetSlugController.text.trim().toLowerCase();
-                _presetNameController.clear();
-              } else {
-                _showSuccessPanel = false;
-                if (res.errorType == OidcValidationError.badOrigin) {
-                  _originErrorText = res.error ?? 'Invalid origin';
-                  _originErrorType = res.errorType;
-                } else if (res.errorType == OidcValidationError.unreachable) {
-                  _originErrorText = res.error ?? 'Unreachable';
-                  _originErrorType = res.errorType;
-                } else if (res.errorType == OidcValidationError.slug404) {
-                  _slugErrorText = res.error ?? 'Slug not found';
-                } else if (res.errorType == OidcValidationError.notOidc) {
-                  _originErrorText = res.error ?? 'Not OIDC metadata';
-                  _originErrorType = res.errorType;
-                } else if (res.errorType == OidcValidationError.missingEndpoints) {
-                  _originErrorText = res.error ?? 'Missing endpoints';
-                  _originErrorType = res.errorType;
-                } else {
-                  _originErrorText = res.error ?? 'Validation failed';
-                  _originErrorType = res.errorType;
-                }
-              }
-            });
-          },
+          onPressed: _validating
+              ? null
+              : () async {
+                  setState(() {
+                    _validating = true;
+                    _originErrorText = null;
+                    _slugErrorText = null;
+                    _showSuccessPanel = false;
+                  });
+                  final validator = OidcPresetValidator(
+                    fetch: (url) async {
+                      final client = HttpClient();
+                      try {
+                        final req = await client.getUrl(Uri.parse(url));
+                        final resp = await req.close();
+                        final body = await resp.transform(utf8.decoder).join();
+                        return {'statusCode': resp.statusCode, 'body': body};
+                      } catch (_) {
+                        return null;
+                      } finally {
+                        client.close(force: true);
+                      }
+                    },
+                  );
+                  final res = await validator.validate(
+                    origin: _presetOriginController.text,
+                    slug: _presetSlugController.text,
+                  );
+                  setState(() {
+                    _validating = false;
+                    if (res.valid) {
+                      _showSuccessPanel = true;
+                      _validatedIssuerHost = res.canonicalIssuer;
+                      // Prefill client_id from slug unless the user already
+                      // overrode it (spec: stops overwriting once edited).
+                      if (!_presetClientEdited) {
+                        _presetClientIdController.text = _presetSlugController
+                            .text
+                            .trim()
+                            .toLowerCase();
+                      }
+                      _presetNameController.clear();
+                    } else {
+                      _showSuccessPanel = false;
+                      if (res.errorType == OidcValidationError.badOrigin) {
+                        _originErrorText = res.error ?? 'Invalid origin';
+                      } else if (res.errorType ==
+                          OidcValidationError.unreachable) {
+                        _originErrorText = res.error ?? 'Unreachable';
+                      } else if (res.errorType == OidcValidationError.slug404) {
+                        _slugErrorText = res.error ?? 'Slug not found';
+                      } else if (res.errorType == OidcValidationError.notOidc) {
+                        _originErrorText = res.error ?? 'Not OIDC metadata';
+                      } else if (res.errorType ==
+                          OidcValidationError.missingEndpoints) {
+                        _originErrorText = res.error ?? 'Missing endpoints';
+                      } else {
+                        _originErrorText = res.error ?? 'Validation failed';
+                      }
+                    }
+                  });
+                },
           child: _validating
-              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text('Validate'),
         ),
         // 3. Success panel: readable issuer + editable client_id + name + save
@@ -576,7 +602,9 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
           TextFormField(
             enabled: false,
             initialValue: _validatedIssuerHost,
-            decoration: const InputDecoration(labelText: 'Validated issuer host'),
+            decoration: const InputDecoration(
+              labelText: 'Validated issuer host',
+            ),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -586,7 +614,7 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
               helperText: 'Edit if different from slug',
             ),
             onChanged: (_) {
-              // Once user edits, stops overwriting (already user-edited)
+              setState(() => _presetClientEdited = true);
             },
           ),
           const SizedBox(height: 8),
@@ -599,29 +627,43 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
             onPressed: () async {
               final name = _presetNameController.text.trim();
               final clientId = _presetClientIdController.text.trim();
-              final issuer = (_validatedIssuerHost ?? '').trim().replaceAll(RegExp(r'/+$'), '');
+              final issuer = (_validatedIssuerHost ?? '').trim().replaceAll(
+                RegExp(r'/+$'),
+                '',
+              );
               if (name.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Name required')));
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Name required')));
                 return;
               }
               final current = List<OidcPreset>.from(presets);
               final existing = current.cast<OidcPreset?>().firstWhere(
-                (p) => p != null && p.name.trim().toLowerCase() == name.toLowerCase(),
+                (p) =>
+                    p != null &&
+                    p.name.trim().toLowerCase() == name.toLowerCase(),
                 orElse: () => null,
               );
               if (existing != null) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preset name already exists')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Preset name already exists')),
+                );
                 return;
               }
               if (current.length >= 10) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preset cap (10) reached')));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Preset cap (10) reached')),
+                );
                 return;
               }
-              final updated = [...current, OidcPreset(name: name, issuer: issuer, clientId: clientId)];
+              final updated = [
+                ...current,
+                OidcPreset(name: name, issuer: issuer, clientId: clientId),
+              ];
               final latest = ref.read(settingsProvider);
-              await ref.read(settingsProvider.notifier).updateSettings(
-                latest.copyWith(oidcPresets: updated),
-              );
+              await ref
+                  .read(settingsProvider.notifier)
+                  .updateSettings(latest.copyWith(oidcPresets: updated));
               _presetOriginController.clear();
               _presetSlugController.clear();
               _presetNameController.clear();
@@ -631,7 +673,9 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                 _validatedIssuerHost = null;
               });
               if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Preset saved')));
+                ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(const SnackBar(content: Text('Preset saved')));
               }
             },
             child: const Text('Save preset'),
@@ -639,44 +683,79 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
         ],
         // 4. Rows
         ...presets.cast<OidcPreset>().map((p) {
-          final isActive = p.issuer.trim().replaceAll(RegExp(r'/+$'), '') == (settings.oidcIssuer ?? '').trim().replaceAll(RegExp(r'/+$'), '') && p.clientId.trim() == (settings.oidcClientId ?? '').trim();
+          final isActive =
+              p.issuer.trim().replaceAll(RegExp(r'/+$'), '') ==
+                  (settings.oidcIssuer ?? '').trim().replaceAll(
+                    RegExp(r'/+$'),
+                    '',
+                  ) &&
+              p.clientId.trim() == (settings.oidcClientId ?? '').trim();
           return ListTile(
-            leading: isActive ? const Icon(Icons.circle, color: Colors.green, size: 12) : null,
+            leading: isActive
+                ? const Icon(Icons.circle, color: Colors.green, size: 12)
+                : null,
             title: Text(p.name),
             subtitle: Text(p.issuer.replaceAll(RegExp(r'/+$'), '')),
             trailing: IconButton(
               icon: const Icon(Icons.delete, color: Colors.red),
               onPressed: () async {
-                final updated = presets.cast<OidcPreset>().where((x) => x.name != p.name || x.issuer != p.issuer || x.clientId != p.clientId).toList();
+                final updated = presets
+                    .cast<OidcPreset>()
+                    .where(
+                      (x) =>
+                          x.name != p.name ||
+                          x.issuer != p.issuer ||
+                          x.clientId != p.clientId,
+                    )
+                    .toList();
                 final latest = ref.read(settingsProvider);
-                await ref.read(settingsProvider.notifier).updateSettings(
-                  latest.copyWith(oidcPresets: updated),
-                );
+                await ref
+                    .read(settingsProvider.notifier)
+                    .updateSettings(latest.copyWith(oidcPresets: updated));
               },
             ),
             onTap: () async {
-              final settingsIssuer = (settings.oidcIssuer ?? '').trim().replaceAll(RegExp(r'/+$'), '');
-              final presetIssuer = p.issuer.trim().replaceAll(RegExp(r'/+$'), '');
-              if (settingsIssuer == presetIssuer && (settings.oidcClientId ?? '').trim() == p.clientId.trim()) {
+              final settingsIssuer = (settings.oidcIssuer ?? '')
+                  .trim()
+                  .replaceAll(RegExp(r'/+$'), '');
+              final presetIssuer = p.issuer.trim().replaceAll(
+                RegExp(r'/+$'),
+                '',
+              );
+              if (settingsIssuer == presetIssuer &&
+                  (settings.oidcClientId ?? '').trim() == p.clientId.trim()) {
                 return; // no-op
               }
               final confirm = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   title: const Text('Switch provider?'),
-                  content: const Text('Switching providers wipes login sessions — continue?'),
+                  content: const Text(
+                    'Switching providers wipes login sessions — continue?',
+                  ),
                   actions: [
-                    TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
-                    TextButton(onPressed: () => Navigator.of(ctx).pop(true), child: const Text('Continue')),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Continue'),
+                    ),
                   ],
                 ),
               );
               if (confirm == true) {
                 SonarrOidcSessionProvider.clearAll();
                 final latest = ref.read(settingsProvider);
-                await ref.read(settingsProvider.notifier).updateSettings(
-                  latest.copyWith(oidcIssuer: p.issuer, oidcClientId: p.clientId),
-                );
+                await ref
+                    .read(settingsProvider.notifier)
+                    .updateSettings(
+                      latest.copyWith(
+                        oidcIssuer: p.issuer,
+                        oidcClientId: p.clientId,
+                      ),
+                    );
                 _issuerController.text = p.issuer;
                 _clientIdController.text = p.clientId;
                 await _loadStatuses();
@@ -685,13 +764,18 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
           );
         }),
         // 5. Empty placeholder
-        if (presets.isEmpty) const Padding(
-          padding: EdgeInsets.symmetric(vertical: 12),
-          child: Text('No saved presets. Validate a provider above to save one.', style: TextStyle(fontStyle: FontStyle.italic)),
-        ),
+        if (presets.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Text(
+              'No saved presets. Validate a provider above to save one.',
+              style: TextStyle(fontStyle: FontStyle.italic),
+            ),
+          ),
       ],
     );
   }
+
   Widget _buildSsoServiceRow(
     BuildContext context, {
     required String label,
@@ -714,9 +798,7 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
     // identity outside ArrStack mode.
     final SessionStatus identityStatus = isArrstack
         ? _sessionStatus
-        : (serviceKey == 'sonarr'
-              ? _sonarrStatus
-              : SessionStatus.disabled);
+        : (serviceKey == 'sonarr' ? _sonarrStatus : SessionStatus.disabled);
     final hasApiKey = _apiKeyFor(settings, serviceKey).isNotEmpty;
 
     final (dotColor, statusText) = ssoDotStateFor(
@@ -732,15 +814,10 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
           Container(
             width: 10,
             height: 10,
-            decoration: BoxDecoration(
-              color: dotColor,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: dotColor, shape: BoxShape.circle),
           ),
           const SizedBox(width: 8),
-          Expanded(
-            child: Text('$label — $statusText'),
-          ),
+          Expanded(child: Text('$label — $statusText')),
         ],
       ),
     );
