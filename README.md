@@ -173,15 +173,15 @@ them out, or mix per service.
 
 ### Android
 
-Download the `.apk` file from the [Releases](https://github.com/matthw-labs/seekarr/releases) page and install it on your device (you may need to allow installs from unknown sources).
+Download the `.apk` file from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page and install it on your device (you may need to allow installs from unknown sources).
 
 ### macOS
 
-Download the `.dmg` file from the [Releases](https://github.com/matthw-labs/seekarr/releases) page, drag Seekarr to `/Applications`, and launch it. On first run, right-click the app and choose **Open** to bypass Gatekeeper.
+Download the `.dmg` file from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page, drag Seekarr to `/Applications`, and launch it. On first run, right-click the app and choose **Open** to bypass Gatekeeper.
 
 ### iOS
 
-Download the unsigned `.ipa` from the [Releases](https://github.com/matthw-labs/seekarr/releases) page and sideload it with one of the standard tools:
+Download the unsigned `.ipa` from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page and sideload it with one of the standard tools:
 
 - **[AltStore](https://altstore.io/)** — refreshes over Wi-Fi on the same machine
 - **[Sideloadly](https://sideloadly.io/)** — desktop tool, no account needed on macOS
