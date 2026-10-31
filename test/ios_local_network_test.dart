@@ -10,6 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 /// permission) stayed green. Regression test: the key must exist with a
 /// non-empty purpose string.
 void main() {
+  // Two-step check: key presence first (clear failure message naming the
+  // missing key), then a non-empty purpose string (what iOS shows).
   test('iOS Info.plist declares Local Network usage', () {
     final plist = File('ios/Runner/Info.plist').readAsStringSync();
     expect(plist.contains('NSLocalNetworkUsageDescription'), isTrue,
