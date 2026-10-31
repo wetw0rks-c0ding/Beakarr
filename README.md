@@ -1,4 +1,4 @@
-# Seekarr
+# Beakarr
 
 A Flutter app for managing your self-hosted media stack from anywhere.  
 One client for **Seerr**, **Radarr**, **Sonarr**, **Lidarr**, and **qBittorrent** on macOS, iOS, and Android.
@@ -122,7 +122,7 @@ flutter run
 
 ## Configuration
 
-Seekarr ships with no default credentials. After launching the app, open **Settings** and configure each service you want to use:
+Beakarr ships with no default credentials. After launching the app, open **Settings** and configure each service you want to use:
 
 - **Seerr** — Base URL + API key
 - **Radarr** — Base URL + API key
@@ -187,7 +187,7 @@ Contributions to improve support on these platforms are welcome.
 
 ## Architecture
 
-Seekarr follows a **feature-first layered architecture**:
+Beakarr follows a **feature-first layered architecture**:
 
 ```
 lib/
@@ -241,13 +241,13 @@ For setup notes, conventions, and pull request expectations, see [CONTRIBUTING.m
 
 ## About this project
 
-Seekarr was born from a personal need: flawlessly managing a self-hosted *arr stack from a phone, from anywhere. It is built with a focus on getting the details right — polished interactions, honest error and empty states, and a test suite that keeps them that way — rather than on shipping fast.
+Beakarr was born from a personal need: flawlessly managing a self-hosted *arr stack from a phone, from anywhere. It is built with a focus on getting the details right — polished interactions, honest error and empty states, and a test suite that keeps them that way — rather than on shipping fast.
 
 ---
 
 ## Support
 
-If you find Seekarr useful, consider supporting me with a donation — it helps keep the project going!
+If you find Beakarr useful, consider supporting me with a donation — it helps keep the project going!
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/matthwlabs)
 
