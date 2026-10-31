@@ -60,8 +60,7 @@ class _OpenMediaVaultScreenState extends ConsumerState<OpenMediaVaultScreen> {
           // and would otherwise hide under the overlay.
           if (widget.topPadding > 0)
             SizedBox(
-              height:
-                  widget.topPadding + MediaQuery.paddingOf(context).top,
+              height: widget.topPadding + MediaQuery.paddingOf(context).top,
             ),
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -70,22 +69,10 @@ class _OpenMediaVaultScreenState extends ConsumerState<OpenMediaVaultScreen> {
             ),
             child: SegmentedButton<int>(
               segments: const [
-                ButtonSegment(
-                  value: _overviewTab,
-                  label: Text('Overview'),
-                ),
-                ButtonSegment(
-                  value: _storageTab,
-                  label: Text('Storage'),
-                ),
-                ButtonSegment(
-                  value: _disksTab,
-                  label: Text('Disks'),
-                ),
-                ButtonSegment(
-                  value: _servicesTab,
-                  label: Text('Services'),
-                ),
+                ButtonSegment(value: _overviewTab, label: Text('Overview')),
+                ButtonSegment(value: _storageTab, label: Text('Storage')),
+                ButtonSegment(value: _disksTab, label: Text('Disks')),
+                ButtonSegment(value: _servicesTab, label: Text('Services')),
               ],
               selected: {_tab},
               showSelectedIcon: false,
@@ -128,13 +115,23 @@ class _OverviewTab extends ConsumerWidget {
             ),
             children: [
               OmvStatTile(label: 'Hostname', value: info.hostname ?? '—'),
-              OmvStatTile(label: 'Version', value: info.displayVersion.isEmpty ? '—' : info.displayVersion),
+              OmvStatTile(
+                label: 'Version',
+                value: info.displayVersion.isEmpty ? '—' : info.displayVersion,
+              ),
               OmvStatTile(label: 'Kernel', value: info.kernel ?? '—'),
-              OmvStatTile(label: 'Uptime', value: info.uptimeLabel.isEmpty ? '—' : info.uptimeLabel),
-              OmvStatTile(label: 'Load (1/5/15m)', value: info.loadLabel.isEmpty ? '—' : info.loadLabel),
+              OmvStatTile(
+                label: 'Uptime',
+                value: info.uptimeLabel.isEmpty ? '—' : info.uptimeLabel,
+              ),
+              OmvStatTile(
+                label: 'Load (1/5/15m)',
+                value: info.loadLabel.isEmpty ? '—' : info.loadLabel,
+              ),
               OmvStatTile(
                 label: 'CPU',
-                value: '${info.cpuModelName ?? '—'} (${info.cpuCores ?? 0} cores)',
+                value:
+                    '${info.cpuModelName ?? '—'} (${info.cpuCores ?? 0} cores)',
               ),
               OmvStatTile(
                 label: 'Memory',
@@ -168,7 +165,7 @@ class _OverviewTab extends ConsumerWidget {
           ),
         );
       },
-      );
+    );
   }
 }
 
@@ -194,10 +191,12 @@ class _StorageTab extends ConsumerWidget {
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-            // Nav clearance (see settings_services_screen.dart).
-            padding: EdgeInsets.only(
-              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
-            ),
+              // Nav clearance (see settings_services_screen.dart).
+              padding: EdgeInsets.only(
+                bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(
+                  context,
+                ),
+              ),
               children: const [
                 SizedBox(height: 64),
                 Center(child: Text('No filesystems')),
@@ -276,10 +275,12 @@ class _DisksTab extends ConsumerWidget {
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-            // Nav clearance (see settings_services_screen.dart).
-            padding: EdgeInsets.only(
-              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
-            ),
+              // Nav clearance (see settings_services_screen.dart).
+              padding: EdgeInsets.only(
+                bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(
+                  context,
+                ),
+              ),
               children: const [
                 SizedBox(height: 64),
                 Center(child: Text('No disks')),
@@ -320,9 +321,7 @@ class _DisksTab extends ConsumerWidget {
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
                           ),
-                          OmvHealthPill(
-                            status: smart?.overallStatus ?? '',
-                          ),
+                          OmvHealthPill(status: smart?.overallStatus ?? ''),
                         ],
                       ),
                       Text(disk.model ?? ''),
@@ -360,10 +359,12 @@ class _ServicesTab extends ConsumerWidget {
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-            // Nav clearance (see settings_services_screen.dart).
-            padding: EdgeInsets.only(
-              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
-            ),
+              // Nav clearance (see settings_services_screen.dart).
+              padding: EdgeInsets.only(
+                bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(
+                  context,
+                ),
+              ),
               children: const [
                 SizedBox(height: 64),
                 Center(child: Text('No services')),
