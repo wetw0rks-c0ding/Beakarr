@@ -537,14 +537,23 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                   });
                   final validator = OidcPresetValidator(
                     fetch: (url) async {
+                      // Contract: decoded JSON Map on HTTP 200, coded
+                      // throw otherwise (validator maps 404→slug404,
+                      // anything else→unreachable). Never swallow status
+                      // into a wrapper: the validator reads issuer and
+                      // endpoints off the returned value directly.
                       final client = HttpClient();
                       try {
                         final req = await client.getUrl(Uri.parse(url));
                         final resp = await req.close();
                         final body = await resp.transform(utf8.decoder).join();
-                        return {'statusCode': resp.statusCode, 'body': body};
-                      } catch (_) {
-                        return null;
+                        if (resp.statusCode == 404) {
+                          throw Exception('404 Not Found');
+                        }
+                        if (resp.statusCode != 200) {
+                          throw Exception('HTTP ${resp.statusCode}');
+                        }
+                        return jsonDecode(body);
                       } finally {
                         client.close(force: true);
                       }

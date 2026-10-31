@@ -39,6 +39,14 @@ void main() {
       expect(r.valid, false);
       expect(r.errorType, OidcValidationError.notOidc);
     });
+    test('200-with-HTML body is notOidc, not unreachable', () async {
+      final v = OidcPresetValidator(
+        fetch: (_) async => '<html><body>Captive portal</body></html>',
+      );
+      final r = await v.validate(origin: 'https://a', slug: 's');
+      expect(r.valid, false);
+      expect(r.errorType, OidcValidationError.notOidc);
+    });
     test('happy path with doc-issuer-canonicalization', () async {
       final v = OidcPresetValidator(fetch: (_) async => {
         'issuer': 'https://auth.example.com/application/o/arrstack/',

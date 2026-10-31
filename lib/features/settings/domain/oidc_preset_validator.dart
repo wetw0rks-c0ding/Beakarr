@@ -14,6 +14,18 @@ class OidcPresetValidator {
   final Future<dynamic> Function(String url) fetch;
   const OidcPresetValidator({required this.fetch});
 
+  /// Best-effort JSON decode; null when the body is not JSON at all.
+  static Map<String, dynamic>? _tryDecodeJson(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<OidcValidationResult> validate({required String origin, required String slug}) async {
     // Normalization
     var o = origin.trim();
@@ -25,7 +37,13 @@ class OidcPresetValidator {
       final resp = await fetch(url);
       if (resp == null) return const OidcValidationResult(valid: false, error: 'Unreachable', errorType: OidcValidationError.unreachable);
       // Mock/real interface: assume resp is Map or has .statusCode and body
-      final dynamic body = resp is Map ? resp : (resp is String ? jsonDecode(resp) : null);
+      // Map: already-decoded metadata (unit-test seam). String: raw
+      // body — a decode failure means 200-with-non-JSON (captive
+      // portal, HTML error page), i.e. not OIDC metadata, never a
+      // transport error.
+      final dynamic body = resp is Map
+          ? resp
+          : (resp is String ? _tryDecodeJson(resp) : null);
       if (body is! Map) return const OidcValidationResult(valid: false, error: 'Not OIDC metadata', errorType: OidcValidationError.notOidc);
       final issuerVal = body['issuer'];
       final auth = body['authorization_endpoint'];
