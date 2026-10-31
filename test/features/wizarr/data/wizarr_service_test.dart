@@ -93,4 +93,17 @@ void main() {
     final service = _service({'invitations': [], 'count': 0});
     expect(await service.getInvitations(), isEmpty);
   });
+
+  test('empty map yields empty list', () async {
+    final service = _service(<String, dynamic>{});
+    expect(await service.getInvitations(), isEmpty);
+  });
+
+  test('HTML body surfaces an error, not an empty list', () async {
+    final service = _service('<html><body>login</body></html>');
+    await expectLater(
+      service.getInvitations(),
+      throwsA(isA<WizarrException>()),
+    );
+  });
 }

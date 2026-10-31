@@ -20,7 +20,9 @@ class WizarrService {
   /// Unwraps a list from the RPC response. Envelope precedence:
   /// explicit [envelopeKeys] first, then generic `data`/`results`/`items`/
   /// `list`, then the first list-valued entry, then a bare top-level array.
-  /// Anything else yields an empty list (never throws).
+  /// An empty or unrecognised map yields an empty list. Anything that is
+  /// neither a Map nor a List (e.g. an HTML login page from a wrong URL)
+  /// throws [WizarrException] so the screen shows an error, not "No items".
   static List<T> _items<T>(
     dynamic response,
     T Function(Map<String, dynamic>) fromJson,
@@ -46,10 +48,10 @@ class WizarrService {
       }
     }
     if (data is! List) {
-      if (response is List)
-        data = response;
-      else
-        return const [];
+      if (response is Map) return const [];
+      throw const WizarrException(
+        message: 'Unexpected response from Wizarr (not a JSON list)',
+      );
     }
     final items = <T>[];
     for (final item in data) {
