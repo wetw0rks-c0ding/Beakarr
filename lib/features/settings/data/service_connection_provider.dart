@@ -40,6 +40,10 @@ String _healthEndpoint(ServiceKey service) {
       return '/rest/ping.view';
     case ServiceKey.soulsync:
       return '/api/v1/profiles';
+    case ServiceKey.nzbget:
+      return '/jsonrpc';
+    case ServiceKey.npm:
+      return '/api/nginx/proxy-hosts';
   }
 }
 
@@ -95,6 +99,14 @@ Future<ServiceConnectionStatus> _checkService(
 
   final url = settings.urlFor(service);
   final apiKey = settings.apiKeyFor(service);
+
+  // PR1 stub: NZBGet/NPM clients land in PR2/PR3. A configured service
+  // reports disconnected (honest red dot) instead of crashing.
+  // TODO(nzbget): replace with version+status health check (PR2).
+  // TODO(npm): replace with token exchange + proxy-hosts check (PR3).
+  if (service == ServiceKey.nzbget || service == ServiceKey.npm) {
+    return ServiceConnectionStatus.disconnected;
+  }
 
   if (service == ServiceKey.soulsync) {
     final ssClient = ApiClient(
@@ -242,6 +254,14 @@ Future<({bool ok, String detail})> testServiceConnection(
     }
   }
 
+  // PR1 stub: replaced with the real handshake in PR2 (NZBGet)
+  // and PR3 (NPM). Never green before the service exists.
+  // TODO(nzbget): version+status check (PR2).
+  // TODO(npm): token exchange + proxy-hosts check (PR3).
+  if (service == ServiceKey.nzbget || service == ServiceKey.npm) {
+    return (ok: false, detail: 'Not yet supported');
+  }
+
   if (service == ServiceKey.soulsync) {
     final ssClient = ApiClient(
       baseUrl: settings.soulsyncUrl,
@@ -367,6 +387,18 @@ String _scrub(String text, SettingsModel settings, ServiceKey service) {
       settings.navidromeUrl,
       settings.navidromeUsername,
       settings.navidromePassword,
+    ]);
+  } else if (service == ServiceKey.nzbget) {
+    secrets.addAll([
+      settings.nzbgetUrl,
+      settings.nzbgetUsername,
+      settings.nzbgetPassword,
+    ]);
+  } else if (service == ServiceKey.npm) {
+    secrets.addAll([
+      settings.npmUrl,
+      settings.npmIdentity,
+      settings.npmPassword,
     ]);
   } else {
     secrets.addAll([settings.urlFor(service), settings.apiKeyFor(service)]);

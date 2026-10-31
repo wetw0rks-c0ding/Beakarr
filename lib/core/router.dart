@@ -418,6 +418,70 @@ GoRoute _soulsyncRoutes({required String path}) {
   );
 }
 
+// PR1 stub: real screens land in PR2 (NZBGet) and PR3 (NPM).
+// A dedicated coming-soon placeholder (not NotConfiguredPlaceholder,
+// which would wrongly claim the service is unconfigured).
+// TODO(nzbget): NzbgetScreen (PR2). TODO(npm): NpmScreen (PR3).
+GoRoute _nzbgetRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.nzbget,
+        child: const _ComingSoonPlaceholder(serviceName: 'NZBGet'),
+      ),
+    ),
+  );
+}
+
+GoRoute _npmRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.npm,
+        child: const _ComingSoonPlaceholder(serviceName: 'Nginx PM'),
+      ),
+    ),
+  );
+}
+
+class _ComingSoonPlaceholder extends StatelessWidget {
+  const _ComingSoonPlaceholder({required this.serviceName});
+
+  final String serviceName;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.construction_rounded,
+            size: 64,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            '$serviceName support is on the way',
+            style: Theme.of(context).textTheme.headlineSmall,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Settings can be saved now; the dashboard arrives in the next update.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 GoRoute _prowlarrRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -523,6 +587,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               _prowlarrRoutes(path: 'prowlarr'),
               _navidromeRoutes(path: 'navidrome'),
               _soulsyncRoutes(path: 'soulsync'),
+              _nzbgetRoutes(path: 'nzbget'),
+              _npmRoutes(path: 'npm'),
             ],
           ),
           GoRoute(

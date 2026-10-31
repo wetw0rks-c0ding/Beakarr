@@ -155,6 +155,14 @@ Future<String?> _loadVersion(
     }
   }
 
+  // PR1 stub: real version reads land in PR2 (NZBGet) and PR3 (NPM).
+  // Must THROW (not return null): _loadServiceSummary treats a clean
+  // return as online, which would paint a green dot on an untested service.
+  // TODO(nzbget): getVersion() (PR2). TODO(npm): no version endpoint (PR3).
+  if (service == ServiceKey.nzbget || service == ServiceKey.npm) {
+    throw StateError('Service version not yet implemented');
+  }
+
   final createClient = ref.watch(serviceStatusClientFactoryProvider);
   final client = createClient(
     baseUrl: settings.urlFor(service),
@@ -194,6 +202,10 @@ String _statusEndpointFor(ServiceKey service) {
       return '/rest/ping.view';
     case ServiceKey.soulsync:
       return '/api/v1/profiles';
+    case ServiceKey.nzbget:
+      return '/jsonrpc';
+    case ServiceKey.npm:
+      return '/api/nginx/proxy-hosts';
   }
 }
 
@@ -313,6 +325,11 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       } catch (_) {
         throw StateError('SoulSync wishlist count unavailable');
       }
+    // PR1 stub: real counts land in PR2 (NZBGet) and PR3 (NPM).
+    // TODO(nzbget): listgroups length (PR2). TODO(npm): proxy-host count (PR3).
+    case ServiceKey.nzbget:
+    case ServiceKey.npm:
+      throw StateError('Service count not yet implemented');
   }
 }
 
@@ -535,7 +552,9 @@ Future<List<ServiceQueueItem>> _loadServiceQueueItems(
       ServiceKey.qbittorrent ||
       ServiceKey.bazarr ||
       ServiceKey.navidrome ||
-      ServiceKey.soulsync => const <dynamic>[],
+      ServiceKey.soulsync ||
+      ServiceKey.nzbget ||
+      ServiceKey.npm => const <dynamic>[],
     };
     return items
         .whereType<Map>()
@@ -578,6 +597,8 @@ String _queueTypeLabel(ServiceKey service) {
     ServiceKey.bazarr => 'Subtitle',
     ServiceKey.navidrome => 'Artist',
     ServiceKey.soulsync => 'Wishlist',
+    ServiceKey.nzbget => 'NZBGet',
+    ServiceKey.npm => 'Proxy',
     ServiceKey.seerr || ServiceKey.qbittorrent => service.title,
   };
 }

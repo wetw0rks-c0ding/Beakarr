@@ -33,7 +33,31 @@ const _serviceColors = {
   ServiceKey.bazarr: Color(0xFF22D3EE), // Bazarr cyan
   ServiceKey.navidrome: Color(0xFF4ADE80), // Navidrome green
   ServiceKey.soulsync: Color(0xFF8B5CF6), // SoulSync violet
+  ServiceKey.nzbget: Color(0xFF26A69A), // NZBGet teal
+  ServiceKey.npm: Color(0xFFF1583A), // NPM orange-red
 };
+
+/// Hint under the credential fields, per service auth shape.
+String _credentialHint(ServiceKey service) {
+  switch (service) {
+    case ServiceKey.navidrome:
+      return 'Navidrome requires a username and password.';
+    case ServiceKey.nzbget:
+      return 'NZBGet requires a username and password (ControlUsername / ControlPassword).';
+    case ServiceKey.npm:
+      return 'The email and password you sign in to Nginx Proxy Manager with.';
+    case ServiceKey.qbittorrent:
+      return 'Leave credentials empty if your qBittorrent instance does not require authentication.';
+    case ServiceKey.seerr:
+    case ServiceKey.radarr:
+    case ServiceKey.sonarr:
+    case ServiceKey.lidarr:
+    case ServiceKey.prowlarr:
+    case ServiceKey.bazarr:
+    case ServiceKey.soulsync:
+      return '';
+  }
+}
 
 // ─── Health-check helper (mirrors serviceConnectionProvider logic) ──────────
 String _healthEndpoint(ServiceKey service) {
@@ -55,6 +79,10 @@ String _healthEndpoint(ServiceKey service) {
       return '/rest/ping.view';
     case ServiceKey.soulsync:
       return '/api/v1/profiles';
+    case ServiceKey.nzbget:
+      return '/jsonrpc';
+    case ServiceKey.npm:
+      return '/api/nginx/proxy-hosts';
   }
 }
 
@@ -65,6 +93,12 @@ Future<ServiceConnectionStatus> _verifyService(
   required String username,
   required String password,
 }) async {
+  // PR1 stub: NZBGet/NPM verify clients land in PR2/PR3.
+  // TODO(nzbget): version+status check (PR2).
+  // TODO(npm): token exchange + proxy-hosts check (PR3).
+  if (service == ServiceKey.nzbget || service == ServiceKey.npm) {
+    return ServiceConnectionStatus.notConfigured;
+  }
   if (!service.usesApiKey) {
     final urlTrimmed = url.trim();
     if (urlTrimmed.isEmpty) return ServiceConnectionStatus.notConfigured;
@@ -191,11 +225,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _isServiceReady(ServiceKey k) {
     if (!_enabled[k]!) return false;
     if (_urlCtrl[k]!.text.trim().isEmpty) return false;
-    if (k == ServiceKey.navidrome) {
+    if (!k.usesApiKey) {
+      // qBittorrent allows anonymous instances; every other credential
+      // service requires both fields.
+      if (!k.requiresUsername) return true;
       return _usernameCtrl[k]!.text.trim().isNotEmpty &&
           _passwordCtrl[k]!.text.isNotEmpty;
     }
-    if (!k.usesApiKey) return true;
     return _apiKeyCtrl[k]!.text.trim().isNotEmpty;
   }
 
@@ -235,6 +271,18 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             username: _usernameCtrl[k]!.text.trim(),
             password: _passwordCtrl[k]!.text,
           );
+        } else if (k == ServiceKey.nzbget) {
+          updated = updated.copyWithNzbget(
+            url: _urlCtrl[k]!.text.trim(),
+            username: _usernameCtrl[k]!.text.trim(),
+            password: _passwordCtrl[k]!.text,
+          );
+        } else if (k == ServiceKey.npm) {
+          updated = updated.copyWithNpm(
+            url: _urlCtrl[k]!.text.trim(),
+            identity: _usernameCtrl[k]!.text.trim(),
+            password: _passwordCtrl[k]!.text,
+          );
         } else {
           updated = updated.copyWithService(
             k,
@@ -243,21 +291,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           );
         }
       } else {
-        if (k == ServiceKey.qbittorrent) {
-          updated = updated.copyWithQbittorrent(
-            url: '',
-            username: '',
-            password: '',
-          );
-        } else if (k == ServiceKey.navidrome) {
-          updated = updated.copyWithNavidrome(
-            url: '',
-            username: '',
-            password: '',
-          );
-        } else {
-          updated = updated.copyWithService(k, url: '', apiKey: '');
-        }
+        updated = updated.clearedService(k);
       }
     }
     try {
@@ -933,18 +967,17 @@ class _ServiceConfig extends StatelessWidget {
                   controller: apiKeyCtrl,
                   isPassword: true,
                 ),
-              ] else if (serviceKey == ServiceKey.qbittorrent ||
-                  serviceKey == ServiceKey.navidrome) ...[
+              ] else if (!serviceKey.usesApiKey) ...[
                 const SizedBox(height: 10),
                 _ConfigField(
-                  label: serviceKey == ServiceKey.navidrome
-                      ? 'Username'
-                      : 'Username (optional)',
+                  label: serviceKey.requiresUsername
+                      ? serviceKey.usernameLabel
+                      : '${serviceKey.usernameLabel} (optional)',
                   controller: usernameCtrl,
                 ),
                 const SizedBox(height: 10),
                 _ConfigField(
-                  label: serviceKey == ServiceKey.navidrome
+                  label: serviceKey.requiresPassword
                       ? 'Password'
                       : 'Password (optional)',
                   controller: passwordCtrl,
@@ -952,9 +985,7 @@ class _ServiceConfig extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  serviceKey == ServiceKey.navidrome
-                      ? 'Navidrome requires a username and password.'
-                      : 'Leave credentials empty if your qBittorrent instance does not require authentication.',
+                  _credentialHint(serviceKey),
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
@@ -963,8 +994,7 @@ class _ServiceConfig extends StatelessWidget {
                   ),
                 ),
               ],
-              if ((serviceKey == ServiceKey.qbittorrent ||
-                  serviceKey == ServiceKey.navidrome) &&
+              if (!serviceKey.usesApiKey &&
                   verifyStatus == ServiceConnectionStatus.disconnected) ...[
                 const SizedBox(height: 10),
                 const Text(
@@ -978,19 +1008,37 @@ class _ServiceConfig extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              // Verify row
-              Row(
-                children: [
-                  Expanded(
-                    child: _VerifyButton(verifying: verifying, onTap: onVerify),
+              // Verify row. PR1: NZBGet/NPM have no verify client yet
+              // (PR2/PR3) and the shared badge only knows
+              // Reachable/Unreachable — showing Unreachable would be a lie,
+              // so the row is replaced with an honest note.
+              if (serviceKey == ServiceKey.nzbget ||
+                  serviceKey == ServiceKey.npm)
+                const Text(
+                  'Connection check arrives with support — saving works now.',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    color: _muted,
+                    height: 1.5,
                   ),
-                  const SizedBox(width: 10),
-                  _VerifyStatusBadge(
-                    status: verifyStatus,
-                    verifying: verifying,
-                  ),
-                ],
-              ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: _VerifyButton(
+                        verifying: verifying,
+                        onTap: onVerify,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _VerifyStatusBadge(
+                      status: verifyStatus,
+                      verifying: verifying,
+                    ),
+                  ],
+                ),
             ],
           ),
         ),

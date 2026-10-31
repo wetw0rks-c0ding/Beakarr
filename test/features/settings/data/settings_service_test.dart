@@ -114,6 +114,64 @@ void main() {
       expect(loaded.themeMode, settings.themeMode);
     });
 
+    test('saveSettings and loadSettings round-trip NZBGet and NPM', () async {
+      const settings = SettingsModel(
+        nzbgetUrl: 'http://nzbget:6789',
+        nzbgetUsername: 'nzuser',
+        nzbgetPassword: 'nzpass',
+        npmUrl: 'http://npm:81',
+        npmIdentity: 'admin@example.com',
+        npmPassword: 'nmpass',
+      );
+
+      await service.saveSettings(settings);
+      final loaded = await service.loadSettings();
+
+      expect(loaded.nzbgetUrl, settings.nzbgetUrl);
+      expect(loaded.nzbgetUsername, settings.nzbgetUsername);
+      expect(loaded.nzbgetPassword, settings.nzbgetPassword);
+      expect(loaded.npmUrl, settings.npmUrl);
+      expect(loaded.npmIdentity, settings.npmIdentity);
+      expect(loaded.npmPassword, settings.npmPassword);
+
+      // Storage layout: URLs + usernames in prefs, passwords in secure.
+      expect(prefs.getString('nzbget_url'), settings.nzbgetUrl);
+      expect(prefs.getString('nzbget_username'), settings.nzbgetUsername);
+      expect(prefs.getString('npm_url'), settings.npmUrl);
+      expect(prefs.getString('npm_identity'), settings.npmIdentity);
+      expect(
+        await secureStore.read(key: 'secure_nzbget_password'),
+        'nzpass',
+      );
+      expect(await secureStore.read(key: 'secure_npm_password'), 'nmpass');
+    });
+
+    test('clearAll wipes NZBGet and NPM credentials', () async {
+      const settings = SettingsModel(
+        nzbgetUrl: 'http://nzbget:6789',
+        nzbgetUsername: 'nzuser',
+        nzbgetPassword: 'nzpass',
+        npmUrl: 'http://npm:81',
+        npmIdentity: 'admin@example.com',
+        npmPassword: 'nmpass',
+      );
+      await service.saveSettings(settings);
+
+      await service.clearAll();
+
+      final loaded = await service.loadSettings();
+      expect(loaded.nzbgetUrl, isEmpty);
+      expect(loaded.nzbgetUsername, isEmpty);
+      expect(loaded.nzbgetPassword, isEmpty);
+      expect(loaded.npmUrl, isEmpty);
+      expect(loaded.npmIdentity, isEmpty);
+      expect(loaded.npmPassword, isEmpty);
+      expect(prefs.getString('nzbget_username'), isNull);
+      expect(prefs.getString('npm_identity'), isNull);
+      expect(await secureStore.read(key: 'secure_nzbget_password'), isNull);
+      expect(await secureStore.read(key: 'secure_npm_password'), isNull);
+    });
+
     test('loadSettings returns empty defaults on fresh storage', () async {
       final loaded = await service.loadSettings();
 

@@ -76,7 +76,10 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   bool get isQbittorrent => widget.service == ServiceKey.qbittorrent;
   bool get isNavidrome => widget.service == ServiceKey.navidrome;
   bool get isSoulSync => widget.service == ServiceKey.soulsync;
-  bool get isCredentialService => isQbittorrent || isNavidrome;
+  bool get isNzbget => widget.service == ServiceKey.nzbget;
+  bool get isNpm => widget.service == ServiceKey.npm;
+  bool get isCredentialService =>
+      widget.service.credentialKind != ServiceCredentialKind.apiKey;
 
   String? _selectedProfileId;
   List<SoulSyncProfile> _profiles = const [];
@@ -161,6 +164,20 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
         password: _passwordController.text.trim(),
       );
     }
+    if (isNzbget) {
+      return current.copyWithNzbget(
+        url: _urlController.text.trim(),
+        username: _usernameController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+    }
+    if (isNpm) {
+      return current.copyWithNpm(
+        url: _urlController.text.trim(),
+        identity: _usernameController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+    }
     if (isSoulSync) {
       return current.copyWithSoulSync(
         url: _urlController.text.trim(),
@@ -195,6 +212,15 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
             if (isCredentialService) ...[
               const SizedBox(height: AppSpacing.lg),
               _buildPasswordField(),
+              if (isNpm) ...[
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'The email you sign in to Nginx Proxy Manager with.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
             ],
             if (isSoulSync) ...[
               const SizedBox(height: AppSpacing.lg),
@@ -472,19 +498,23 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   }
 
   Widget _buildUsernameField() {
+    final service = widget.service;
+    final required = service.requiresUsername;
     return TextFormField(
       controller: _usernameController,
       decoration: InputDecoration(
-        labelText: isNavidrome ? 'Username' : 'Username',
-        hintText: isNavidrome ? null : 'Optional',
+        labelText: service.usernameLabel,
+        hintText: required ? null : 'Optional',
       ),
-      keyboardType: TextInputType.text,
+      keyboardType: service.credentialKind == ServiceCredentialKind.emailPassword
+          ? TextInputType.emailAddress
+          : TextInputType.text,
       textInputAction: TextInputAction.next,
       autocorrect: false,
-      validator: isNavidrome
+      validator: required
           ? (value) {
               if (value == null || value.trim().isEmpty) {
-                return 'Username is required';
+                return '${service.usernameLabel} is required';
               }
               return null;
             }
@@ -493,17 +523,18 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   }
 
   Widget _buildPasswordField() {
+    final required = widget.service.requiresPassword;
     return TextFormField(
       controller: _passwordController,
       decoration: InputDecoration(
         labelText: 'Password',
-        hintText: isNavidrome ? null : 'Optional',
+        hintText: required ? null : 'Optional',
       ),
       keyboardType: TextInputType.visiblePassword,
       textInputAction: TextInputAction.done,
       onFieldSubmitted: (_) => _saveSettings(),
       obscureText: true,
-      validator: isNavidrome
+      validator: required
           ? (value) {
               if (value == null || value.trim().isEmpty) {
                 return 'Password is required';

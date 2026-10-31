@@ -64,6 +64,53 @@ void main() {
       expect(apiKeyField.controller?.text, 'radarr-key');
     });
 
+    testWidgets('nzbget uses username+password fields, both required', (
+      tester,
+    ) async {
+      await _pumpServiceSettings(
+        tester,
+        service: ServiceKey.nzbget,
+        settings: const SettingsModel(
+          nzbgetUrl: 'http://nzbget:6789',
+          nzbgetUsername: 'nzuser',
+          nzbgetPassword: 'nzpass',
+        ),
+      );
+
+      expect(find.text('NZBGet Settings'), findsOneWidget);
+      expect(find.text('Username'), findsOneWidget);
+      expect(find.text('Password'), findsOneWidget);
+      expect(find.text('API Key'), findsNothing);
+      // No 'Optional' hints: both fields required.
+      expect(find.text('Optional'), findsNothing);
+
+      final urlField = tester.widget<TextField>(_fieldByLabel('Server URL'));
+      final userField = tester.widget<TextField>(_fieldByLabel('Username'));
+      expect(urlField.controller?.text, 'http://nzbget:6789');
+      expect(userField.controller?.text, 'nzuser');
+    });
+
+    testWidgets('npm labels the identity field Email', (tester) async {
+      await _pumpServiceSettings(
+        tester,
+        service: ServiceKey.npm,
+        settings: const SettingsModel(
+          npmUrl: 'http://npm:81',
+          npmIdentity: 'admin@example.com',
+        ),
+      );
+
+      expect(find.text('Nginx PM Settings'), findsOneWidget);
+      expect(find.text('Email'), findsOneWidget);
+      expect(find.text('API Key'), findsNothing);
+      expect(
+        find.text(
+          'The email you sign in to Nginx Proxy Manager with.',
+        ),
+        findsOneWidget,
+      );
+    });
+
     testWidgets('renders the service icon in the header', (tester) async {
       await _pumpServiceSettings(tester, service: ServiceKey.lidarr);
 

@@ -55,4 +55,40 @@ void main() {
     final result = await testServiceConnection(ServiceKey.navidrome, settings);
     expect(result.ok, isTrue);
   });
+
+  test('nzbget test connection reports not supported (PR1 stub)', () async {
+    const settings = SettingsModel(
+      nzbgetUrl: 'http://127.0.0.1:6789',
+      nzbgetUsername: 'user',
+      nzbgetPassword: 'pass',
+    );
+
+    final result = await testServiceConnection(ServiceKey.nzbget, settings);
+    expect(result.ok, isFalse);
+    expect(result.detail, 'Not yet supported');
+  });
+
+  test('npm test connection reports not supported (PR1 stub)', () async {
+    const settings = SettingsModel(
+      npmUrl: 'http://127.0.0.1:81',
+      npmIdentity: 'admin@example.com',
+      npmPassword: 'pass',
+    );
+
+    final result = await testServiceConnection(ServiceKey.npm, settings);
+    expect(result.ok, isFalse);
+    expect(result.detail, 'Not yet supported');
+  });
+
+  test('unconfigured nzbget/npm report not configured', () async {
+    const settings = SettingsModel();
+    expect(
+      (await testServiceConnection(ServiceKey.nzbget, settings)).detail,
+      'Not configured',
+    );
+    expect(
+      (await testServiceConnection(ServiceKey.npm, settings)).detail,
+      'Not configured',
+    );
+  });
 }
