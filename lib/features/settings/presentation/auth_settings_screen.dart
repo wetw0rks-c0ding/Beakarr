@@ -501,6 +501,9 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                 onChanged: (_) {
                   setState(() {
                     _originErrorText = null;
+                    // Inputs changed → prior validation is stale.
+                    _showSuccessPanel = false;
+                    _validatedIssuerHost = null;
                   });
                 },
               ),
@@ -518,6 +521,9 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                     _slugErrorText = null;
                     // New slug → new client_id default; user-edit flag resets.
                     _presetClientEdited = false;
+                    // Inputs changed → prior validation is stale.
+                    _showSuccessPanel = false;
+                    _validatedIssuerHost = null;
                   });
                 },
               ),
@@ -539,9 +545,9 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                     fetch: (url) async {
                       // Contract: decoded JSON Map on HTTP 200, coded
                       // throw otherwise (validator maps 404→slug404,
-                      // anything else→unreachable). Never swallow status
-                      // into a wrapper: the validator reads issuer and
-                      // endpoints off the returned value directly.
+                      // anything else→unreachable). A 200-with-non-JSON
+                      // body is returned raw so the validator reports
+                      // notOidc instead of a transport error.
                       final client = HttpClient();
                       try {
                         final req = await client.getUrl(Uri.parse(url));
@@ -553,7 +559,11 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                         if (resp.statusCode != 200) {
                           throw Exception('HTTP ${resp.statusCode}');
                         }
-                        return jsonDecode(body);
+                        try {
+                          return jsonDecode(body);
+                        } catch (_) {
+                          return body;
+                        }
                       } finally {
                         client.close(force: true);
                       }
@@ -563,6 +573,7 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                     origin: _presetOriginController.text,
                     slug: _presetSlugController.text,
                   );
+                  if (!context.mounted) return;
                   setState(() {
                     _validating = false;
                     if (res.valid) {
@@ -646,6 +657,12 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                 ).showSnackBar(const SnackBar(content: Text('Name required')));
                 return;
               }
+              if (clientId.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Client ID required')),
+                );
+                return;
+              }
               final current = List<OidcPreset>.from(presets);
               final existing = current.cast<OidcPreset?>().firstWhere(
                 (p) =>
@@ -677,6 +694,7 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
               _presetSlugController.clear();
               _presetNameController.clear();
               _presetClientIdController.clear();
+              _presetClientEdited = false;
               setState(() {
                 _showSuccessPanel = false;
                 _validatedIssuerHost = null;
@@ -757,6 +775,10 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
               if (confirm == true) {
                 SonarrOidcSessionProvider.clearAll();
                 final latest = ref.read(settingsProvider);
+                // Client-only switches don't trip updateSettings' issuer
+                // wipe, so clear OIDC pairs explicitly whenever anything
+                // changed (no-op already returned above).
+                await ref.read(settingsServiceProvider).clearOidcSessions();
                 await ref
                     .read(settingsProvider.notifier)
                     .updateSettings(
