@@ -15,6 +15,10 @@ import 'package:seekarr/features/series/presentation/series_detail_view_model.da
 import 'package:seekarr/features/series/presentation/series_provider.dart';
 import 'package:seekarr/features/series/presentation/widgets/series_seasons_list.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
+import 'package:seekarr/features/bazarr/presentation/subtitles_section.dart';
+import 'package:seekarr/features/bazarr/presentation/bazarr_providers.dart';
+import 'package:seekarr/features/bazarr/data/bazarr_service.dart';
+import 'package:seekarr/features/bazarr/presentation/episode_sheet.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 
 class SeriesDetailScreen extends ConsumerStatefulWidget {
@@ -230,6 +234,45 @@ class _SeriesDetailScreenState extends ConsumerState<SeriesDetailScreen>
         ),
         const SizedBox(height: AppSpacing.lg),
       ],
+      // Bazarr subtitles graft (series level — preview via first episode)
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const MediaDetailSectionHeader(title: 'Subtitles'),
+            Consumer(builder: (context, ref, _) {
+              final async = ref.watch(bazarrEpisodeSubtitlesProvider((seriesId: seriesId, episodeId: 1)));
+              return SubtitlesSection(
+                subtitles: async.asData?.value ?? [],
+                isLoading: async.isLoading,
+                error: async.hasError ? async.error.toString() : null,
+                onDownload: (sub) async {
+                  try {
+                    await ref.read(bazarrServiceProvider).downloadEpisodeSubtitle(seriesId: seriesId, episodeId: 1, language: sub.code2, forced: sub.forced ? 'True' : 'False', hi: sub.hi ? 'True' : 'False');
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle downloaded')));
+                  } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Download failed: $e'))); }
+                },
+                onDelete: (sub) async {
+                  try {
+                    await ref.read(bazarrServiceProvider).deleteEpisodeSubtitle(seriesId: seriesId, episodeId: 1, language: sub.code2, path: sub.path ?? '');
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subtitle deleted')));
+                  } catch (e) { ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Delete failed: $e'))); }
+                },
+                onSearch: () {
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+                    builder: (_) => EpisodeSheet(seriesId: seriesId, season: 1, episode: 1, seriesTitle: viewModel.title),
+                  );
+                },
+              );
+            }),
+          ],
+        ),
+      ),
+      const SizedBox(height: AppSpacing.lg),
     ];
   }
 

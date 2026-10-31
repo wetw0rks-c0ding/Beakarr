@@ -319,5 +319,41 @@ Future<ServiceSummary> _summaryBuilder(Ref ref, ServiceKey service) async {
         itemCount: null,
         itemLabel: 'torrents',
       );
+    case ServiceKey.prowlarr:
+      return const ServiceSummary(
+        service: ServiceKey.prowlarr,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'indexers',
+      );
+    case ServiceKey.bazarr:
+      return const ServiceSummary(
+        service: ServiceKey.bazarr,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'subtitles',
+      );
+    case ServiceKey.navidrome:
+      return const ServiceSummary(
+        service: ServiceKey.navidrome,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'artists',
+      );
+    case ServiceKey.soulsync:
+      return const ServiceSummary(
+        service: ServiceKey.soulsync,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'wishlist',
+      );
   }
 }

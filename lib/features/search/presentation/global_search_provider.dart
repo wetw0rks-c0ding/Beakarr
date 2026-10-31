@@ -10,6 +10,9 @@ import 'package:seekarr/features/movies/data/radarr_service.dart';
 import 'package:seekarr/features/movies/domain/models/radarr_movie.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/domain/models/lidarr_artist.dart';
+import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
+import 'package:seekarr/features/prowlarr/domain/models/prowlarr_search_result.dart';
+import 'package:seekarr/features/qbittorrent/domain/models/parse_utils.dart';
 import 'package:seekarr/features/search/domain/global_search_result.dart';
 import 'package:seekarr/features/series/data/sonarr_service.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_series.dart';
@@ -29,6 +32,7 @@ final globalSearchResultsProvider = FutureProvider.autoDispose((ref) async {
     _loadRadarrResults(ref, query, settings),
     _loadSonarrResults(ref, query, settings),
     _loadLidarrResults(ref, query, settings),
+    _loadProwlarrResults(ref, query, settings),
   ]);
 });
 
@@ -76,6 +80,18 @@ Future<GlobalSearchServiceResults> _loadLidarrResults(
     service: ServiceKey.lidarr,
     loadItems: () => ref.read(lidarrServiceProvider).lookupArtists(query),
     toResult: (item) => _lidarrResult(item, settings),
+  );
+}
+
+Future<GlobalSearchServiceResults> _loadProwlarrResults(
+  Ref ref,
+  String query,
+  SettingsModel settings,
+) async {
+  return _loadServiceResults(
+    service: ServiceKey.prowlarr,
+    loadItems: () => ref.read(prowlarrServiceProvider).search(query),
+    toResult: (item) => _prowlarrResult(item, query),
   );
 }
 
@@ -178,5 +194,27 @@ GlobalSearchResult _lidarrResult(LidarrArtist item, SettingsModel settings) {
     tags: ['Artist', item.hasFiles ? 'Available' : 'Missing'],
     route: ServiceRoutes.lidarrArtist(item.id),
     routeExtra: item,
+  );
+}
+
+GlobalSearchResult _prowlarrResult(ProwlarrSearchResult item, String query) {
+  final ageLabel = item.age == null ? null : '${item.age!.toStringAsFixed(0)}d';
+  return GlobalSearchResult(
+    service: ServiceKey.prowlarr,
+    id: item.indexerId,
+    title: item.title,
+    subtitle: '${item.indexer} • ${formatSize(item.size)}',
+    imageUrl: '',
+    imageHeaders: null,
+    tags: [
+      item.protocol,
+      if (ageLabel != null) ageLabel,
+    ],
+    route: ServiceRoutes.prowlarrSearch,
+    routeExtra: null,
+    query: query,
+    seeders: item.seeders,
+    size: item.size,
+    age: item.age,
   );
 }

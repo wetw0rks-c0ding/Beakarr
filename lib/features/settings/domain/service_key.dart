@@ -2,7 +2,17 @@ import 'package:flutter/material.dart';
 
 import 'package:seekarr/core/theme.dart';
 
-enum ServiceKey { seerr, radarr, sonarr, lidarr, qbittorrent }
+enum ServiceKey {
+  seerr,
+  radarr,
+  sonarr,
+  lidarr,
+  qbittorrent,
+  prowlarr,
+  bazarr,
+  navidrome,
+  soulsync,
+}
 
 extension ServiceKeyExtension on ServiceKey {
   String get title {
@@ -17,6 +27,14 @@ extension ServiceKeyExtension on ServiceKey {
         return 'Lidarr';
       case ServiceKey.qbittorrent:
         return 'qBittorrent';
+      case ServiceKey.prowlarr:
+        return 'Prowlarr';
+      case ServiceKey.bazarr:
+        return 'Bazarr';
+      case ServiceKey.navidrome:
+        return 'Navidrome';
+      case ServiceKey.soulsync:
+        return 'SoulSync';
     }
   }
 
@@ -32,6 +50,14 @@ extension ServiceKeyExtension on ServiceKey {
         return Icons.music_note_rounded;
       case ServiceKey.qbittorrent:
         return Icons.download_rounded;
+      case ServiceKey.prowlarr:
+        return Icons.dns_rounded;
+      case ServiceKey.bazarr:
+        return Icons.closed_caption_rounded;
+      case ServiceKey.navidrome:
+        return Icons.library_music_rounded;
+      case ServiceKey.soulsync:
+        return Icons.sync_rounded;
     }
   }
 
@@ -47,15 +73,23 @@ extension ServiceKeyExtension on ServiceKey {
         return AppColors.lidarr;
       case ServiceKey.qbittorrent:
         return AppColors.qbittorrent;
+      case ServiceKey.prowlarr:
+        return AppColors.prowlarr;
+      case ServiceKey.bazarr:
+        return AppColors.bazarr;
+      case ServiceKey.navidrome:
+        return AppColors.navidrome;
+      case ServiceKey.soulsync:
+        return AppColors.soulsync;
     }
   }
 
   bool get usesApiKey {
-    return this != ServiceKey.qbittorrent;
+    return this != ServiceKey.qbittorrent && this != ServiceKey.navidrome;
   }
 
   bool get isSearchable {
-    return this != ServiceKey.qbittorrent;
+    return this != ServiceKey.qbittorrent && this != ServiceKey.navidrome;
   }
 
   bool get supportsManualImport {
@@ -68,7 +102,12 @@ extension ServiceKeyExtension on ServiceKey {
     switch (this) {
       case ServiceKey.seerr:
       case ServiceKey.lidarr:
+      case ServiceKey.prowlarr:
+      case ServiceKey.soulsync:
         return 'v1';
+      case ServiceKey.bazarr:
+      case ServiceKey.navidrome:
+        return '';
       case ServiceKey.radarr:
       case ServiceKey.sonarr:
         return 'v3';
@@ -89,6 +128,14 @@ extension ServiceKeyExtension on ServiceKey {
         return 'artists';
       case ServiceKey.qbittorrent:
         return 'torrents';
+      case ServiceKey.prowlarr:
+        return 'indexers';
+      case ServiceKey.bazarr:
+        return 'subtitles';
+      case ServiceKey.navidrome:
+        return 'artists';
+      case ServiceKey.soulsync:
+        return 'wishlist';
     }
   }
 
@@ -100,6 +147,10 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.sonarr:
       case ServiceKey.lidarr:
       case ServiceKey.qbittorrent:
+      case ServiceKey.prowlarr:
+      case ServiceKey.bazarr:
+      case ServiceKey.navidrome:
+      case ServiceKey.soulsync:
         return name;
     }
   }

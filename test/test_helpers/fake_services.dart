@@ -8,6 +8,7 @@
 library;
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/models/media_preview.dart';
 import 'package:seekarr/features/discover/data/seerr_service.dart';
 import 'package:seekarr/features/discover/domain/models/seerr_request.dart';
@@ -21,7 +22,7 @@ import 'package:seekarr/features/series/data/sonarr_service.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_episode.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_series.dart';
 
-ApiClient _client(String baseUrl) => ApiClient(baseUrl: baseUrl, apiKey: 'key');
+ApiClient _client(String baseUrl) => ApiClient(baseUrl: baseUrl, auth: ApiKeyHeaderAuth('key'));
 
 class FakeRadarrService extends RadarrService {
   FakeRadarrService() : super(_client('https://radarr.example.com'));

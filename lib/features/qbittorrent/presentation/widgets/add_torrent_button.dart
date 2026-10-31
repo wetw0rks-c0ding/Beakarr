@@ -92,15 +92,32 @@ class AddTorrentButton extends ConsumerWidget {
                               side: BorderSide(color: AppColors.qbittorrent),
                             ),
                             onPressed: () async {
+                              // Note: FileType.custom extension filters throw
+                              // PlatformException(Unsupported filter) on some
+                              // Android targets, so accept any file and keep
+                              // only .torrent picks (fail-closed otherwise).
                               final result = await FilePicker.platform
                                   .pickFiles(
                                     allowMultiple: true,
-                                    type: FileType.custom,
-                                    allowedExtensions: const ['torrent'],
+                                    type: FileType.any,
                                     withData: true,
                                   );
                               if (result != null && result.files.isNotEmpty) {
-                                pickedFilesNotifier.value = result.files;
+                                final torrents = result.files
+                                    .where(
+                                      (f) => f.name.toLowerCase().endsWith(
+                                        '.torrent',
+                                      ),
+                                    )
+                                    .toList(growable: false);
+                                if (torrents.isEmpty) {
+                                  SnackBarHelper.info(
+                                    ctx2,
+                                    'No .torrent files selected',
+                                  );
+                                  return;
+                                }
+                                pickedFilesNotifier.value = torrents;
                                 setModalState(() {});
                               }
                             },
@@ -158,14 +175,27 @@ class AddTorrentButton extends ConsumerWidget {
                               final result = await FilePicker.platform
                                   .pickFiles(
                                     allowMultiple: true,
-                                    type: FileType.custom,
-                                    allowedExtensions: const ['torrent'],
+                                    type: FileType.any,
                                     withData: true,
                                   );
                               if (result != null && result.files.isNotEmpty) {
+                                final torrents = result.files
+                                    .where(
+                                      (f) => f.name.toLowerCase().endsWith(
+                                        '.torrent',
+                                      ),
+                                    )
+                                    .toList(growable: false);
+                                if (torrents.isEmpty) {
+                                  SnackBarHelper.info(
+                                    ctx2,
+                                    'No .torrent files selected',
+                                  );
+                                  return;
+                                }
                                 pickedFilesNotifier.value = [
                                   ...files,
-                                  ...result.files,
+                                  ...torrents,
                                 ];
                                 setModalState(() {});
                               }

@@ -22,6 +22,7 @@ import 'package:seekarr/features/services/presentation/services_screen.dart';
 import 'package:seekarr/features/discover/presentation/discover_detail_screen.dart';
 import 'package:seekarr/features/discover/presentation/discover_see_all_screen.dart';
 import 'package:seekarr/features/settings/presentation/settings_appearance_screen.dart';
+import 'package:seekarr/features/settings/presentation/auth_settings_screen.dart';
 import 'package:seekarr/features/settings/presentation/settings_home_screen.dart';
 import 'package:seekarr/features/settings/presentation/settings_region_screen.dart';
 import 'package:seekarr/features/settings/presentation/settings_services_screen.dart';
@@ -37,6 +38,12 @@ import 'package:seekarr/features/onboarding/presentation/onboarding_screen.dart'
 import 'package:seekarr/features/qbittorrent/presentation/qbittorrent_screen.dart';
 import 'package:seekarr/features/qbittorrent/presentation/torrent_detail_screen.dart';
 import 'package:seekarr/features/qbittorrent/presentation/widgets/qbittorrent_actions_bar.dart';
+import 'package:seekarr/features/bazarr/presentation/bazarr_screen.dart' as bz;
+import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
+import 'package:seekarr/features/navidrome/presentation/navidrome_screen.dart' as nd;
+import 'package:seekarr/features/soulsync/presentation/soulsync_screen.dart' as ss;
+import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart' as nda;
+import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -341,6 +348,95 @@ GoRoute _qbittorrentRoutes({required String path}) {
   );
 }
 
+GoRoute _navidromeRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.navidrome,
+        child: const nd.NavidromeScreen(),
+      ),
+    ),
+    routes: [
+      GoRoute(
+        path: 'artist/:artistId',
+        pageBuilder: (context, state) {
+          final artistId = state.pathParameters['artistId'] ?? '';
+          if (artistId.isEmpty) {
+            return RouteUtils.redirectPage(
+              key: state.pageKey,
+              location: '/services',
+            );
+          }
+          final extra = state.extra;
+          String artistName = '';
+          if (extra is String) {
+            artistName = extra;
+          } else {
+            artistName =
+                state.uri.queryParameters['name'] ??
+                state.uri.queryParameters['artistName'] ??
+                '';
+          }
+          return RouteUtils.cupertinoPage(
+            key: state.pageKey,
+            child: nda.NavidromeArtistScreen(
+              artistId: artistId,
+              artistName: artistName,
+            ),
+          );
+        },
+      ),
+    ],
+  );
+}
+
+GoRoute _bazarrRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.bazarr,
+        child: const bz.BazarrScreen(),
+      ),
+    ),
+  );
+}
+
+GoRoute _soulsyncRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.soulsync,
+        child: const ss.SoulSyncScreen(),
+      ),
+    ),
+  );
+}
+
+GoRoute _prowlarrRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.prowlarr,
+        child: const p.IndexersScreen(),
+      ),
+    ),
+    routes: [
+      GoRoute(
+        path: 'search',
+        builder: (context, state) => const ps.SearchScreen(),
+      ),
+    ],
+  );
+}
+
 String? _redirectLegacyDiscover(GoRouterState state) {
   final path = state.uri.path;
   if (path == '/discover') return '/services';
@@ -390,6 +486,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: notifier,
     initialLocation: onboardingDone ? '/services' : '/onboarding',
     redirect: (context, state) {
+      // Custom-scheme links (e.g. seekarr://oauth/callback) are consumed by
+      // the app_links handler, not the router — never navigate to them.
+      // (In-app locations parse with an empty scheme; leave those alone.)
+      final scheme = state.uri.scheme;
+      if (scheme.isNotEmpty && scheme != 'http' && scheme != 'https') {
+        return '/services';
+      }
       final done = ref.read(onboardingCompletedProvider);
       final isOnboarding = state.matchedLocation == '/onboarding';
       if (!done && !isOnboarding) return '/onboarding';
@@ -416,6 +519,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               _seriesRoutes(path: 'sonarr'),
               _musicRoutes(path: 'lidarr'),
               _qbittorrentRoutes(path: 'qbittorrent'),
+              _bazarrRoutes(path: 'bazarr'),
+              _prowlarrRoutes(path: 'prowlarr'),
+              _navidromeRoutes(path: 'navidrome'),
+              _soulsyncRoutes(path: 'soulsync'),
             ],
           ),
           GoRoute(
@@ -484,6 +591,11 @@ final routerProvider = Provider<GoRouter>((ref) {
                 path: 'region',
                 pageBuilder: (context, state) =>
                     _settingsSubpage(state, const SettingsRegionScreen()),
+              ),
+              GoRoute(
+                path: 'auth',
+                pageBuilder: (context, state) =>
+                    _settingsSubpage(state, const AuthSettingsScreen()),
               ),
               GoRoute(
                 path: 'service/:service',

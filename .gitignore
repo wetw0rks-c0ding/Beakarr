@@ -43,3 +43,4 @@ ios/Flutter/LocalSigning.xcconfig
 *.pem
 *.key
 secrets/
+.superpowers/

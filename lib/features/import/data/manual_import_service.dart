@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/utils/dynamic_map_utils.dart';
 import 'package:seekarr/features/import/domain/manual_import_models.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
@@ -20,7 +21,7 @@ final manualImportServiceProvider =
       }
 
       return ManualImportService(
-        client: ApiClient(baseUrl: baseUrl, apiKey: apiKey),
+        client: ApiClient(baseUrl: baseUrl, auth: ApiKeyHeaderAuth(apiKey)),
         service: service,
       );
     });

@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:seekarr/core/router.dart';
 import 'package:seekarr/core/theme.dart';
+import 'package:seekarr/features/auth/data/oidc_link_handler.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
@@ -58,11 +59,13 @@ class SeekarrApp extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
     final themeMode = ref.watch(themeModeProvider);
+    // Initialize the OIDC deep-link handler once (covers cold-start links).
+    ref.watch(oidcLinkHandlerProvider);
 
     return DynamicColorBuilder(
       builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
         return MaterialApp.router(
-          title: 'Seekarr',
+          title: 'Beakarr',
           theme: AppTheme.lightTheme(lightDynamic),
           darkTheme: AppTheme.darkTheme(darkDynamic),
           themeMode: themeMode,

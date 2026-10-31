@@ -1,15 +1,16 @@
-# Seekarr
+# Beakarr
 
-A Flutter app for managing your self-hosted media stack from anywhere.  
-One client for **Seerr**, **Radarr**, **Sonarr**, **Lidarr**, and **qBittorrent** on macOS, iOS, and Android.
+A Flutter app for managing your self-hosted media stack from anywhere.
+One client for **Seerr**, **Radarr**, **Sonarr**, **Lidarr**, **Prowlarr**,
+**Bazarr**, **Navidrome**, **SoulSync** and **qBittorrent** on Android and iOS —
+with **Authentik single sign-on** across the *arr fleet, so one login covers
+every service instead of an API key per box.
 
 ![Flutter](https://img.shields.io/badge/Flutter-3.38.7-02569B?logo=flutter)
 ![Dart](https://img.shields.io/badge/Dart-%5E3.10.0-0175C2?logo=dart)
-![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS%20%7C%20macOS-informational)
+![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-informational)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Latest release](https://img.shields.io/github/v/release/matthw-labs/seekarr?include_prereleases)
-[![CI](https://github.com/matthw-labs/seekarr/actions/workflows/ci.yml/badge.svg)](https://github.com/matthw-labs/seekarr/actions/workflows/ci.yml)
-[![Ko-fi](https://img.shields.io/badge/support-Ko--fi-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/matthwlabs)
+![Latest release](https://img.shields.io/github/v/release/wetw0rks-c0ding/seekarr?include_prereleases)
 
 ## Table of Contents
 
@@ -94,25 +95,38 @@ One client for **Seerr**, **Radarr**, **Sonarr**, **Lidarr**, and **qBittorrent*
   - Queue status normalization based on structured fields
   - Sonarr wanted items organized by Series → Season → Episode with per-episode search
 - **Customization** — Light, Dark, or System theme; configurable navigation bar services
-- **Multiplatform** — Tested on Android, iOS, and macOS
+- **Multiplatform** — Tested on Android and iOS (sideloaded iOS via TrollStore)
+- **Prowlarr** — Indexer management plus release search with a grab sheet
+- **Bazarr** — Subtitle management for series and movies
+- **Navidrome** — Music streaming via Subsonic API
+- **SoulSync** — Requests, discovery and downloads with Authentik cookie SSO
+- **Single sign-on** — One Authentik login covers Sonarr, Radarr and
+  Prowlarr (short-lived service tokens minted per host, refreshed and
+  cached automatically), with cookie sessions for SoulSync. The
+  Auth/SSO settings screen shows a live per-service status dot:
+  green = connected, orange = connecting/error, red = no connection.
+  API keys keep working side-by-side and remain the fallback everywhere
+- **Backup & restore** — Password-encrypted backup of the whole config
+  (URLs, keys, issuer) to a portable file; restore after reinstalls,
+  device swaps, or the app rename migration
 
 ---
 
 ## Getting Started
 
-> **Just want to use the app?** Skip ahead to [Platform-specific Install](#platform-specific-install) — download the right file for your platform from [Releases](https://github.com/matthw-labs/seekarr/releases) and install it. No prerequisites.
+> **Just want to use the app?** Skip ahead to [Platform-specific Install](#platform-specific-install) — download the right file for your platform from [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) and install it. No prerequisites.
 
 ### Prerequisites (for building from source)
 
 - Flutter SDK compatible with Dart `^3.10.0` (CI uses Flutter 3.38.7)
-- For **iOS / macOS**: Xcode (latest stable)
+- For **iOS**: Xcode (latest stable) for macOS builds; Linux cross-compiles IPAs with `xcross`
 - For **Android**: Android Studio + Android SDK (compileSdk 36)
-- At least one running self-hosted service: Seerr, Radarr, Sonarr, Lidarr, or qBittorrent
+- At least one running self-hosted service: Seerr, Radarr, Sonarr, Lidarr, Prowlarr, or qBittorrent
 
 ### Installation
 
 ```bash
-git clone https://github.com/matthw-labs/seekarr.git
+git clone https://github.com/wetw0rks-c0ding/seekarr.git
 cd seekarr
 flutter pub get
 flutter run
@@ -122,16 +136,29 @@ flutter run
 
 ## Configuration
 
-Seekarr ships with no default credentials. After launching the app, open **Settings** and configure each service you want to use:
+Beakarr ships with no default credentials. After launching the app, open **Settings** and configure each service you want to use:
 
 - **Seerr** — Base URL + API key
 - **Radarr** — Base URL + API key
 - **Sonarr** — Base URL + API key
 - **Lidarr** — Base URL + API key
+- **Prowlarr** — Base URL + API key
+- **Bazarr** — Base URL + API key
+- **Navidrome** — Base URL + Username + Password (Subsonic auth)
+- **SoulSync** — Base URL + API key, or Authentik cookie SSO
 - **qBittorrent** — Base URL + Username + Password (uses qB's WebUI v2 form login; no API key)
 - Region preferences (where applicable)
 
 API keys are stored securely on the device using `flutter_secure_storage` and are never transmitted outside your local network.
+
+### Authentik SSO (optional, recommended)
+
+Point **Settings → Authentication** at your Authentik issuer (or tap
+**Use ArrStack preset**) and log in once: Sonarr, Radarr and Prowlarr
+then authenticate with short-lived per-host service tokens instead of
+static keys, and SoulSync uses a cookie session. The SSO dots show each
+service's live state. API keys stay as fallback — leave them in, take
+them out, or mix per service.
 
 ---
 
@@ -139,22 +166,22 @@ API keys are stored securely on the device using `flutter_secure_storage` and ar
 
 | Platform | Status | Distribution |
 | --- | --- | --- |
-| Android | ✅ Supported | `.apk` from [Releases](https://github.com/matthw-labs/seekarr/releases) |
-| iOS | ✅ Supported (sideload) | Unsigned `.ipa` from [Releases](https://github.com/matthw-labs/seekarr/releases) |
-| macOS | ✅ Supported | `.dmg` from [Releases](https://github.com/matthw-labs/seekarr/releases) |
+| Android | ✅ Supported | `.apk` from [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) |
+| iOS | ✅ Supported (sideload) | Unsigned `.ipa` from [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) |
+| macOS | ✅ Supported | `.dmg` from [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) |
 | Web / Linux / Windows | ⚠️ Scaffolding only | Build from source, not officially tested |
 
 ### Android
 
-Download the `.apk` file from the [Releases](https://github.com/matthw-labs/seekarr/releases) page and install it on your device (you may need to allow installs from unknown sources).
+Download the `.apk` file from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page and install it on your device (you may need to allow installs from unknown sources).
 
 ### macOS
 
-Download the `.dmg` file from the [Releases](https://github.com/matthw-labs/seekarr/releases) page, drag Seekarr to `/Applications`, and launch it. On first run, right-click the app and choose **Open** to bypass Gatekeeper.
+Download the `.dmg` file from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page, drag Seekarr to `/Applications`, and launch it. On first run, right-click the app and choose **Open** to bypass Gatekeeper.
 
 ### iOS
 
-Download the unsigned `.ipa` from the [Releases](https://github.com/matthw-labs/seekarr/releases) page and sideload it with one of the standard tools:
+Download the unsigned `.ipa` from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page and sideload it with one of the standard tools:
 
 - **[AltStore](https://altstore.io/)** — refreshes over Wi-Fi on the same machine
 - **[Sideloadly](https://sideloadly.io/)** — desktop tool, no account needed on macOS
@@ -187,7 +214,7 @@ Contributions to improve support on these platforms are welcome.
 
 ## Architecture
 
-Seekarr follows a **feature-first layered architecture**:
+Beakarr follows a **feature-first layered architecture**:
 
 ```
 lib/
@@ -241,15 +268,15 @@ For setup notes, conventions, and pull request expectations, see [CONTRIBUTING.m
 
 ## About this project
 
-Seekarr was born from a personal need: flawlessly managing a self-hosted *arr stack from a phone, from anywhere. It is built with a focus on getting the details right — polished interactions, honest error and empty states, and a test suite that keeps them that way — rather than on shipping fast.
+Beakarr was born from a personal need: flawlessly managing a self-hosted *arr stack from a phone, from anywhere. It is built with a focus on getting the details right — polished interactions, honest error and empty states, and a test suite that keeps them that way — rather than on shipping fast.
+
+Beakarr started as a fork of [Seekarr by matthw-labs](https://github.com/matthw-labs/seekarr) and has since become its own product: single sign-on across the fleet, Prowlarr/Bazarr/Navidrome/SoulSync support, encrypted config backup, and its own brand. Upstream remains credited under the MIT license; none of its infrastructure is used.
 
 ---
 
 ## Support
 
-If you find Seekarr useful, consider supporting me with a donation — it helps keep the project going!
-
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/matthwlabs)
+If you find Beakarr useful, star the repo and open issues for bugs you hit on device — device-tested reports with steps to reproduce get fixed first.
 
 ---
 

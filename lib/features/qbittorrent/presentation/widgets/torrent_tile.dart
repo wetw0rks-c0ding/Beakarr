@@ -32,7 +32,6 @@ class TorrentTile extends StatelessWidget {
         color: selected
             ? AppColors.qbittorrent.withValues(alpha: 0.08)
             : colorScheme.surfaceContainer,
-        borderRadius: AppRadius.borderRadiusMd,
         shape: RoundedRectangleBorder(
           borderRadius: AppRadius.borderRadiusMd,
           side: BorderSide(

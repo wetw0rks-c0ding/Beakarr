@@ -25,6 +25,8 @@ abstract interface class SecureSettingsStore {
   Future<void> delete({required String key});
 
   Future<void> deleteAll();
+
+  Future<Map<String, String>> readAll();
 }
 
 class FlutterSecureSettingsStore implements SecureSettingsStore {
@@ -51,12 +53,22 @@ class FlutterSecureSettingsStore implements SecureSettingsStore {
   Future<void> deleteAll() {
     return _storage.deleteAll();
   }
+
+  @override
+  Future<Map<String, String>> readAll() {
+    return _storage.readAll();
+  }
 }
 
 class SettingsService {
   static const _kRegion = 'region';
   static const _kThemeMode = 'theme_mode';
   static const _kOnboardingComplete = 'onboarding_complete';
+  static const _kOidcIssuer = 'oidc_issuer';
+  static const _kOidcClientId = 'oidc_client_id';
+  static const _kSoulSyncProfileId = 'soulsync_profile_id';
+  static const _kSoulSyncProxyCookie = 'secure_soulsync_proxy_cookie';
+  static const _kJailbroken = 'jailbroken';
 
   static const Map<ServiceKey, _ServiceStorageKeys> _serviceStorageKeys = {
     ServiceKey.seerr: _ServiceStorageKeys(
@@ -87,6 +99,27 @@ class SettingsService {
       legacyApiKey: '',
       secureApiKey: 'secure_qbittorrent_password',
       username: 'qbittorrent_username',
+    ),
+    ServiceKey.prowlarr: _ServiceStorageKeys(
+      url: 'prowlarr_url',
+      legacyApiKey: 'prowlarr_api_key',
+      secureApiKey: 'secure_prowlarr_api_key',
+    ),
+    ServiceKey.bazarr: _ServiceStorageKeys(
+      url: 'bazarr_url',
+      legacyApiKey: 'bazarr_api_key',
+      secureApiKey: 'secure_bazarr_api_key',
+    ),
+    ServiceKey.navidrome: _ServiceStorageKeys(
+      url: 'navidrome_url',
+      legacyApiKey: '',
+      secureApiKey: 'secure_navidrome_password',
+      username: 'navidrome_username',
+    ),
+    ServiceKey.soulsync: _ServiceStorageKeys(
+      url: 'soulsync_url',
+      legacyApiKey: 'soulsync_api_key',
+      secureApiKey: 'secure_soulsync_api_key',
     ),
   };
 
@@ -150,6 +183,41 @@ class SettingsService {
     await _prefs.setBool(_kOnboardingComplete, true);
   }
 
+  /// Delete every OIDC token (Seekarr-UI session + all per-service pairs).
+  /// Call when the issuer changes: tokens minted by the old issuer fail
+  /// `ValidIssuer` validation on every *arr fork and would otherwise
+  /// surface as `401 invalid_token` on the next exchange.
+  Future<void> clearOidcSessions() async {
+    const baseKeys = [
+      'oidc_access_token',
+      'oidc_refresh_token',
+      'oidc_token_expiry',
+      'oidc_pkce_verifier',
+    ];
+    for (final k in baseKeys) {
+      await _secureStore.delete(key: k);
+    }
+    const services = [
+      'sonarr',
+      'radarr',
+      'lidarr',
+      'prowlarr',
+      'bazarr',
+      'seerr',
+    ];
+    const suffixes = [
+      'oidc_access_token',
+      'oidc_refresh_token',
+      'oidc_token_expiry',
+      'oidc_pkce_verifier',
+    ];
+    for (final svc in services) {
+      for (final s in suffixes) {
+        await _secureStore.delete(key: '${s}_$svc');
+      }
+    }
+  }
+
   /// Wipes all Seekarr-persisted data: SharedPreferences keys (service URLs,
   /// credentials, region, theme, onboarding flag, legacy keys) and every
   /// secure-storage entry. Clears secure storage first so a Keychain failure
@@ -175,6 +243,10 @@ class SettingsService {
     await _prefs.remove(_kThemeMode);
     await _prefs.remove(_kOnboardingComplete);
     await _prefs.remove('hidden_tabs');
+    await _prefs.remove(_kOidcIssuer);
+    await _prefs.remove(_kOidcClientId);
+    await _prefs.remove(_kSoulSyncProfileId);
+    await _prefs.remove(_kJailbroken);
   }
 
   Future<SettingsModel> loadSettings() async {
@@ -182,6 +254,10 @@ class SettingsService {
     final qbKeys = _serviceStorageKeys[ServiceKey.qbittorrent]!;
     final qbUsername = _prefs.getString(qbKeys.username!) ?? '';
     final qbPassword = await _loadApiKey(qbKeys.secureApiKey);
+
+    final ndKeys = _serviceStorageKeys[ServiceKey.navidrome]!;
+    final ndUsername = _prefs.getString(ndKeys.username!) ?? '';
+    final ndPassword = await _loadApiKey(ndKeys.secureApiKey);
 
     return SettingsModel(
       seerrUrl: serviceSettings[ServiceKey.seerr]!.$1,
@@ -195,8 +271,22 @@ class SettingsService {
       qbittorrentUrl: serviceSettings[ServiceKey.qbittorrent]!.$1,
       qbittorrentUsername: qbUsername,
       qbittorrentPassword: qbPassword,
+      prowlarrUrl: serviceSettings[ServiceKey.prowlarr]!.$1,
+      prowlarrApiKey: serviceSettings[ServiceKey.prowlarr]!.$2,
+      bazarrUrl: serviceSettings[ServiceKey.bazarr]!.$1,
+      bazarrApiKey: serviceSettings[ServiceKey.bazarr]!.$2,
+      navidromeUrl: serviceSettings[ServiceKey.navidrome]!.$1,
+      navidromeUsername: ndUsername,
+      navidromePassword: ndPassword,
+      soulsyncUrl: serviceSettings[ServiceKey.soulsync]!.$1,
+      soulsyncApiKey: serviceSettings[ServiceKey.soulsync]!.$2,
+      soulsyncProxyCookie: await _loadApiKey(_kSoulSyncProxyCookie),
+      soulsyncProfileId: _prefs.getString(_kSoulSyncProfileId) ?? '',
       region: _loadRegion(),
       themeMode: AppThemeMode.fromName(_prefs.getString(_kThemeMode)),
+      oidcIssuer: _prefs.getString(_kOidcIssuer) ?? '',
+      oidcClientId: _prefs.getString(_kOidcClientId) ?? 'seekarr',
+      jailbroken: _prefs.getBool(_kJailbroken) ?? false,
     );
   }
 
@@ -206,6 +296,18 @@ class SettingsService {
     await _saveServiceUrls(settings);
     await _prefs.setString(_kRegion, normalizedRegion);
     await _prefs.setString(_kThemeMode, settings.themeMode.name);
+    await _prefs.setString(_kOidcIssuer, settings.oidcIssuer);
+    await _prefs.setString(_kOidcClientId, settings.oidcClientId);
+    await _prefs.setBool(_kJailbroken, settings.jailbroken);
+    if (settings.soulsyncProfileId.isNotEmpty) {
+      await _prefs.setString(_kSoulSyncProfileId, settings.soulsyncProfileId);
+    } else {
+      await _prefs.remove(_kSoulSyncProfileId);
+    }
+    await _saveApiKey(
+      _kSoulSyncProxyCookie,
+      settings.soulsyncProxyCookie,
+    );
     await _prefs.remove('hidden_tabs');
 
     await _saveServiceApiKeys(settings);
@@ -215,6 +317,13 @@ class SettingsService {
       await _prefs.setString(qbKeys.username!, settings.qbittorrentUsername);
     } else {
       await _prefs.remove(qbKeys.username!);
+    }
+
+    final ndKeys = _serviceStorageKeys[ServiceKey.navidrome]!;
+    if (settings.navidromeUsername.isNotEmpty) {
+      await _prefs.setString(ndKeys.username!, settings.navidromeUsername);
+    } else {
+      await _prefs.remove(ndKeys.username!);
     }
   }
 
@@ -235,7 +344,8 @@ class SettingsService {
       // secure key is loaded separately in loadSettings() to avoid a
       // second secure store read here.
       var apiKey = '';
-      if (service != ServiceKey.qbittorrent) {
+      if (service != ServiceKey.qbittorrent &&
+          service != ServiceKey.navidrome) {
         apiKey = await _loadApiKey(storageKeys.secureApiKey);
         if (apiKey.isEmpty && storageKeys.legacySecureApiKey != null) {
           apiKey = await _loadApiKey(storageKeys.legacySecureApiKey!);

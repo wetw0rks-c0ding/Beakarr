@@ -3,9 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
+import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
@@ -27,6 +29,10 @@ const _serviceColors = {
   ServiceKey.sonarr: Color(0xFF8B5CF6), // purple
   ServiceKey.lidarr: Color(0xFFEC4899), // pink
   ServiceKey.qbittorrent: Color(0xFF2F67BA), // blue
+  ServiceKey.prowlarr: Color(0xFFD63636), // Prowlarr red
+  ServiceKey.bazarr: Color(0xFF22D3EE), // Bazarr cyan
+  ServiceKey.navidrome: Color(0xFF4ADE80), // Navidrome green
+  ServiceKey.soulsync: Color(0xFF8B5CF6), // SoulSync violet
 };
 
 // ─── Health-check helper (mirrors serviceConnectionProvider logic) ──────────
@@ -41,6 +47,14 @@ String _healthEndpoint(ServiceKey service) {
       return '/api/v1/system/status';
     case ServiceKey.qbittorrent:
       return '/api/v2/app/version';
+    case ServiceKey.prowlarr:
+      return '/api/v1/system/status';
+    case ServiceKey.bazarr:
+      return '/api/system/status';
+    case ServiceKey.navidrome:
+      return '/rest/ping.view';
+    case ServiceKey.soulsync:
+      return '/api/v1/profiles';
   }
 }
 
@@ -54,6 +68,27 @@ Future<ServiceConnectionStatus> _verifyService(
   if (!service.usesApiKey) {
     final urlTrimmed = url.trim();
     if (urlTrimmed.isEmpty) return ServiceConnectionStatus.notConfigured;
+    if (service == ServiceKey.navidrome) {
+      if (username.trim().isEmpty || password.isEmpty) {
+        return ServiceConnectionStatus.notConfigured;
+      }
+      final client = ApiClient(
+        baseUrl: urlTrimmed,
+        auth: SubsonicAuth(username.trim(), password),
+      );
+      try {
+        final response = await client
+            .get('/rest/ping.view')
+            .timeout(const Duration(seconds: 5));
+        return isSubsonicOk(response.data)
+            ? ServiceConnectionStatus.connected
+            : ServiceConnectionStatus.disconnected;
+      } catch (_) {
+        return ServiceConnectionStatus.disconnected;
+      } finally {
+        client.close();
+      }
+    }
     final client = QbittorrentClient(
       url: urlTrimmed,
       username: username.trim().isEmpty ? null : username.trim(),
@@ -68,10 +103,30 @@ Future<ServiceConnectionStatus> _verifyService(
       client.close();
     }
   }
+  if (service == ServiceKey.soulsync) {
+    if (url.trim().isEmpty || apiKey.trim().isEmpty) {
+      return ServiceConnectionStatus.notConfigured;
+    }
+    final client = ApiClient(
+      baseUrl: url.trim(),
+      auth: SoulSyncAuth(apiKey.trim()),
+    );
+    try {
+      final code = (await client.get('/api/v1/profiles').timeout(const Duration(seconds: 15))).statusCode ?? 0;
+      return (code >= 200 && code < 300)
+          ? ServiceConnectionStatus.connected
+          : ServiceConnectionStatus.disconnected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
   if (url.trim().isEmpty || apiKey.trim().isEmpty) {
     return ServiceConnectionStatus.notConfigured;
   }
-  final client = ApiClient(baseUrl: url.trim(), apiKey: apiKey.trim());
+  final client = ApiClient(baseUrl: url.trim(), auth: ApiKeyHeaderAuth(apiKey.trim()));
   try {
     final code =
         (await client
@@ -136,6 +191,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _isServiceReady(ServiceKey k) {
     if (!_enabled[k]!) return false;
     if (_urlCtrl[k]!.text.trim().isEmpty) return false;
+    if (k == ServiceKey.navidrome) {
+      return _usernameCtrl[k]!.text.trim().isNotEmpty &&
+          _passwordCtrl[k]!.text.isNotEmpty;
+    }
     if (!k.usesApiKey) return true;
     return _apiKeyCtrl[k]!.text.trim().isNotEmpty;
   }
@@ -170,6 +229,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             username: _usernameCtrl[k]!.text.trim(),
             password: _passwordCtrl[k]!.text,
           );
+        } else if (k == ServiceKey.navidrome) {
+          updated = updated.copyWithNavidrome(
+            url: _urlCtrl[k]!.text.trim(),
+            username: _usernameCtrl[k]!.text.trim(),
+            password: _passwordCtrl[k]!.text,
+          );
         } else {
           updated = updated.copyWithService(
             k,
@@ -180,6 +245,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
       } else {
         if (k == ServiceKey.qbittorrent) {
           updated = updated.copyWithQbittorrent(
+            url: '',
+            username: '',
+            password: '',
+          );
+        } else if (k == ServiceKey.navidrome) {
+          updated = updated.copyWithNavidrome(
             url: '',
             username: '',
             password: '',
@@ -406,7 +477,7 @@ class _HeroCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Seekarr is the control surface for the services you run yourself, starting from the Arr stack and giving you one UI to manage requests, libraries, and activity.',
+            'Beakarr is the control surface for the services you run yourself, starting from the Arr stack and giving you one UI to manage requests, libraries, and activity.',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 14,
@@ -592,7 +663,7 @@ class _ServicesStep extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           const Text(
-            'Every service depends on its own self-hosted instance. Seekarr helps you manage them with one unified UI, from wherever you are.',
+            'Every service depends on its own self-hosted instance. Beakarr helps you manage them with one unified UI, from wherever you are.',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 14,
@@ -845,7 +916,7 @@ class _ServiceConfig extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                'Point Seekarr to your ${serviceKey.title} instance and confirm it answers correctly.',
+                'Point Beakarr to your ${serviceKey.title} instance and confirm it answers correctly.',
                 style: const TextStyle(
                   fontFamily: 'Inter',
                   fontSize: 12,
@@ -862,22 +933,29 @@ class _ServiceConfig extends StatelessWidget {
                   controller: apiKeyCtrl,
                   isPassword: true,
                 ),
-              ] else if (serviceKey == ServiceKey.qbittorrent) ...[
+              ] else if (serviceKey == ServiceKey.qbittorrent ||
+                  serviceKey == ServiceKey.navidrome) ...[
                 const SizedBox(height: 10),
                 _ConfigField(
-                  label: 'Username (optional)',
+                  label: serviceKey == ServiceKey.navidrome
+                      ? 'Username'
+                      : 'Username (optional)',
                   controller: usernameCtrl,
                 ),
                 const SizedBox(height: 10),
                 _ConfigField(
-                  label: 'Password (optional)',
+                  label: serviceKey == ServiceKey.navidrome
+                      ? 'Password'
+                      : 'Password (optional)',
                   controller: passwordCtrl,
                   isPassword: true,
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Leave credentials empty if your qBittorrent instance does not require authentication.',
-                  style: TextStyle(
+                Text(
+                  serviceKey == ServiceKey.navidrome
+                      ? 'Navidrome requires a username and password.'
+                      : 'Leave credentials empty if your qBittorrent instance does not require authentication.',
+                  style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
                     color: _muted,
@@ -885,7 +963,8 @@ class _ServiceConfig extends StatelessWidget {
                   ),
                 ),
               ],
-              if (serviceKey == ServiceKey.qbittorrent &&
+              if ((serviceKey == ServiceKey.qbittorrent ||
+                  serviceKey == ServiceKey.navidrome) &&
                   verifyStatus == ServiceConnectionStatus.disconnected) ...[
                 const SizedBox(height: 10),
                 const Text(

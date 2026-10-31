@@ -28,6 +28,9 @@ class FakeSecureSettingsStore implements SecureSettingsStore {
   }
 
   @override
+  Future<Map<String, String>> readAll() async => Map.unmodifiable(_storage);
+
+  @override
   Future<void> write({required String key, required String value}) async {
     final message = failureMessage;
     if (message != null) throw Exception(message);

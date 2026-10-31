@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:seekarr/core/api/base_arr_service.dart';
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/series/data/sonarr_service.dart';
 import 'package:seekarr/features/series/domain/models/sonarr_series.dart';
 
@@ -127,7 +128,7 @@ void main() {
 }
 
 class _TestSonarrService extends SonarrService {
-  _TestSonarrService(this._series) : super(ApiClient(baseUrl: '', apiKey: ''));
+  _TestSonarrService(this._series) : super(ApiClient(baseUrl: '', auth: ApiKeyHeaderAuth('')));
 
   final List<SonarrSeries> _series;
 

@@ -3,8 +3,8 @@
 set -euo pipefail
 
 TARGET="${1:-all}"
-APP_NAME="Seekarr"
-APP_SLUG="seekarr"
+APP_NAME="Beakarr"
+APP_SLUG="beakarr"
 
 case "$TARGET" in
   android|ios|macos|all)
@@ -35,9 +35,15 @@ dart format --output=none --set-exit-if-changed .
 printf '==> Running flutter test...\n'
 flutter test
 
+# Build identity: every artifact carries its commit + timestamp so any
+# install is traceable (Settings → Version) and rollbacks are trivial.
+GIT_HASH="$(git rev-parse --short HEAD)"
+BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+DEFINES=(--dart-define="GIT_HASH=${GIT_HASH}" --dart-define="BUILD_TIME=${BUILD_TIME}")
+
 if [[ "$TARGET" == "android" || "$TARGET" == "all" ]]; then
   printf '==> Building Android APK...\n'
-  flutter build apk --release
+  flutter build apk --release "${DEFINES[@]}"
   cp build/app/outputs/flutter-apk/app-release.apk "$DIST_DIR/${APP_SLUG}-${VERSION}.apk"
 fi
 

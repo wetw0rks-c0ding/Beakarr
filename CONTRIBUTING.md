@@ -1,4 +1,4 @@
-# Contributing to Seekarr
+# Contributing to Beakarr
 
 This project is under active development, so small focused contributions are preferred over large unsolicited refactors.
 

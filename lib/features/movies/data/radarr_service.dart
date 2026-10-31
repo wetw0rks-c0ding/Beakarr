@@ -2,17 +2,29 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/core/api/base_arr_service.dart';
 import 'package:seekarr/features/movies/domain/models/radarr_movie.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
+import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 
 final radarrServiceProvider = Provider<RadarrService>((ref) {
   final settings = ref.watch(currentSettingsProvider);
-  if (settings.radarrUrl.isEmpty || settings.radarrApiKey.isEmpty) {
+  if (settings.radarrUrl.isEmpty ||
+      (settings.radarrApiKey.isEmpty &&
+          !OidcSessionService.isArrstackMode(settings.oidcIssuer))) {
     throw Exception('Radarr not configured');
   }
+  final store = ref.watch(secureSettingsStoreProvider);
   return RadarrService(
-    ApiClient(baseUrl: settings.radarrUrl, apiKey: settings.radarrApiKey),
+    ApiClient(
+      baseUrl: settings.radarrUrl,
+      auth: ApiKeyHeaderAuth(settings.radarrApiKey),
+      serviceKey: 'radarr',
+      session: OidcSessionService(store),
+      issuerUrl: settings.oidcIssuer,
+      clientId: settings.oidcClientId,
+    ),
   );
 });
 

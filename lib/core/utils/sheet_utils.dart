@@ -29,6 +29,7 @@ class SheetUtils {
     bool isDismissible = true,
     bool enableDrag = true,
     Color? backgroundColor,
+    ShapeBorder? shape,
   }) {
     return showModalBottomSheet<T>(
       context: context,
@@ -41,6 +42,7 @@ class SheetUtils {
       isDismissible: isDismissible,
       enableDrag: enableDrag,
       backgroundColor: backgroundColor,
+      shape: shape,
       builder: builder,
     );
   }

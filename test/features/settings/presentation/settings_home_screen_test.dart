@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:seekarr/core/widgets/app_card.dart';
+import 'package:seekarr/core/app_version.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
@@ -113,6 +114,12 @@ void main() {
 
       expect(find.text('GitHub'), findsOneWidget);
       expect(find.text('Send Feedback'), findsOneWidget);
+
+      await tester.scrollUntilVisible(find.text('Version'), 300);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Version'), findsOneWidget);
+      expect(find.text(kAppVersion), findsOneWidget);
     });
 
     testWidgets('reset tile shows Danger Zone section', (tester) async {

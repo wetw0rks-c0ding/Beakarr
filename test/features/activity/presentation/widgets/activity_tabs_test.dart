@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/activity/presentation/activity_screen.dart';
 import 'package:seekarr/features/activity/presentation/widgets/activity_tab.dart';
 import 'package:seekarr/features/activity/presentation/widgets/wanted_tab.dart';
@@ -226,7 +227,7 @@ class _FakeRadarrActivityService extends RadarrService {
     this.missingItems = const [],
     this.cutoffItems = const [],
     this.qualityProfileResponses = const [],
-  }) : super(ApiClient(baseUrl: 'https://radarr.example.com', apiKey: 'key'));
+  }) : super(ApiClient(baseUrl: 'https://radarr.example.com', auth: ApiKeyHeaderAuth('key')));
 
   final List<dynamic> queueItems;
   final List<dynamic> historyItems;
@@ -295,7 +296,7 @@ class _FakeSonarrActivityService extends SonarrService {
   _FakeSonarrActivityService({
     this.missingItems = const [],
     this.cutoffItems = const [],
-  }) : super(ApiClient(baseUrl: 'https://sonarr.example.com', apiKey: 'key'));
+  }) : super(ApiClient(baseUrl: 'https://sonarr.example.com', auth: ApiKeyHeaderAuth('key')));
 
   final List<dynamic> missingItems;
   final List<dynamic> cutoffItems;

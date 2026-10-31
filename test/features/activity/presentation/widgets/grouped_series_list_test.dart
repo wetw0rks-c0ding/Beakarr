@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/activity/presentation/widgets/sonarr_wanted_hierarchy.dart';
 import 'package:seekarr/features/series/data/sonarr_service.dart';
 
 void main() {
   group('SonarrWantedHierarchy', () {
     final service = SonarrService(
-      ApiClient(baseUrl: 'http://localhost', apiKey: 'test'),
+      ApiClient(baseUrl: 'http://localhost', auth: ApiKeyHeaderAuth('test')),
+
     );
 
     testWidgets('groups episodes by series title', (tester) async {

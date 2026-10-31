@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:seekarr/core/api/base_arr_service.dart';
 import 'package:seekarr/core/api/api_client.dart';
+import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/movies/data/radarr_service.dart';
 import 'package:seekarr/features/movies/domain/models/radarr_movie.dart';
 
@@ -116,7 +117,7 @@ void main() {
 }
 
 class _TestRadarrService extends RadarrService {
-  _TestRadarrService(this._movies) : super(ApiClient(baseUrl: '', apiKey: ''));
+  _TestRadarrService(this._movies) : super(ApiClient(baseUrl: '', auth: ApiKeyHeaderAuth('')));
 
   final List<RadarrMovie> _movies;
 

@@ -1,0 +1,5 @@
+[
+  {"guid":"mm1","indexer":"test","indexerId":1,"title":"Mad Max: Fury Road","protocol":"torrent","size":2147483648,"age":5.2,"seeders":120,"leechers":10,"categories":["Movie","Action"]},
+  {"guid":"mm2","indexer":"test","indexerId":1,"title":"Mad Max 2: The Road Warrior","protocol":"torrent","size":1073741824,"age":12.0,"seeders":80,"leechers":5,"categories":["Movie","Action"]},
+  {"guid":"mm3","indexer":"test","indexerId":1,"title":"Mad Max Beyond Thunderdome","protocol":"torrent","size":1610612736,"age":30.5,"seeders":40,"leechers":2,"categories":["Movie","Adventure"]}
+]
