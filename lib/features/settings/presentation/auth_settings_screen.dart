@@ -789,6 +789,9 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
                     );
                 _issuerController.text = p.issuer;
                 _clientIdController.text = p.clientId;
+                // Freshly applied pair: any draft edits in the add-flow
+                // are stale; reset so the next Validate prefills again.
+                _presetClientEdited = false;
                 await _loadStatuses();
               }
             },
