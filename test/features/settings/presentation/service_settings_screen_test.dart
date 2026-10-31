@@ -9,6 +9,7 @@ import 'package:seekarr/features/settings/data/settings_service.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 import 'package:seekarr/features/settings/presentation/service_settings_screen.dart';
+import 'package:seekarr/features/soulsync/domain/models/soulsync_profile.dart';
 
 import '../../../test_helpers/fake_secure_settings_store.dart';
 
@@ -110,6 +111,47 @@ void main() {
 
       expect(find.text('Saved profile: 7'), findsOneWidget);
       expect(find.text('Load profiles'), findsOneWidget);
+    });
+
+    group('resolveSoulSyncProfileSelection', () {
+      SoulSyncProfile p(String id) => SoulSyncProfile(id: id, name: 'n$id');
+
+      test('keeps the saved id when still present (no silent switch)', () {
+        expect(
+          resolveSoulSyncProfileSelection(
+            profiles: [p('1'), p('2')],
+            savedId: '2',
+          ),
+          '2',
+        );
+      });
+
+      test('nulls a stale id missing from a fresh list (safe re-pick)', () {
+        expect(
+          resolveSoulSyncProfileSelection(
+            profiles: [p('1'), p('2')],
+            savedId: '9',
+          ),
+          isNull,
+        );
+      });
+
+      test('auto-selects first with no saved id (fresh setup)', () {
+        expect(
+          resolveSoulSyncProfileSelection(
+            profiles: [p('1'), p('2')],
+            savedId: null,
+          ),
+          '1',
+        );
+      });
+
+      test('failed/empty load keeps the saved id untouched', () {
+        expect(
+          resolveSoulSyncProfileSelection(profiles: const [], savedId: '7'),
+          '7',
+        );
+      });
     });
 
     testWidgets('copy button writes the API key to the clipboard', (

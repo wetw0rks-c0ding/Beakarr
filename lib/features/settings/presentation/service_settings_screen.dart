@@ -26,6 +26,26 @@ class ServiceSettingsScreen extends ConsumerStatefulWidget {
       _ServiceSettingsScreenState();
 }
 
+/// - Empty/failed load (`profiles` empty): keep `savedId` untouched —
+///   never wipe a stored selection on a network failure.
+/// - Saved id still present: keep it (no silent switches).
+/// - Saved id gone (e.g. deleted server-side): null, forcing an
+///   explicit re-pick. Must NOT keep the stale id (DropdownButton
+///   throws when its value matches no item) and must NOT silently fall
+///   back to first (wrong profile).
+/// - No saved id: first profile, fresh-setup convenience.
+String? resolveSoulSyncProfileSelection({
+  required List<SoulSyncProfile> profiles,
+  required String? savedId,
+}) {
+  if (profiles.isEmpty) return savedId;
+  final ids = profiles.map((p) => p.id).toSet();
+  if (savedId != null && savedId.isNotEmpty && !ids.contains(savedId)) {
+    return null;
+  }
+  return savedId ?? profiles.first.id;
+}
+
 class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _urlController;
@@ -68,8 +88,9 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
       // which reads as "the profile disappeared". Auto-load when
       // credentials exist so the picker — and the saved selection —
       // are visible without an extra tap.
-      if (_urlController.text.trim().isNotEmpty &&
-          _apiKeyController.text.trim().isNotEmpty) {
+      final hasKey = _apiKeyController.text.trim().isNotEmpty;
+      final hasCookie = settings.soulsyncProxyCookie.trim().isNotEmpty;
+      if (_urlController.text.trim().isNotEmpty && (hasKey || hasCookie)) {
         WidgetsBinding.instance.addPostFrameCallback(
           (_) => _loadSoulSyncProfiles(silent: true),
         );
@@ -173,13 +194,18 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
     );
   }
 
+/// Resolves which profile id the SoulSync picker should hold after a
+/// (re)load. Pure for unit testing.
+///
   /// Loads SoulSync profiles into the picker. Silent mode (auto-load on
   /// open) skips the missing-credentials snackbar — the fields may
-  /// legitimately be empty on first setup.
+  /// legitimately be empty on first setup. Cookie-SSO setups (no API
+  /// key) authenticate via the stored proxy cookie instead.
   Future<void> _loadSoulSyncProfiles({bool silent = false}) async {
     final url = _urlController.text.trim();
     final key = _apiKeyController.text.trim();
-    if (url.isEmpty || key.isEmpty) {
+    final cookie = ref.read(currentSettingsProvider).soulsyncProxyCookie;
+    if (url.isEmpty || (key.isEmpty && cookie.isEmpty)) {
       if (!silent && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Enter the URL and API key first')),
@@ -190,7 +216,10 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
     setState(() => _loadingProfiles = true);
     ApiClient? client;
     try {
-      client = ApiClient(baseUrl: url, auth: SoulSyncAuth(key));
+      client = ApiClient(
+        baseUrl: url,
+        auth: SoulSyncAuth(key, proxyCookie: cookie),
+      );
       final service = SoulSyncService(client);
       final profiles = await service
           .getProfiles()
@@ -198,10 +227,10 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
       if (!mounted) return;
       setState(() {
         _profiles = profiles;
-        final ids = profiles.map((p) => p.id).toSet();
-        if (!ids.contains(_selectedProfileId)) {
-          _selectedProfileId = profiles.isNotEmpty ? profiles.first.id : null;
-        }
+        _selectedProfileId = resolveSoulSyncProfileSelection(
+          profiles: profiles,
+          savedId: _selectedProfileId,
+        );
       });
     } catch (e) {
       if (!mounted) return;
