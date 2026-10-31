@@ -14,6 +14,8 @@ import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/presentation/music_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
+import 'package:seekarr/features/npm/data/npm_client.dart';
+import 'package:seekarr/features/npm/data/npm_service.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_service.dart';
 import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
@@ -176,12 +178,20 @@ Future<String?> _loadVersion(
     }
   }
 
-  // PR1 stub: the NPM identity check lands in PR3.
-  // Must THROW (not return null): _loadServiceSummary treats a clean
-  // return as online, which would paint a green dot on an untested service.
-  // TODO(npm): no version endpoint (PR3).
   if (service == ServiceKey.npm) {
-    throw StateError('Service version not yet implemented');
+    // No version endpoint: the token exchange is the reachability + auth
+    // check, and the summary falls back to "REST API" for the label.
+    final client = NpmClient(
+      url: settings.npmUrl,
+      identity: settings.npmIdentity,
+      password: settings.npmPassword,
+    );
+    try {
+      await client.ensureAuthenticated().timeout(const Duration(seconds: 5));
+      return null;
+    } finally {
+      client.close();
+    }
   }
 
   final createClient = ref.watch(serviceStatusClientFactoryProvider);
@@ -367,10 +377,14 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
               .getQueue()
               .timeout(const Duration(seconds: 5)))
           .length;
-    // PR1 stub: the NPM proxy-host count lands in PR3.
-    // TODO(npm): proxy-host count (PR3).
     case ServiceKey.npm:
-      throw StateError('Service count not yet implemented');
+      // 5 s outer timeout matches the other dashboard arms; the client also
+      // enforces its own per-request timeout.
+      return (await ref
+              .watch(npmServiceProvider)
+              .getProxyHosts()
+              .timeout(const Duration(seconds: 5)))
+          .length;
   }
 }
 

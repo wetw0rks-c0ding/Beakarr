@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
+import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 
@@ -118,16 +120,74 @@ void main() {
     expect(result.detail, contains('Access denied'));
   });
 
-  test('npm test connection reports not supported (PR1 stub)', () async {
-    const settings = SettingsModel(
-      npmUrl: 'http://127.0.0.1:81',
+  test('npm test connection reports connected on token + hosts', () async {
+    final server = await _npmServer(
+      hostsBody: [
+        {
+          'id': 1,
+          'domain_names': ['app.example.com'],
+          'enabled': true,
+        },
+      ],
+    );
+    final settings = SettingsModel(
+      npmUrl: 'http://127.0.0.1:${server.port}',
+      npmIdentity: 'admin@example.com',
+      npmPassword: 'pass',
+    );
+
+    final result = await testServiceConnection(ServiceKey.npm, settings);
+    expect(result.ok, isTrue);
+    expect(
+      server.paths,
+      containsAll(['/api/tokens', '/api/nginx/proxy-hosts']),
+    );
+    expect(server.loginBodies.single['identity'], 'admin@example.com');
+    expect(server.loginBodies.single['secret'], 'pass');
+  });
+
+  test('npm test connection reports HTTP 401', () async {
+    final server = await _npmServer(tokenStatus: 401);
+    final settings = SettingsModel(
+      npmUrl: 'http://127.0.0.1:${server.port}',
+      npmIdentity: 'admin@example.com',
+      npmPassword: 'wrong',
+    );
+
+    final result = await testServiceConnection(ServiceKey.npm, settings);
+    expect(result.ok, isFalse);
+    expect(result.detail, 'HTTP 401');
+  });
+
+  test('npm test connection surfaces the 2FA message', () async {
+    final server = await _npmServer(twoFactor: true);
+    final settings = SettingsModel(
+      npmUrl: 'http://127.0.0.1:${server.port}',
       npmIdentity: 'admin@example.com',
       npmPassword: 'pass',
     );
 
     final result = await testServiceConnection(ServiceKey.npm, settings);
     expect(result.ok, isFalse);
-    expect(result.detail, 'Not yet supported');
+    expect(result.detail, contains('2FA'));
+  });
+
+  test('npm connection check is disconnected on a 401', () async {
+    final server = await _npmServer(tokenStatus: 401);
+    final settings = SettingsModel(
+      npmUrl: 'http://127.0.0.1:${server.port}',
+      npmIdentity: 'admin@example.com',
+      npmPassword: 'wrong',
+    );
+    final container = ProviderContainer(
+      overrides: [currentSettingsProvider.overrideWith((ref) => settings)],
+    );
+    addTearDown(container.dispose);
+
+    final result = await container.read(
+      serviceConnectionProvider(ServiceKey.npm).future,
+    );
+    expect(result, ServiceConnectionStatus.disconnected);
   });
 
   test('unconfigured nzbget/npm report not configured', () async {
@@ -174,6 +234,65 @@ Future<_FakeNzbgetServer> _nzbgetServer(
     request.response.statusCode = statusCode;
     request.response.headers.contentType = ContentType.json;
     request.response.write(jsonEncode(respond(method)));
+    await request.response.close();
+  });
+
+  return fake;
+}
+
+/// Minimal Nginx Proxy Manager server: answers `/api/tokens` and
+/// `/api/nginx/proxy-hosts`, recording paths and login bodies so the
+/// handshake is assertable.
+class _FakeNpmServer {
+  final HttpServer _server;
+  final List<String> paths = [];
+  final List<Map<String, dynamic>> loginBodies = [];
+
+  _FakeNpmServer(this._server);
+
+  int get port => _server.port;
+}
+
+Future<_FakeNpmServer> _npmServer({
+  bool twoFactor = false,
+  int tokenStatus = 200,
+  int hostsStatus = 200,
+  List<dynamic> hostsBody = const [],
+}) async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  final fake = _FakeNpmServer(server);
+  addTearDown(() => server.close(force: true));
+
+  server.listen((request) async {
+    fake.paths.add(request.uri.path);
+    final body = await utf8.decoder.bind(request).join();
+
+    request.response.headers.contentType = ContentType.json;
+    if (request.uri.path == '/api/tokens') {
+      if (body.isNotEmpty) {
+        final decoded = jsonDecode(body);
+        if (decoded is Map) {
+          fake.loginBodies.add(Map<String, dynamic>.from(decoded));
+        }
+      }
+      request.response.statusCode = tokenStatus;
+      request.response.write(
+        jsonEncode(
+          twoFactor
+              ? {'requires_2fa': true}
+              : {
+                  'token': 'tok-1',
+                  'expires': DateTime.now()
+                      .toUtc()
+                      .add(const Duration(hours: 1))
+                      .toIso8601String(),
+                },
+        ),
+      );
+    } else {
+      request.response.statusCode = hostsStatus;
+      request.response.write(jsonEncode(hostsBody));
+    }
     await request.response.close();
   });
 

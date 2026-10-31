@@ -47,6 +47,7 @@ import 'package:seekarr/features/soulsync/presentation/soulsync_screen.dart'
     as ss;
 import 'package:seekarr/features/nzbget/presentation/nzbget_screen.dart' as nz;
 import 'package:seekarr/features/nzbget/presentation/widgets/nzbget_actions_bar.dart';
+import 'package:seekarr/features/npm/presentation/npm_screen.dart' as npm;
 import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart'
     as nda;
 import 'package:seekarr/features/prowlarr/presentation/search_screen.dart'
@@ -425,10 +426,6 @@ GoRoute _soulsyncRoutes({required String path}) {
   );
 }
 
-// PR1 stub: the NPM screen lands in PR3.
-// A dedicated coming-soon placeholder (not NotConfiguredPlaceholder,
-// which would wrongly claim the service is unconfigured).
-// TODO(npm): NpmScreen (PR3).
 GoRoute _nzbgetRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -453,44 +450,13 @@ GoRoute _npmRoutes({required String path}) {
       key: state.pageKey,
       child: ServiceDashboardScreen(
         service: ServiceKey.npm,
-        child: const _ComingSoonPlaceholder(serviceName: 'Nginx PM'),
+        child: const npm.NpmScreen(
+          showAppBar: false,
+          topPadding: _serviceDashboardTopPadding,
+        ),
       ),
     ),
   );
-}
-
-class _ComingSoonPlaceholder extends StatelessWidget {
-  const _ComingSoonPlaceholder({required this.serviceName});
-
-  final String serviceName;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.construction_rounded,
-            size: 64,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            '$serviceName support is on the way',
-            style: Theme.of(context).textTheme.headlineSmall,
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Settings can be saved now; the dashboard arrives in the next update.',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 GoRoute _prowlarrRoutes({required String path}) {

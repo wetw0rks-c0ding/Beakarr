@@ -8,6 +8,7 @@ import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
+import 'package:seekarr/features/npm/data/npm_client.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
@@ -115,10 +116,27 @@ Future<ServiceConnectionStatus> _verifyService(
     }
   }
 
-  // PR1 stub: the NPM verify handshake lands in PR3.
-  // TODO(npm): token exchange + proxy-hosts check (PR3).
   if (service == ServiceKey.npm) {
-    return ServiceConnectionStatus.notConfigured;
+    final urlTrimmed = url.trim();
+    if (urlTrimmed.isEmpty || username.trim().isEmpty || password.isEmpty) {
+      return ServiceConnectionStatus.notConfigured;
+    }
+    final client = NpmClient(
+      url: urlTrimmed,
+      identity: username.trim(),
+      password: password,
+    );
+    try {
+      await client.ensureAuthenticated().timeout(const Duration(seconds: 5));
+      await client
+          .get('/api/nginx/proxy-hosts', query: const {'expand': 'certificate'})
+          .timeout(const Duration(seconds: 5));
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
   }
   if (!service.usesApiKey) {
     final urlTrimmed = url.trim();
@@ -1029,12 +1047,10 @@ class _ServiceConfig extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              // Verify row. PR1: NZBGet/NPM have no verify client yet
-              // (PR2/PR3) and the shared badge only knows
-              // Reachable/Unreachable — showing Unreachable would be a lie,
-              // so the row is replaced with an honest note.
-              if (serviceKey == ServiceKey.nzbget ||
-                  serviceKey == ServiceKey.npm)
+              // Verify row. NZBGet still shows the honest note (its verify row
+              // is enabled with its own PR); NPM verifies through the token
+              // exchange below.
+              if (serviceKey == ServiceKey.nzbget)
                 const Text(
                   'Connection check arrives with support — saving works now.',
                   style: TextStyle(

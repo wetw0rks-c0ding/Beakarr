@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/core/api/api_client.dart';
 import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
+import 'package:seekarr/features/npm/data/npm_client.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
@@ -123,11 +124,25 @@ Future<ServiceConnectionStatus> _checkService(
     }
   }
 
-  // PR1 stub: the NPM handshake lands in PR3. A configured service reports
-  // disconnected (honest red dot) instead of crashing.
-  // TODO(npm): replace with token exchange + proxy-hosts check (PR3).
   if (service == ServiceKey.npm) {
-    return ServiceConnectionStatus.disconnected;
+    final client = NpmClient(
+      url: settings.npmUrl,
+      identity: settings.npmIdentity,
+      password: settings.npmPassword,
+    );
+    try {
+      // Token exchange proves the credential; the hosts list proves the
+      // bearer token is accepted by the API.
+      await client.ensureAuthenticated().timeout(const Duration(seconds: 5));
+      await client
+          .get('/api/nginx/proxy-hosts', query: const {'expand': 'certificate'})
+          .timeout(const Duration(seconds: 5));
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
   }
 
   if (service == ServiceKey.soulsync) {
@@ -310,10 +325,31 @@ Future<({bool ok, String detail})> testServiceConnection(
     }
   }
 
-  // PR1 stub: the NPM handshake lands in PR3. Never green before it exists.
-  // TODO(npm): token exchange + proxy-hosts check (PR3).
   if (service == ServiceKey.npm) {
-    return (ok: false, detail: 'Not yet supported');
+    final client = NpmClient(
+      url: settings.npmUrl,
+      identity: settings.npmIdentity,
+      password: settings.npmPassword,
+    );
+    try {
+      await client.ensureAuthenticated().timeout(const Duration(seconds: 5));
+      await client
+          .get('/api/nginx/proxy-hosts', query: const {'expand': 'certificate'})
+          .timeout(const Duration(seconds: 5));
+      return (ok: true, detail: '');
+    } on NpmTwoFactorRequiredException catch (e) {
+      return (ok: false, detail: e.message);
+    } on NpmAuthException catch (e) {
+      return (ok: false, detail: e.message);
+    } catch (e) {
+      final code = _httpStatusCode(e);
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      client.close();
+    }
   }
 
   if (service == ServiceKey.soulsync) {
