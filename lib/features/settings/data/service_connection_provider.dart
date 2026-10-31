@@ -50,7 +50,8 @@ String _healthEndpoint(ServiceKey service) {
     case ServiceKey.openmediavault:
       return '/rpc.php';
     case ServiceKey.wizarr:
-      return '/api/invitations';  }
+      return '/api/invitations';
+  }
 }
 
 /// Pings [service] using the currently configured URL and API key.

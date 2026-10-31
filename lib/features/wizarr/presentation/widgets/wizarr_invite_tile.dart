@@ -42,9 +42,9 @@ class WizarrInviteTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 6),
@@ -99,11 +99,11 @@ class WizarrInviteTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.wizarr,
-                        fontFamily: 'JetBrains Mono',
-                        fontSize: 10,
-                        decoration: TextDecoration.underline,
-                      ),
+                    color: AppColors.wizarr,
+                    fontFamily: 'JetBrains Mono',
+                    fontSize: 10,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
             ],
@@ -152,11 +152,7 @@ class WizarrInviteTile extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: c,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: c, fontSize: 9, fontWeight: FontWeight.w700),
       ),
     );
   }

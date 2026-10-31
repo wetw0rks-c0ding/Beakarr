@@ -10,23 +10,23 @@ import 'package:seekarr/features/wizarr/presentation/widgets/wizarr_invite_tile.
 import 'package:seekarr/features/wizarr/presentation/widgets/wizarr_user_tile.dart';
 
 WizarrInvitation _liveInvite() => const WizarrInvitation(
-      code: 'code-123',
-      inviteUrl: 'https://example.com/j/code-123',
-      server: 'Plex',
-      serverType: 'plex',
-      maxUses: 5,
-      usedCount: 2,
-      expiresAt: null,
-      createdAt: null,
-    );
+  code: 'code-123',
+  inviteUrl: 'https://example.com/j/code-123',
+  server: 'Plex',
+  serverType: 'plex',
+  maxUses: 5,
+  usedCount: 2,
+  expiresAt: null,
+  createdAt: null,
+);
 
 WizarrUser _liveUser() => const WizarrUser(
-      username: 'alice',
-      server: 'Plex',
-      serverType: 'plex',
-      email: 'alice@example.com',
-      lastActiveAt: null,
-    );
+  username: 'alice',
+  server: 'Plex',
+  serverType: 'plex',
+  email: 'alice@example.com',
+  lastActiveAt: null,
+);
 
 void main() {
   testWidgets('WizarrScreen renders tabs', (tester) async {
@@ -71,7 +71,9 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          wizarrInvitationsProvider.overrideWith((ref) async => [_liveInvite()]),
+          wizarrInvitationsProvider.overrideWith(
+            (ref) async => [_liveInvite()],
+          ),
           wizarrUsersProvider.overrideWith((ref) async => [_liveUser()]),
         ],
         child: const MaterialApp(home: WizarrScreen()),

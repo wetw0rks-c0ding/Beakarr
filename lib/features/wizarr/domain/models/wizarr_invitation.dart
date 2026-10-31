@@ -32,10 +32,7 @@ class WizarrInvitation {
     // Tolerate both camelCase and snake_case (and a few live-API aliases).
     final code = stringOrNull(json['code'] ?? json['id']?.toString());
     final inviteUrl = stringOrNull(
-      json['inviteUrl'] ??
-          json['invite_url'] ??
-          json['url'] ??
-          json['link'],
+      json['inviteUrl'] ?? json['invite_url'] ?? json['url'] ?? json['link'],
     );
     final server = stringOrNull(
       json['server'] ??
@@ -44,9 +41,7 @@ class WizarrInvitation {
           json['serverName'] ??
           json['server_name'],
     );
-    final serverType = stringOrNull(
-      json['serverType'] ?? json['server_type'],
-    );
+    final serverType = stringOrNull(json['serverType'] ?? json['server_type']);
     final maxUses = intOrNull(
       json['maxUses'] ??
           json['max_uses'] ??

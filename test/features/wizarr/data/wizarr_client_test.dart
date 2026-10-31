@@ -29,7 +29,9 @@ class _ScriptAdapter implements HttpClientAdapter {
     return ResponseBody.fromBytes(
       Uint8List.fromList(utf8.encode(body)),
       step.$1,
-      headers: {Headers.contentTypeHeader: ['application/json']},
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
     );
   }
 }
@@ -54,7 +56,11 @@ void main() {
   });
 
   test('401 maps to WizarrException message', () async {
-    final adapter = _ScriptAdapter(script: [(401, {'error': 'Unauthorized'})]);
+    final adapter = _ScriptAdapter(
+      script: [
+        (401, {'error': 'Unauthorized'}),
+      ],
+    );
     final client = _client(adapter);
     Object? error;
     try {
@@ -81,14 +87,22 @@ void main() {
   });
 
   test('allowlisted read returns data', () async {
-    final adapter = _ScriptAdapter(script: [(200, {'invitations': [], 'count': 0})]);
+    final adapter = _ScriptAdapter(
+      script: [
+        (200, {'invitations': [], 'count': 0}),
+      ],
+    );
     final client = _client(adapter);
     final data = await client.rpc('Invitation', 'getAll');
     expect(data, isA<Map>());
   });
 
   test('sends X-API-Key header', () async {
-    final adapter = _ScriptAdapter(script: [(200, {'invitations': [], 'count': 0})]);
+    final adapter = _ScriptAdapter(
+      script: [
+        (200, {'invitations': [], 'count': 0}),
+      ],
+    );
     final client = _client(adapter, apiKey: 'secret');
     await client.rpc('Invitation', 'getAll');
     expect(adapter.requests.single.headers['X-API-Key'], 'secret');

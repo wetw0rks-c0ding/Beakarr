@@ -41,9 +41,9 @@ class WizarrUserTile extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
-                        ),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
                 if (u.server != null && u.server!.isNotEmpty)
@@ -57,9 +57,9 @@ class WizarrUserTile extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 10,
-                    ),
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 10,
+                ),
               ),
             ],
             if (u.serverType != null && u.serverType!.isNotEmpty) ...[
@@ -71,9 +71,9 @@ class WizarrUserTile extends StatelessWidget {
               Text(
                 'Last active: ${_formatDate(u.lastActiveAt!)}',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontSize: 10,
-                    ),
+                  color: colorScheme.onSurfaceVariant,
+                  fontSize: 10,
+                ),
               ),
             ],
           ],
@@ -99,11 +99,7 @@ class WizarrUserTile extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(
-          color: c,
-          fontSize: 9,
-          fontWeight: FontWeight.w700,
-        ),
+        style: TextStyle(color: c, fontSize: 9, fontWeight: FontWeight.w700),
       ),
     );
   }

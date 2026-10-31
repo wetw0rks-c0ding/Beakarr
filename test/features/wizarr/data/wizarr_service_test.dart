@@ -7,7 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:seekarr/features/wizarr/data/wizarr_client.dart';
 import 'package:seekarr/features/wizarr/data/wizarr_service.dart';
 
-
 class _MockAdapter implements HttpClientAdapter {
   _MockAdapter({this.data});
   dynamic data;
@@ -28,7 +27,9 @@ class _MockAdapter implements HttpClientAdapter {
     return ResponseBody.fromBytes(
       utf8.encode(body),
       200,
-      headers: {Headers.contentTypeHeader: ['application/json']},
+      headers: {
+        Headers.contentTypeHeader: ['application/json'],
+      },
     );
   }
 }
@@ -37,7 +38,9 @@ WizarrService _service(dynamic data) {
   final dio = Dio(BaseOptions(baseUrl: 'http://localhost'));
   final adapter = _MockAdapter(data: data);
   dio.httpClientAdapter = adapter;
-  return WizarrService(WizarrClient(url: 'http://localhost', apiKey: 'k', dio: dio));
+  return WizarrService(
+    WizarrClient(url: 'http://localhost', apiKey: 'k', dio: dio),
+  );
 }
 
 void main() {

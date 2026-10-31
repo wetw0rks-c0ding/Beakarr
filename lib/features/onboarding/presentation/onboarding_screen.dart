@@ -93,7 +93,8 @@ String _healthEndpoint(ServiceKey service) {
     case ServiceKey.openmediavault:
       return '/rpc.php';
     case ServiceKey.wizarr:
-      return '/api/invitations';  }
+      return '/api/invitations';
+  }
 }
 
 Future<ServiceConnectionStatus> _verifyService(

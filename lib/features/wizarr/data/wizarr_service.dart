@@ -42,8 +42,10 @@ class WizarrService {
       }
     }
     if (data is! List) {
-      if (response is List) data = response;
-      else return const [];
+      if (response is List)
+        data = response;
+      else
+        return const [];
     }
     final items = <T>[];
     for (final item in data) {

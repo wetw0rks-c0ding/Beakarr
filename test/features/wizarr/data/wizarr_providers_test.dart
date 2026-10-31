@@ -34,15 +34,19 @@ void main() {
   test('provider message contains Wizarr not configured', () {
     final container = ProviderContainer(
       overrides: [
-        currentSettingsProvider.overrideWith(
-          (ref) => const SettingsModel(),
-        ),
+        currentSettingsProvider.overrideWith((ref) => const SettingsModel()),
       ],
     );
     addTearDown(container.dispose);
     expect(
       () => container.read(wizarrClientProvider),
-      throwsA(isA<Exception>().having((e) => e.toString(), 'msg', contains('Wizarr not configured'))),
+      throwsA(
+        isA<Exception>().having(
+          (e) => e.toString(),
+          'msg',
+          contains('Wizarr not configured'),
+        ),
+      ),
     );
   });
 }

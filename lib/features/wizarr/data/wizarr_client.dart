@@ -10,11 +10,7 @@ class WizarrException implements Exception {
   final int? httpStatus;
   final int? code;
 
-  const WizarrException({
-    required this.message,
-    this.httpStatus,
-    this.code,
-  });
+  const WizarrException({required this.message, this.httpStatus, this.code});
 
   @override
   String toString() => 'WizarrException: $message';
@@ -40,14 +36,12 @@ class WizarrClient {
   late final Dio _dio;
   final String _apiKey;
 
-  WizarrClient({
-    required String url,
-    required String apiKey,
-    Dio? dio,
-  })  : baseUrl = UrlUtils.normalizeBaseUrl(url),
-        apiKey = apiKey.trim(),
-        _apiKey = apiKey.trim() {
-    _dio = dio ??
+  WizarrClient({required String url, required String apiKey, Dio? dio})
+    : baseUrl = UrlUtils.normalizeBaseUrl(url),
+      apiKey = apiKey.trim(),
+      _apiKey = apiKey.trim() {
+    _dio =
+        dio ??
         Dio(
           BaseOptions(
             baseUrl: baseUrl,
@@ -70,8 +64,11 @@ class WizarrClient {
     return null;
   }
 
-  Future<dynamic> rpc(String service, String method,
-      [Map<String, dynamic>? params]) async {
+  Future<dynamic> rpc(
+    String service,
+    String method, [
+    Map<String, dynamic>? params,
+  ]) async {
     final key = '$service.$method';
     if (!_readOnly.contains(key)) {
       throw StateError('Wizarr RPC "$key" is not in the read-only allowlist');
@@ -90,25 +87,28 @@ class WizarrClient {
     } on DioException catch (e) {
       final status = e.response?.statusCode;
       final parsed = _extractError(e.response?.data);
-      final message = parsed ?? (status == 401 ? 'Unauthorized' : 'Request failed');
-      throw WizarrException(
-        message: message,
-        httpStatus: status,
-        code: null,
-      );
+      final message =
+          parsed ?? (status == 401 ? 'Unauthorized' : 'Request failed');
+      throw WizarrException(message: message, httpStatus: status, code: null);
     }
   }
 
   // Aliases for callers that prefer a different verb.
-  Future<dynamic> call(String service, String method,
-          [Map<String, dynamic>? params]) =>
-      rpc(service, method, params);
-  Future<dynamic> request(String service, String method,
-          [Map<String, dynamic>? params]) =>
-      rpc(service, method, params);
-  Future<dynamic> invoke(String service, String method,
-          [Map<String, dynamic>? params]) =>
-      rpc(service, method, params);
+  Future<dynamic> call(
+    String service,
+    String method, [
+    Map<String, dynamic>? params,
+  ]) => rpc(service, method, params);
+  Future<dynamic> request(
+    String service,
+    String method, [
+    Map<String, dynamic>? params,
+  ]) => rpc(service, method, params);
+  Future<dynamic> invoke(
+    String service,
+    String method, [
+    Map<String, dynamic>? params,
+  ]) => rpc(service, method, params);
 
   dynamic _decode(dynamic data) {
     if (data is String) {

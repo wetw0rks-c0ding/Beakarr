@@ -15,11 +15,7 @@ class WizarrScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
   final double topPadding;
 
-  const WizarrScreen({
-    super.key,
-    this.showAppBar = true,
-    this.topPadding = 0,
-  });
+  const WizarrScreen({super.key, this.showAppBar = true, this.topPadding = 0});
 
   @override
   ConsumerState<WizarrScreen> createState() => _WizarrScreenState();
@@ -34,9 +30,7 @@ class _WizarrScreenState extends ConsumerState<WizarrScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: widget.showAppBar
-          ? AppBar(title: const Text('Wizarr'))
-          : null,
+      appBar: widget.showAppBar ? AppBar(title: const Text('Wizarr')) : null,
       body: Column(
         children: [
           if (widget.topPadding > 0)
@@ -50,7 +44,10 @@ class _WizarrScreenState extends ConsumerState<WizarrScreen> {
             ),
             child: SegmentedButton<int>(
               segments: const [
-                ButtonSegment(value: _invitationsTab, label: Text('Invitations')),
+                ButtonSegment(
+                  value: _invitationsTab,
+                  label: Text('Invitations'),
+                ),
                 ButtonSegment(value: _usersTab, label: Text('Users')),
               ],
               selected: {_tab},
@@ -138,8 +135,7 @@ class _UsersTab extends ConsumerWidget {
               bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
             ),
             itemCount: items.length,
-            itemBuilder: (context, index) =>
-                WizarrUserTile(user: items[index]),
+            itemBuilder: (context, index) => WizarrUserTile(user: items[index]),
           ),
         );
       },
@@ -178,17 +174,17 @@ Widget _emptyState(
         Text(
           label,
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
           'Pull down to refresh',
           textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+          style: Theme.of(
+            context,
+          ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
       ],
     ),

@@ -28,9 +28,7 @@ class WizarrUser {
       server: stringOrNull(
         json['server'] ?? json['serverName'] ?? json['server_name'],
       ),
-      serverType: stringOrNull(
-        json['serverType'] ?? json['server_type'],
-      ),
+      serverType: stringOrNull(json['serverType'] ?? json['server_type']),
       email: stringOrNull(json['email']),
       lastActiveAt: parseDate(
         json['lastActiveAt'] ??

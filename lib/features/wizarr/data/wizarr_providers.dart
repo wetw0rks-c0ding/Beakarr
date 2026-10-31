@@ -11,10 +11,7 @@ final wizarrClientProvider = Provider<WizarrClient>((ref) {
   if (s.wizarrUrl.isEmpty || s.wizarrApiKey.isEmpty) {
     throw Exception('Wizarr not configured');
   }
-  return WizarrClient(
-    url: s.wizarrUrl,
-    apiKey: s.wizarrApiKey,
-  );
+  return WizarrClient(url: s.wizarrUrl, apiKey: s.wizarrApiKey);
 });
 
 final wizarrServiceProvider = Provider<WizarrService>((ref) {
@@ -25,12 +22,13 @@ final wizarrServiceProvider = Provider<WizarrService>((ref) {
 
 final wizarrInvitationsProvider =
     FutureProvider.autoDispose<List<WizarrInvitation>>((ref) async {
-  final service = ref.watch(wizarrServiceProvider);
-  return service.getInvitations();
-});
+      final service = ref.watch(wizarrServiceProvider);
+      return service.getInvitations();
+    });
 
-final wizarrUsersProvider =
-    FutureProvider.autoDispose<List<WizarrUser>>((ref) async {
+final wizarrUsersProvider = FutureProvider.autoDispose<List<WizarrUser>>((
+  ref,
+) async {
   final service = ref.watch(wizarrServiceProvider);
   return service.getUsers();
 });
