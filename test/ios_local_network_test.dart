@@ -2,13 +2,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-/// iOS 14+ blocks TCP to LAN addresses (e.g. http://192.168.4.185:81)
-/// unless the app declares NSLocalNetworkUsageDescription and the user
-/// grants Local Network access. Without the key the system denies the
-/// connection outright and Dio surfaces only a generic connectionError —
-/// exactly the "Connection failed" seen on iPhone while Android (no such
-/// permission) stayed green. Regression test: the key must exist with a
-/// non-empty purpose string.
+/// iOS 14+ requires NSLocalNetworkUsageDescription before the system will
+/// prompt for Local Network access; without the key, LAN addresses (e.g.
+/// http://192.168.4.185:81) fail at TCP level and Dio surfaces only a
+/// generic connectionError — the "Connection failed" seen on iPhone while
+/// Android (no such permission) stayed green. This test pins the key's
+/// presence only: the user must still grant access on-device, so a green
+/// test is necessary but not sufficient — the iPhone retest is the proof.
 void main() {
   // Two-step check: key presence first (clear failure message naming the
   // missing key), then a non-empty purpose string (what iOS shows).
