@@ -81,12 +81,3 @@ provider there, and save it as a named, reusable preset.
   both match.
 - OIDC token pairs are cleared exactly when the existing
   issuer-or-client comparison says the identity changed.
-
-## For homelab reviewers
-1. Issuer derivation on your side: our per-service issuer convention is
-   `{origin}/application/o/<service>/` with `client_id == <service>`
-   (or the shared `arrstack` pair). Does any current or planned
-   provider break if a client assumes this shape?
-2. The discovery doc's `issuer` is trusted verbatim. Any setup where
-   the doc issuer legitimately differs from the request URL in a way
-   we should reject rather than accept?
