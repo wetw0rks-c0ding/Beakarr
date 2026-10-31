@@ -172,6 +172,51 @@ void main() {
       expect(await secureStore.read(key: 'secure_npm_password'), isNull);
     });
 
+    test('saveSettings and loadSettings round-trip OpenMediaVault', () async {
+      const settings = SettingsModel(
+        openmediavaultUrl: 'https://omv.local',
+        openmediavaultUsername: 'admin',
+        openmediavaultPassword: 'omvpass',
+      );
+
+      await service.saveSettings(settings);
+      final loaded = await service.loadSettings();
+
+      expect(loaded.openmediavaultUrl, settings.openmediavaultUrl);
+      expect(loaded.openmediavaultUsername, settings.openmediavaultUsername);
+      expect(loaded.openmediavaultPassword, settings.openmediavaultPassword);
+      expect(prefs.getString('openmediavault_url'), settings.openmediavaultUrl);
+      expect(
+        prefs.getString('openmediavault_username'),
+        settings.openmediavaultUsername,
+      );
+      expect(
+        await secureStore.read(key: 'secure_openmediavault_password'),
+        'omvpass',
+      );
+    });
+
+    test('clearAll wipes OpenMediaVault credentials', () async {
+      const settings = SettingsModel(
+        openmediavaultUrl: 'https://omv.local',
+        openmediavaultUsername: 'admin',
+        openmediavaultPassword: 'omvpass',
+      );
+      await service.saveSettings(settings);
+
+      await service.clearAll();
+
+      final loaded = await service.loadSettings();
+      expect(loaded.openmediavaultUrl, isEmpty);
+      expect(loaded.openmediavaultUsername, isEmpty);
+      expect(loaded.openmediavaultPassword, isEmpty);
+      expect(prefs.getString('openmediavault_username'), isNull);
+      expect(
+        await secureStore.read(key: 'secure_openmediavault_password'),
+        isNull,
+      );
+    });
+
     test('loadSettings returns empty defaults on fresh storage', () async {
       final loaded = await service.loadSettings();
 

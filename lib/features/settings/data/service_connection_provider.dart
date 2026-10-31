@@ -7,6 +7,7 @@ import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
 import 'package:seekarr/features/npm/data/npm_client.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
+import 'package:seekarr/features/openmediavault/data/openmediavault_client.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
@@ -46,6 +47,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/jsonrpc';
     case ServiceKey.npm:
       return '/api/nginx/proxy-hosts';
+    case ServiceKey.openmediavault:
+      return '/rpc.php';
   }
 }
 
@@ -142,6 +145,30 @@ Future<ServiceConnectionStatus> _checkService(
       return ServiceConnectionStatus.disconnected;
     } finally {
       client.close();
+    }
+  }
+
+  if (service == ServiceKey.openmediavault) {
+    final client = OpenMediaVaultClient(
+      url: settings.openmediavaultUrl,
+      username: settings.openmediavaultUsername,
+      password: settings.openmediavaultPassword,
+    );
+    try {
+      await client.login().timeout(const Duration(seconds: 5));
+      await client
+          .rpc('System', 'getInformation', const {})
+          .timeout(const Duration(seconds: 5));
+      // Non-admin sessions can read hostnames but none of the data tabs —
+      // a green dot would be a lie, same rule as testServiceConnection.
+      if (client.permissions?['role']?.toString() != 'admin') {
+        return ServiceConnectionStatus.disconnected;
+      }
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close(logout: true);
     }
   }
 
@@ -363,6 +390,58 @@ Future<({bool ok, String detail})> testServiceConnection(
     }
   }
 
+  if (service == ServiceKey.openmediavault) {
+    final client = OpenMediaVaultClient(
+      url: settings.openmediavaultUrl,
+      username: settings.openmediavaultUsername,
+      password: settings.openmediavaultPassword,
+    );
+    try {
+      await client.login().timeout(const Duration(seconds: 5));
+      await client
+          .rpc('System', 'getInformation', const {})
+          .timeout(const Duration(seconds: 5));
+      if (client.permissions?['role']?.toString() != 'admin') {
+        return (
+          ok: false,
+          detail:
+              'Signed in, but "user" is not an administrator. Most OMV data requires an admin account.',
+        );
+      }
+      return (ok: true, detail: '');
+    } on OpenMediaVaultException catch (e) {
+      final msg = e.message;
+      if (e.httpStatus == 400) {
+        final detail = _scrub(msg, settings, service);
+        return (
+          ok: false,
+          detail: detail.length <= 140 ? detail : detail.substring(0, 140),
+        );
+      }
+      if (e.httpStatus == 401) {
+        return (ok: false, detail: 'Session rejected');
+      }
+      final code = e.httpStatus;
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } catch (e) {
+      // Distinguish timeout/connection refused via _errorDetail; HTTP status
+      // via _httpStatusCode.
+      final code = _httpStatusCode(e);
+      if (code == 401) {
+        return (ok: false, detail: 'Session rejected');
+      }
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      client.close(logout: true);
+    }
+  }
+
   if (service == ServiceKey.soulsync) {
     final ssClient = ApiClient(
       baseUrl: settings.soulsyncUrl,
@@ -520,6 +599,12 @@ String _scrub(String text, SettingsModel settings, ServiceKey service) {
       settings.npmUrl,
       settings.npmIdentity,
       settings.npmPassword,
+    ]);
+  } else if (service == ServiceKey.openmediavault) {
+    secrets.addAll([
+      settings.openmediavaultUrl,
+      settings.openmediavaultUsername,
+      settings.openmediavaultPassword,
     ]);
   } else {
     secrets.addAll([settings.urlFor(service), settings.apiKeyFor(service)]);

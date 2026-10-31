@@ -136,6 +136,12 @@ class SettingsService {
       secureApiKey: 'secure_npm_password',
       username: 'npm_identity',
     ),
+    ServiceKey.openmediavault: _ServiceStorageKeys(
+      url: 'openmediavault_url',
+      legacyApiKey: '',
+      secureApiKey: 'secure_openmediavault_password',
+      username: 'openmediavault_username',
+    ),
   };
 
   final SharedPreferences _prefs;
@@ -283,6 +289,10 @@ class SettingsService {
     final npmIdentity = _prefs.getString(npmKeys.username!) ?? '';
     final npmPassword = await _loadApiKey(npmKeys.secureApiKey);
 
+    final omvKeys = _serviceStorageKeys[ServiceKey.openmediavault]!;
+    final omvUsername = _prefs.getString(omvKeys.username!) ?? '';
+    final omvPassword = await _loadApiKey(omvKeys.secureApiKey);
+
     return SettingsModel(
       seerrUrl: serviceSettings[ServiceKey.seerr]!.$1,
       seerrApiKey: serviceSettings[ServiceKey.seerr]!.$2,
@@ -308,6 +318,9 @@ class SettingsService {
       npmUrl: serviceSettings[ServiceKey.npm]!.$1,
       npmIdentity: npmIdentity,
       npmPassword: npmPassword,
+      openmediavaultUrl: serviceSettings[ServiceKey.openmediavault]!.$1,
+      openmediavaultUsername: omvUsername,
+      openmediavaultPassword: omvPassword,
       soulsyncUrl: serviceSettings[ServiceKey.soulsync]!.$1,
       soulsyncApiKey: serviceSettings[ServiceKey.soulsync]!.$2,
       soulsyncProxyCookie: await _loadApiKey(_kSoulSyncProxyCookie),
@@ -371,6 +384,13 @@ class SettingsService {
     } else {
       await _prefs.remove(npmKeys.username!);
     }
+
+    final omvKeys = _serviceStorageKeys[ServiceKey.openmediavault]!;
+    if (settings.openmediavaultUsername.isNotEmpty) {
+      await _prefs.setString(omvKeys.username!, settings.openmediavaultUsername);
+    } else {
+      await _prefs.remove(omvKeys.username!);
+    }
   }
 
   Future<Map<ServiceKey, (String, String)>> _loadServiceSettings() async {
@@ -422,6 +442,13 @@ class SettingsService {
         await _saveApiKey(
           storageKeys.secureApiKey,
           settings.qbittorrentPassword,
+        );
+        continue;
+      }
+      if (service == ServiceKey.openmediavault) {
+        await _saveApiKey(
+          storageKeys.secureApiKey,
+          settings.openmediavaultPassword,
         );
         continue;
       }

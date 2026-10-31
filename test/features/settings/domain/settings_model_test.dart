@@ -277,6 +277,9 @@ void main() {
         npmUrl: 'u',
         npmIdentity: 'u',
         npmPassword: 'k',
+        openmediavaultUrl: 'u',
+        openmediavaultUsername: 'u',
+        openmediavaultPassword: 'k',
       );
       for (final service in ServiceKey.values) {
         final cleared = full.clearedService(service);

@@ -48,6 +48,7 @@ import 'package:seekarr/features/soulsync/presentation/soulsync_screen.dart'
 import 'package:seekarr/features/nzbget/presentation/nzbget_screen.dart' as nz;
 import 'package:seekarr/features/nzbget/presentation/widgets/nzbget_actions_bar.dart';
 import 'package:seekarr/features/npm/presentation/npm_screen.dart' as npm;
+import 'package:seekarr/features/openmediavault/presentation/openmediavault_screen.dart' as omv;
 import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart'
     as nda;
 import 'package:seekarr/features/prowlarr/presentation/search_screen.dart'
@@ -459,6 +460,22 @@ GoRoute _npmRoutes({required String path}) {
   );
 }
 
+GoRoute _openMediaVaultRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.openmediavault,
+        child: const omv.OpenMediaVaultScreen(
+          showAppBar: false,
+          topPadding: _serviceDashboardTopPadding,
+        ),
+      ),
+    ),
+  );
+}
+
 GoRoute _prowlarrRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -566,6 +583,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               _soulsyncRoutes(path: 'soulsync'),
               _nzbgetRoutes(path: 'nzbget'),
               _npmRoutes(path: 'npm'),
+              _openMediaVaultRoutes(path: 'openmediavault'),
             ],
           ),
           GoRoute(

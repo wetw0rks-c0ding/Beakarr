@@ -373,5 +373,14 @@ Future<ServiceSummary> _summaryBuilder(Ref ref, ServiceKey service) async {
         itemCount: null,
         itemLabel: 'proxy hosts',
       );
+    case ServiceKey.openmediavault:
+      return const ServiceSummary(
+        service: ServiceKey.openmediavault,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'disks',
+      );
   }
 }

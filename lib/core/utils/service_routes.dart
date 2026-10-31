@@ -20,6 +20,7 @@ class ServiceRoutes {
   static const lidarrArtistBase = '$lidarr/artist';
   static const nzbget = '$services/nzbget';
   static const npm = '$services/npm';
+  static const openmediavault = '$services/openmediavault';
   static const qbittorrentTorrentBase = '$qbittorrent/torrent';
   static const prowlarrSearch = '$prowlarr/search';
 

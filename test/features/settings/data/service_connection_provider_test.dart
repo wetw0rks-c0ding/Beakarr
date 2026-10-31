@@ -219,6 +219,89 @@ void main() {
       'Not configured',
     );
   });
+
+  group('OpenMediaVault connection', () {
+    Future<HttpServer> _omvServer({
+      String role = 'admin',
+      int loginStatus = 200,
+      Map<String, dynamic>? loginBody,
+    }) async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => server.close(force: true));
+      server.listen((request) async {
+        final body = await utf8.decoder.bind(request).join();
+        final decoded = jsonDecode(body) as Map<String, dynamic>;
+        request.response.headers.contentType = ContentType.json;
+        if (decoded['service'] == 'Session' && decoded['method'] == 'login') {
+          request.response.statusCode = loginStatus;
+          request.response.write(
+            jsonEncode(
+              loginBody ??
+                  {
+                    'response': {
+                      'authenticated': true,
+                      'sessionid': 'sid-1',
+                      'permissions': {'role': role},
+                    },
+                    'error': null,
+                  },
+            ),
+          );
+        } else {
+          request.response.write(
+            jsonEncode({
+              'response': {'version': '7.4.17 (Sandworm)'},
+              'error': null,
+            }),
+          );
+        }
+        await request.response.close();
+      });
+      return server;
+    }
+
+    SettingsModel _omvSettings(HttpServer server) => SettingsModel(
+      openmediavaultUrl: 'http://127.0.0.1:${server.port}',
+      openmediavaultUsername: 'admin',
+      openmediavaultPassword: 'pass',
+    );
+
+    test('connected with admin role', () async {
+      final server = await _omvServer();
+      final result = await testServiceConnection(
+        ServiceKey.openmediavault,
+        _omvSettings(server),
+      );
+      expect(result.ok, isTrue);
+    });
+
+    test('bad credentials surface the server message', () async {
+      final server = await _omvServer(
+        loginStatus: 400,
+        loginBody: {
+          'response': null,
+          'error': {'message': 'Incorrect username or password.'},
+        },
+      );
+      final result = await testServiceConnection(
+        ServiceKey.openmediavault,
+        _omvSettings(server),
+      );
+      expect(result.ok, isFalse);
+      expect(result.detail, contains('Incorrect username'));
+    });
+
+    test('non-admin login is not reported as connected', () async {
+      final server = await _omvServer(role: 'user');
+      final settings = _omvSettings(server);
+      final result = await testServiceConnection(
+        ServiceKey.openmediavault,
+        settings,
+      );
+      expect(result.ok, isFalse);
+      expect(result.detail, contains('administrator'));
+    });
+  });
 }
 
 /// Minimal NZBGet JSON-RPC server for health-check tests; records the method

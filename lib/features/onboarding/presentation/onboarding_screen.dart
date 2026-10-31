@@ -10,6 +10,7 @@ import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/npm/data/npm_client.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
+import 'package:seekarr/features/openmediavault/data/openmediavault_client.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
@@ -37,6 +38,7 @@ const _serviceColors = {
   ServiceKey.soulsync: Color(0xFF8B5CF6), // SoulSync violet
   ServiceKey.nzbget: Color(0xFF26A69A), // NZBGet teal
   ServiceKey.npm: Color(0xFFF1583A), // NPM orange-red
+  ServiceKey.openmediavault: Color(0xFF0EA5E9), // OMV sky
 };
 
 /// Hint under the credential fields, per service auth shape.
@@ -57,6 +59,7 @@ String _credentialHint(ServiceKey service) {
     case ServiceKey.prowlarr:
     case ServiceKey.bazarr:
     case ServiceKey.soulsync:
+    case ServiceKey.openmediavault:
       return '';
   }
 }
@@ -85,6 +88,8 @@ String _healthEndpoint(ServiceKey service) {
       return '/jsonrpc';
     case ServiceKey.npm:
       return '/api/nginx/proxy-hosts';
+    case ServiceKey.openmediavault:
+      return '/rpc.php';
   }
 }
 
@@ -138,6 +143,36 @@ Future<ServiceConnectionStatus> _verifyService(
       client.close();
     }
   }
+
+  if (service == ServiceKey.openmediavault) {
+    final urlTrimmed = url.trim();
+    if (urlTrimmed.isEmpty || username.trim().isEmpty || password.isEmpty) {
+      return ServiceConnectionStatus.notConfigured;
+    }
+    final client = OpenMediaVaultClient(
+      url: urlTrimmed,
+      username: username.trim(),
+      password: password,
+    );
+    try {
+      await client.login().timeout(const Duration(seconds: 5));
+      await client
+          .rpc('System', 'getInformation', const {})
+          .timeout(const Duration(seconds: 5));
+      // Non-admin sessions can read hostnames but none of the data tabs —
+      // confirming them would green-light an unusable connection (same
+      // rule as the settings connection check).
+      if (client.permissions?['role']?.toString() != 'admin') {
+        return ServiceConnectionStatus.disconnected;
+      }
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close(logout: true);
+    }
+  }
+
   if (!service.usesApiKey) {
     final urlTrimmed = url.trim();
     if (urlTrimmed.isEmpty) return ServiceConnectionStatus.notConfigured;
@@ -320,6 +355,12 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           updated = updated.copyWithNpm(
             url: _urlCtrl[k]!.text.trim(),
             identity: _usernameCtrl[k]!.text.trim(),
+            password: _passwordCtrl[k]!.text,
+          );
+        } else if (k == ServiceKey.openmediavault) {
+          updated = updated.copyWithOpenMediaVault(
+            url: _urlCtrl[k]!.text.trim(),
+            username: _usernameCtrl[k]!.text.trim(),
             password: _passwordCtrl[k]!.text,
           );
         } else {

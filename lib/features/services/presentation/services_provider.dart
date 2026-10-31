@@ -16,6 +16,8 @@ import 'package:seekarr/features/music/presentation/music_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/npm/data/npm_client.dart';
 import 'package:seekarr/features/npm/data/npm_service.dart';
+import 'package:seekarr/features/openmediavault/data/openmediavault_client.dart';
+import 'package:seekarr/features/openmediavault/data/openmediavault_providers.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_service.dart';
 import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
@@ -194,6 +196,29 @@ Future<String?> _loadVersion(
     }
   }
 
+  if (service == ServiceKey.openmediavault) {
+    final client = OpenMediaVaultClient(
+      url: settings.openmediavaultUrl,
+      username: settings.openmediavaultUsername,
+      password: settings.openmediavaultPassword,
+    );
+    try {
+      await client.login().timeout(const Duration(seconds: 5));
+      final info = await client
+          .rpc('System', 'getInformation', const {})
+          .timeout(const Duration(seconds: 5));
+      // A null version is only for connected-but-versionless. Connection
+      // failures must throw: _loadServiceSummary treats a clean return as
+      // online (same rule as the NZBGet arm).
+      if (info is Map) {
+        return (info['version'])?.toString();
+      }
+      return null;
+    } finally {
+      client.close(logout: true);
+    }
+  }
+
   final createClient = ref.watch(serviceStatusClientFactoryProvider);
   final client = createClient(
     baseUrl: settings.urlFor(service),
@@ -237,6 +262,8 @@ String _statusEndpointFor(ServiceKey service) {
       return '/jsonrpc';
     case ServiceKey.npm:
       return '/api/nginx/proxy-hosts';
+    case ServiceKey.openmediavault:
+      return '/rpc.php';
   }
 }
 
@@ -383,6 +410,13 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       return (await ref
               .watch(npmServiceProvider)
               .getProxyHosts()
+              .timeout(const Duration(seconds: 5)))
+          .length;
+    case ServiceKey.openmediavault:
+      // Disk count is the dashboard item count ("4 disks").
+      return (await ref
+              .watch(openMediaVaultServiceProvider)
+              .getDisks()
               .timeout(const Duration(seconds: 5)))
           .length;
   }
@@ -606,7 +640,8 @@ Future<List<ServiceQueueItem>> _loadServiceQueueItems(
       ServiceKey.navidrome ||
       ServiceKey.soulsync ||
       ServiceKey.nzbget ||
-      ServiceKey.npm => const <dynamic>[],
+      ServiceKey.npm ||
+      ServiceKey.openmediavault => const <dynamic>[],
     };
     return items
         .whereType<Map>()
@@ -651,6 +686,7 @@ String _queueTypeLabel(ServiceKey service) {
     ServiceKey.soulsync => 'Wishlist',
     ServiceKey.nzbget => 'NZBGet',
     ServiceKey.npm => 'Proxy',
+    ServiceKey.openmediavault => 'Disk',
     ServiceKey.seerr || ServiceKey.qbittorrent => service.title,
   };
 }

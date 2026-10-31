@@ -14,6 +14,7 @@ enum ServiceKey {
   soulsync,
   nzbget,
   npm,
+  openmediavault,
 }
 
 /// How [ServiceKey] collects credentials. Replaces the hand-rolled
@@ -40,6 +41,8 @@ extension ServiceKeyExtension on ServiceKey {
         // Short title: the dashboard app bar has no ellipsis and the
         // full "Nginx Proxy Manager" overflows at 360 dp.
         return 'Nginx PM';
+      case ServiceKey.openmediavault:
+        return 'OpenMediaVault';
       case ServiceKey.prowlarr:
         return 'Prowlarr';
       case ServiceKey.bazarr:
@@ -67,6 +70,8 @@ extension ServiceKeyExtension on ServiceKey {
         return Icons.cloud_download_rounded;
       case ServiceKey.npm:
         return Icons.router_rounded;
+      case ServiceKey.openmediavault:
+        return Icons.storage_rounded;
       case ServiceKey.prowlarr:
         return Icons.dns_rounded;
       case ServiceKey.bazarr:
@@ -94,6 +99,8 @@ extension ServiceKeyExtension on ServiceKey {
         return AppColors.nzbget;
       case ServiceKey.npm:
         return AppColors.npm;
+      case ServiceKey.openmediavault:
+        return AppColors.openmediavault;
       case ServiceKey.prowlarr:
         return AppColors.prowlarr;
       case ServiceKey.bazarr:
@@ -113,15 +120,19 @@ extension ServiceKeyExtension on ServiceKey {
   ServiceCredentialKind get credentialKind => switch (this) {
     ServiceKey.qbittorrent ||
     ServiceKey.navidrome ||
-    ServiceKey.nzbget => ServiceCredentialKind.usernamePassword,
+    ServiceKey.nzbget ||
+    ServiceKey.openmediavault => ServiceCredentialKind.usernamePassword,
     ServiceKey.npm => ServiceCredentialKind.emailPassword,
     _ => ServiceCredentialKind.apiKey,
   };
 
   /// Label for the username slot. NPM signs in with an email identity.
-  String get usernameLabel => switch (credentialKind) {
-    ServiceCredentialKind.emailPassword => 'Email',
-    _ => 'Username',
+  String get usernameLabel => switch (this) {
+    ServiceKey.openmediavault => 'Username (admin)',
+    _ => switch (credentialKind) {
+      ServiceCredentialKind.emailPassword => 'Email',
+      _ => 'Username',
+    },
   };
 
   /// Whether the username/email field must be non-empty. qBittorrent
@@ -137,7 +148,8 @@ extension ServiceKeyExtension on ServiceKey {
     return this != ServiceKey.qbittorrent &&
         this != ServiceKey.navidrome &&
         this != ServiceKey.nzbget &&
-        this != ServiceKey.npm;
+        this != ServiceKey.npm &&
+        this != ServiceKey.openmediavault;
   }
 
   bool get supportsManualImport {
@@ -165,6 +177,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'JSON-RPC';
       case ServiceKey.npm:
         return 'REST';
+      case ServiceKey.openmediavault:
+        return 'RPC';
     }
   }
 
@@ -184,6 +198,8 @@ extension ServiceKeyExtension on ServiceKey {
         return 'downloads';
       case ServiceKey.npm:
         return 'proxy hosts';
+      case ServiceKey.openmediavault:
+        return 'disks';
       case ServiceKey.prowlarr:
         return 'indexers';
       case ServiceKey.bazarr:
@@ -209,6 +225,7 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.soulsync:
       case ServiceKey.nzbget:
       case ServiceKey.npm:
+      case ServiceKey.openmediavault:
         return name;
     }
   }

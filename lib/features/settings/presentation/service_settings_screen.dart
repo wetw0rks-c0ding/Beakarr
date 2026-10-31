@@ -78,6 +78,7 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   bool get isSoulSync => widget.service == ServiceKey.soulsync;
   bool get isNzbget => widget.service == ServiceKey.nzbget;
   bool get isNpm => widget.service == ServiceKey.npm;
+  bool get isOpenMediaVault => widget.service == ServiceKey.openmediavault;
   bool get isCredentialService =>
       widget.service.credentialKind != ServiceCredentialKind.apiKey;
 
@@ -175,6 +176,13 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
       return current.copyWithNpm(
         url: _urlController.text.trim(),
         identity: _usernameController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+    }
+    if (isOpenMediaVault) {
+      return current.copyWithOpenMediaVault(
+        url: _urlController.text.trim(),
+        username: _usernameController.text.trim(),
         password: _passwordController.text.trim(),
       );
     }
