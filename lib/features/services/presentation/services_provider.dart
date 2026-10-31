@@ -18,7 +18,7 @@ import 'package:seekarr/features/npm/data/npm_client.dart';
 import 'package:seekarr/features/npm/data/npm_service.dart';
 import 'package:seekarr/features/openmediavault/data/openmediavault_client.dart';
 import 'package:seekarr/features/openmediavault/data/openmediavault_providers.dart';
-import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
+import 'package:seekarr/features/wizarr/data/wizarr_providers.dart';import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
 import 'package:seekarr/features/nzbget/data/nzbget_service.dart';
 import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
 import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
@@ -265,8 +265,7 @@ String _statusEndpointFor(ServiceKey service) {
     case ServiceKey.openmediavault:
       return '/rpc.php';
     case ServiceKey.wizarr:
-      return '/';
-  }
+      return '/api/invitations';  }
 }
 
 Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
@@ -422,7 +421,12 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
               .timeout(const Duration(seconds: 5)))
           .length;
     case ServiceKey.wizarr:
-      return 0;
+      final invites = await ref
+          .watch(wizarrInvitationsProvider.future)
+          .timeout(const Duration(seconds: 5));
+      return invites
+          .where((i) => !i.isExpired && !i.isExhausted)
+          .length;
   }
 }
 

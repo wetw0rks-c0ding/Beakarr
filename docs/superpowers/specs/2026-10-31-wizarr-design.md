@@ -16,7 +16,7 @@ add/remove, Plex/Jellyfin/Emby management itself.
 Mirrors `lib/features/openmediavault/` and `lib/features/npm/` file
 for file; no new patterns:
 
-- `lib/features/wizarr/data/wizarr_client.dart` — Dio client, Bearer
+- `lib/features/wizarr/data/wizarr_client.dart` — Dio client, `X-API-Key`
   API key, `User-Agent: Beakarr`, 10/10/15 s timeouts. In-code
   read-only allowlist (same enforcement shape as
   `OpenMediaVaultClient._readOnly`); any non-listed call throws

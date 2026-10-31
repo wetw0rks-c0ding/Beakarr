@@ -49,7 +49,7 @@ import 'package:seekarr/features/nzbget/presentation/nzbget_screen.dart' as nz;
 import 'package:seekarr/features/nzbget/presentation/widgets/nzbget_actions_bar.dart';
 import 'package:seekarr/features/npm/presentation/npm_screen.dart' as npm;
 import 'package:seekarr/features/openmediavault/presentation/openmediavault_screen.dart' as omv;
-import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart'
+import 'package:seekarr/features/wizarr/presentation/wizarr_screen.dart' as wz;import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart'
     as nda;
 import 'package:seekarr/features/prowlarr/presentation/search_screen.dart'
     as ps;
@@ -476,6 +476,21 @@ GoRoute _openMediaVaultRoutes({required String path}) {
   );
 }
 
+GoRoute _wizarrRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.wizarr,
+        child: const wz.WizarrScreen(
+          showAppBar: false,
+          topPadding: _serviceDashboardTopPadding,
+        ),
+      ),
+    ),
+  );
+}
 GoRoute _prowlarrRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -584,7 +599,7 @@ final routerProvider = Provider<GoRouter>((ref) {
               _nzbgetRoutes(path: 'nzbget'),
               _npmRoutes(path: 'npm'),
               _openMediaVaultRoutes(path: 'openmediavault'),
-            ],
+              _wizarrRoutes(path: 'wizarr'),            ],
           ),
           GoRoute(
             path: '/activity',

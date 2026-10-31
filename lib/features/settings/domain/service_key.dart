@@ -156,7 +156,8 @@ extension ServiceKeyExtension on ServiceKey {
         this != ServiceKey.navidrome &&
         this != ServiceKey.nzbget &&
         this != ServiceKey.npm &&
-        this != ServiceKey.openmediavault;
+        this != ServiceKey.openmediavault &&
+        this != ServiceKey.wizarr;
   }
 
   bool get supportsManualImport {
