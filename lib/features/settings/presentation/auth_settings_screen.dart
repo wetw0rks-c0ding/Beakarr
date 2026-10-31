@@ -177,6 +177,10 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
               ],
             ),
             const SizedBox(height: 24),
+            const Text('Saved presets', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text('Presets: ${settings.oidcPresets.length}', style: const TextStyle(fontSize: 12)),
+            const SizedBox(height: 24),
             Text(
               _sessionStatus.toString(),
               style: const TextStyle(fontWeight: FontWeight.bold),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' show ThemeMode;
+import 'package:seekarr/features/settings/domain/oidc_preset.dart';
 
 import 'package:seekarr/features/settings/domain/service_key.dart';
 
@@ -55,6 +56,7 @@ class SettingsModel {
   final String oidcIssuer; // empty = disabled; plain URL-like field (NOT secret)
   final String oidcClientId; // default 'seekarr'
   final bool jailbroken; // iOS TrollStore install path (default off)
+  final List<OidcPreset> oidcPresets;
 
   static final Map<ServiceKey, _ServiceSettingsAccess> _serviceSettingsAccess =
       {
@@ -156,6 +158,7 @@ class SettingsModel {
     this.oidcIssuer = '',
     this.oidcClientId = 'seekarr',
     this.jailbroken = false,
+    this.oidcPresets = const [],
   });
 
   SettingsModel copyWith({
@@ -186,6 +189,7 @@ class SettingsModel {
     String? oidcIssuer,
     String? oidcClientId,
     bool? jailbroken,
+    List<OidcPreset>? oidcPresets,
   }) {
     return SettingsModel(
       seerrUrl: seerrUrl ?? this.seerrUrl,
@@ -215,6 +219,7 @@ class SettingsModel {
       oidcIssuer: oidcIssuer ?? this.oidcIssuer,
       oidcClientId: oidcClientId ?? this.oidcClientId,
       jailbroken: jailbroken ?? this.jailbroken,
+      oidcPresets: oidcPresets ?? this.oidcPresets,
     );
   }
 
