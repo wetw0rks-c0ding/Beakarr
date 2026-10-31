@@ -91,6 +91,27 @@ void main() {
       expect(find.text('API Key is required'), findsOneWidget);
     });
 
+    testWidgets('soulsync shows the saved profile hint without loading', (
+      tester,
+    ) async {
+      // Regression: the profile list is transient (gone on every open),
+      // which read as "the profile disappeared". The saved value must
+      // stay visible even when the list never loads (unreachable host:
+      // auto-load fails silently, no crash, no dropdown).
+      await _pumpServiceSettings(
+        tester,
+        service: ServiceKey.soulsync,
+        settings: const SettingsModel(
+          soulsyncUrl: 'https://unreachable.invalid',
+          soulsyncApiKey: 'key',
+          soulsyncProfileId: '7',
+        ),
+      );
+
+      expect(find.text('Saved profile: 7'), findsOneWidget);
+      expect(find.text('Load profiles'), findsOneWidget);
+    });
+
     testWidgets('copy button writes the API key to the clipboard', (
       tester,
     ) async {

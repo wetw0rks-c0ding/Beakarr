@@ -64,6 +64,16 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
       _selectedProfileId = settings.soulsyncProfileId.isEmpty
           ? null
           : settings.soulsyncProfileId;
+      // Profiles list is transient screen state (gone on every open),
+      // which reads as "the profile disappeared". Auto-load when
+      // credentials exist so the picker — and the saved selection —
+      // are visible without an extra tap.
+      if (_urlController.text.trim().isNotEmpty &&
+          _apiKeyController.text.trim().isNotEmpty) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _loadSoulSyncProfiles(silent: true),
+        );
+      }
     }
   }
 
@@ -163,59 +173,74 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
     );
   }
 
+  /// Loads SoulSync profiles into the picker. Silent mode (auto-load on
+  /// open) skips the missing-credentials snackbar — the fields may
+  /// legitimately be empty on first setup.
+  Future<void> _loadSoulSyncProfiles({bool silent = false}) async {
+    final url = _urlController.text.trim();
+    final key = _apiKeyController.text.trim();
+    if (url.isEmpty || key.isEmpty) {
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter the URL and API key first')),
+        );
+      }
+      return;
+    }
+    setState(() => _loadingProfiles = true);
+    ApiClient? client;
+    try {
+      client = ApiClient(baseUrl: url, auth: SoulSyncAuth(key));
+      final service = SoulSyncService(client);
+      final profiles = await service
+          .getProfiles()
+          .timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+      setState(() {
+        _profiles = profiles;
+        final ids = profiles.map((p) => p.id).toSet();
+        if (!ids.contains(_selectedProfileId)) {
+          _selectedProfileId = profiles.isNotEmpty ? profiles.first.id : null;
+        }
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _profiles = const []);
+      if (!silent) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not load profiles: $e')));
+      }
+    } finally {
+      client?.close();
+      if (mounted) setState(() => _loadingProfiles = false);
+    }
+  }
+
   Widget _buildProfilePicker() {
+    // Saved value stays visible even before/after list loads, so the
+    // selection never reads as "disappeared".
+    final savedProfileId = ref
+        .watch(currentSettingsProvider)
+        .soulsyncProfileId;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         OutlinedButton.icon(
-          onPressed: _loadingProfiles
-              ? null
-              : () async {
-                  final url = _urlController.text.trim();
-                  final key = _apiKeyController.text.trim();
-                  if (url.isEmpty || key.isEmpty) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Enter the URL and API key first'),
-                      ),
-                    );
-                    return;
-                  }
-                  setState(() => _loadingProfiles = true);
-                  ApiClient? client;
-                  try {
-                    client = ApiClient(
-                      baseUrl: url,
-                      auth: SoulSyncAuth(key),
-                    );
-                    final service = SoulSyncService(client);
-                    final profiles = await service
-                        .getProfiles()
-                        .timeout(const Duration(seconds: 10));
-                    if (!mounted) return;
-                    setState(() {
-                      _profiles = profiles;
-                      final ids = profiles.map((p) => p.id).toSet();
-                      if (!ids.contains(_selectedProfileId)) {
-                        _selectedProfileId =
-                            profiles.isNotEmpty ? profiles.first.id : null;
-                      }
-                    });
-                  } catch (e) {
-                    if (!mounted) return;
-                    setState(() => _profiles = const []);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Could not load profiles: $e')),
-                    );
-                  } finally {
-                    client?.close();
-                    if (mounted) setState(() => _loadingProfiles = false);
-                  }
-                },
+          onPressed: _loadingProfiles ? null : () => _loadSoulSyncProfiles(),
           icon: const Icon(Icons.refresh_rounded),
           label: Text(_loadingProfiles ? 'Loading…' : 'Load profiles'),
         ),
+        if (_profiles.isEmpty && savedProfileId.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Text(
+              'Saved profile: $savedProfileId',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         if (_profiles.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
