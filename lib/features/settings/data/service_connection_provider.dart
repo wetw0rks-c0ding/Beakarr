@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/core/api/api_client.dart';
 import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
+import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
@@ -81,7 +82,10 @@ Future<ServiceConnectionStatus> _checkService(
   if (service == ServiceKey.navidrome) {
     final client = ApiClient(
       baseUrl: settings.navidromeUrl,
-      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+      auth: SubsonicAuth(
+        settings.navidromeUsername,
+        settings.navidromePassword,
+      ),
     );
     try {
       final response = await client
@@ -100,11 +104,29 @@ Future<ServiceConnectionStatus> _checkService(
   final url = settings.urlFor(service);
   final apiKey = settings.apiKeyFor(service);
 
-  // PR1 stub: NZBGet/NPM clients land in PR2/PR3. A configured service
-  // reports disconnected (honest red dot) instead of crashing.
-  // TODO(nzbget): replace with version+status health check (PR2).
+  if (service == ServiceKey.nzbget) {
+    final client = NzbgetClient(
+      url: settings.nzbgetUrl,
+      username: settings.nzbgetUsername,
+      password: settings.nzbgetPassword,
+    );
+    try {
+      // Reachability + auth first, then the queue endpoint that proves the
+      // credential has queue-control scope (an add-only user fails here).
+      await client.getVersion().timeout(const Duration(seconds: 5));
+      await client.call('status').timeout(const Duration(seconds: 5));
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
+  // PR1 stub: the NPM handshake lands in PR3. A configured service reports
+  // disconnected (honest red dot) instead of crashing.
   // TODO(npm): replace with token exchange + proxy-hosts check (PR3).
-  if (service == ServiceKey.nzbget || service == ServiceKey.npm) {
+  if (service == ServiceKey.npm) {
     return ServiceConnectionStatus.disconnected;
   }
 
@@ -137,7 +159,8 @@ Future<ServiceConnectionStatus> _checkService(
       service == ServiceKey.radarr ||
       service == ServiceKey.prowlarr;
   final oidcIssuer = settings.oidcIssuer;
-  final useOidcClient = isArrOidcService &&
+  final useOidcClient =
+      isArrOidcService &&
       oidcIssuer.isNotEmpty &&
       (apiKey.isEmpty || OidcSessionService.isArrstackMode(oidcIssuer)) &&
       settings.oidcClientId.isNotEmpty;
@@ -149,8 +172,8 @@ Future<ServiceConnectionStatus> _checkService(
           serviceKey: service == ServiceKey.radarr
               ? 'radarr'
               : service == ServiceKey.sonarr
-                  ? 'sonarr'
-                  : 'prowlarr',
+              ? 'sonarr'
+              : 'prowlarr',
           session: OidcSessionService(createSecureSettingsStore()),
           issuerUrl: oidcIssuer,
           clientId: settings.oidcClientId,
@@ -225,7 +248,10 @@ Future<({bool ok, String detail})> testServiceConnection(
   if (service == ServiceKey.navidrome) {
     final client = ApiClient(
       baseUrl: settings.navidromeUrl,
-      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+      auth: SubsonicAuth(
+        settings.navidromeUsername,
+        settings.navidromePassword,
+      ),
     );
     try {
       final response = await client
@@ -254,11 +280,39 @@ Future<({bool ok, String detail})> testServiceConnection(
     }
   }
 
-  // PR1 stub: replaced with the real handshake in PR2 (NZBGet)
-  // and PR3 (NPM). Never green before the service exists.
-  // TODO(nzbget): version+status check (PR2).
+  if (service == ServiceKey.nzbget) {
+    final client = NzbgetClient(
+      url: settings.nzbgetUrl,
+      username: settings.nzbgetUsername,
+      password: settings.nzbgetPassword,
+    );
+    try {
+      await client.getVersion().timeout(const Duration(seconds: 5));
+      await client.call('status').timeout(const Duration(seconds: 5));
+      return (ok: true, detail: '');
+    } on NzbgetAuthException catch (e) {
+      return (ok: false, detail: e.message);
+    } on NzbgetRpcException catch (e) {
+      // Auth worked but the credential lacks queue scope; show the RPC text.
+      final detail = 'RPC ${e.code}: ${_scrub(e.message, settings, service)}';
+      return (
+        ok: false,
+        detail: detail.length <= 140 ? detail : detail.substring(0, 140),
+      );
+    } catch (e) {
+      final code = _httpStatusCode(e);
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      client.close();
+    }
+  }
+
+  // PR1 stub: the NPM handshake lands in PR3. Never green before it exists.
   // TODO(npm): token exchange + proxy-hosts check (PR3).
-  if (service == ServiceKey.nzbget || service == ServiceKey.npm) {
+  if (service == ServiceKey.npm) {
     return (ok: false, detail: 'Not yet supported');
   }
 
@@ -303,7 +357,8 @@ Future<({bool ok, String detail})> testServiceConnection(
       service == ServiceKey.radarr ||
       service == ServiceKey.prowlarr;
   final oidcIssuer = settings.oidcIssuer;
-  final useOidcClient = isArrOidcService &&
+  final useOidcClient =
+      isArrOidcService &&
       oidcIssuer.isNotEmpty &&
       (apiKey.isEmpty || OidcSessionService.isArrstackMode(oidcIssuer)) &&
       settings.oidcClientId.isNotEmpty;
@@ -315,10 +370,9 @@ Future<({bool ok, String detail})> testServiceConnection(
           serviceKey: service == ServiceKey.radarr
               ? 'radarr'
               : service == ServiceKey.sonarr
-                  ? 'sonarr'
-                  : 'prowlarr',
-          session: OidcSessionService(
-              createSecureSettingsStore()),
+              ? 'sonarr'
+              : 'prowlarr',
+          session: OidcSessionService(createSecureSettingsStore()),
           issuerUrl: oidcIssuer,
           clientId: settings.oidcClientId,
         )

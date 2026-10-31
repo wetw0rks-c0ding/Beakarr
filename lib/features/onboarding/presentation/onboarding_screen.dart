@@ -8,6 +8,7 @@ import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
+import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
@@ -93,10 +94,30 @@ Future<ServiceConnectionStatus> _verifyService(
   required String username,
   required String password,
 }) async {
-  // PR1 stub: NZBGet/NPM verify clients land in PR2/PR3.
-  // TODO(nzbget): version+status check (PR2).
+  if (service == ServiceKey.nzbget) {
+    final urlTrimmed = url.trim();
+    if (urlTrimmed.isEmpty || username.trim().isEmpty || password.isEmpty) {
+      return ServiceConnectionStatus.notConfigured;
+    }
+    final client = NzbgetClient(
+      url: urlTrimmed,
+      username: username.trim(),
+      password: password,
+    );
+    try {
+      await client.getVersion().timeout(const Duration(seconds: 5));
+      await client.call('status').timeout(const Duration(seconds: 5));
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
+  // PR1 stub: the NPM verify handshake lands in PR3.
   // TODO(npm): token exchange + proxy-hosts check (PR3).
-  if (service == ServiceKey.nzbget || service == ServiceKey.npm) {
+  if (service == ServiceKey.npm) {
     return ServiceConnectionStatus.notConfigured;
   }
   if (!service.usesApiKey) {

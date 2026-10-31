@@ -39,11 +39,18 @@ import 'package:seekarr/features/qbittorrent/presentation/qbittorrent_screen.dar
 import 'package:seekarr/features/qbittorrent/presentation/torrent_detail_screen.dart';
 import 'package:seekarr/features/qbittorrent/presentation/widgets/qbittorrent_actions_bar.dart';
 import 'package:seekarr/features/bazarr/presentation/bazarr_screen.dart' as bz;
-import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
-import 'package:seekarr/features/navidrome/presentation/navidrome_screen.dart' as nd;
-import 'package:seekarr/features/soulsync/presentation/soulsync_screen.dart' as ss;
-import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart' as nda;
-import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
+import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart'
+    as p;
+import 'package:seekarr/features/navidrome/presentation/navidrome_screen.dart'
+    as nd;
+import 'package:seekarr/features/soulsync/presentation/soulsync_screen.dart'
+    as ss;
+import 'package:seekarr/features/nzbget/presentation/nzbget_screen.dart' as nz;
+import 'package:seekarr/features/nzbget/presentation/widgets/nzbget_actions_bar.dart';
+import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart'
+    as nda;
+import 'package:seekarr/features/prowlarr/presentation/search_screen.dart'
+    as ps;
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -418,10 +425,10 @@ GoRoute _soulsyncRoutes({required String path}) {
   );
 }
 
-// PR1 stub: real screens land in PR2 (NZBGet) and PR3 (NPM).
+// PR1 stub: the NPM screen lands in PR3.
 // A dedicated coming-soon placeholder (not NotConfiguredPlaceholder,
 // which would wrongly claim the service is unconfigured).
-// TODO(nzbget): NzbgetScreen (PR2). TODO(npm): NpmScreen (PR3).
+// TODO(npm): NpmScreen (PR3).
 GoRoute _nzbgetRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -429,7 +436,11 @@ GoRoute _nzbgetRoutes({required String path}) {
       key: state.pageKey,
       child: ServiceDashboardScreen(
         service: ServiceKey.nzbget,
-        child: const _ComingSoonPlaceholder(serviceName: 'NZBGet'),
+        trailingAction: const NzbgetActionsBar(),
+        child: const nz.NzbgetScreen(
+          showAppBar: false,
+          topPadding: _serviceDashboardTopPadding,
+        ),
       ),
     ),
   );

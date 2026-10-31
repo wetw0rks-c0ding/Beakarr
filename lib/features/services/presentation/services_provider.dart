@@ -14,6 +14,8 @@ import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/presentation/music_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
+import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
+import 'package:seekarr/features/nzbget/data/nzbget_service.dart';
 import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
 import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_history_record.dart';
@@ -113,7 +115,10 @@ Future<String?> _loadVersion(
   if (service == ServiceKey.navidrome) {
     final client = ApiClient(
       baseUrl: settings.navidromeUrl,
-      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+      auth: SubsonicAuth(
+        settings.navidromeUsername,
+        settings.navidromePassword,
+      ),
     );
     try {
       final response = await client
@@ -155,11 +160,27 @@ Future<String?> _loadVersion(
     }
   }
 
-  // PR1 stub: real version reads land in PR2 (NZBGet) and PR3 (NPM).
+  if (service == ServiceKey.nzbget) {
+    final client = NzbgetClient(
+      url: settings.nzbgetUrl,
+      username: settings.nzbgetUsername,
+      password: settings.nzbgetPassword,
+    );
+    try {
+      final version = await client.getVersion().timeout(
+        const Duration(seconds: 5),
+      );
+      return version.isNotEmpty ? version : null;
+    } finally {
+      client.close();
+    }
+  }
+
+  // PR1 stub: the NPM identity check lands in PR3.
   // Must THROW (not return null): _loadServiceSummary treats a clean
   // return as online, which would paint a green dot on an untested service.
-  // TODO(nzbget): getVersion() (PR2). TODO(npm): no version endpoint (PR3).
-  if (service == ServiceKey.nzbget || service == ServiceKey.npm) {
+  // TODO(npm): no version endpoint (PR3).
+  if (service == ServiceKey.npm) {
     throw StateError('Service version not yet implemented');
   }
 
@@ -268,8 +289,18 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
           return 0;
         }
 
-        final ep = await client.get('/api/episodes/wanted', queryParameters: {'start': 0, 'length': 1}).timeout(const Duration(seconds: 5));
-        final mv = await client.get('/api/movies/wanted', queryParameters: {'start': 0, 'length': 1}).timeout(const Duration(seconds: 5));
+        final ep = await client
+            .get(
+              '/api/episodes/wanted',
+              queryParameters: {'start': 0, 'length': 1},
+            )
+            .timeout(const Duration(seconds: 5));
+        final mv = await client
+            .get(
+              '/api/movies/wanted',
+              queryParameters: {'start': 0, 'length': 1},
+            )
+            .timeout(const Duration(seconds: 5));
         count = wantedCount(ep.data) + wantedCount(mv.data);
       } catch (_) {
         // Error propagated via null return
@@ -282,7 +313,10 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       final settings = ref.read(currentSettingsProvider);
       final client = createClient(
         baseUrl: settings.navidromeUrl,
-        auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+        auth: SubsonicAuth(
+          settings.navidromeUsername,
+          settings.navidromePassword,
+        ),
       );
       int? count;
       try {
@@ -325,9 +359,16 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       } catch (_) {
         throw StateError('SoulSync wishlist count unavailable');
       }
-    // PR1 stub: real counts land in PR2 (NZBGet) and PR3 (NPM).
-    // TODO(nzbget): listgroups length (PR2). TODO(npm): proxy-host count (PR3).
     case ServiceKey.nzbget:
+      // 5 s outer timeout matches the other dashboard arms; the client
+      // also enforces its own 10 s per-call timeout.
+      return (await ref
+              .watch(nzbgetServiceProvider)
+              .getQueue()
+              .timeout(const Duration(seconds: 5)))
+          .length;
+    // PR1 stub: the NPM proxy-host count lands in PR3.
+    // TODO(npm): proxy-host count (PR3).
     case ServiceKey.npm:
       throw StateError('Service count not yet implemented');
   }
@@ -348,12 +389,11 @@ final servicesSeriesProvider = seriesProvider;
 final servicesMusicProvider = musicProvider;
 
 // Prowlarr providers
-final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer>>(
-  (ref) async {
-    final service = ref.watch(prowlarrServiceProvider);
-    return await service.getIndexers();
-  },
-);
+final prowlarrIndexersProvider =
+    FutureProvider.autoDispose<List<ProwlarrIndexer>>((ref) async {
+      final service = ref.watch(prowlarrServiceProvider);
+      return await service.getIndexers();
+    });
 
 /// Current search query for the Prowlarr search screen.
 final prowlarrSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -385,35 +425,33 @@ final prowlarrSortProvider = StateProvider<ProwlarrSort>(
 );
 
 /// Search results driven by [prowlarrSearchQueryProvider].
-final prowlarrSearchResultsProvider = FutureProvider<List<ProwlarrSearchResult>>((
-  ref,
-) async {
-  final query = ref.watch(prowlarrSearchQueryProvider).trim();
-  if (query.isEmpty) {
-    return const [];
-  }
+final prowlarrSearchResultsProvider =
+    FutureProvider<List<ProwlarrSearchResult>>((ref) async {
+      final query = ref.watch(prowlarrSearchQueryProvider).trim();
+      if (query.isEmpty) {
+        return const [];
+      }
 
-  final token = CancelToken();
-  ref.onDispose(token.cancel);
+      final token = CancelToken();
+      ref.onDispose(token.cancel);
 
-  try {
-    final service = ref.read(prowlarrServiceProvider);
-    return await service.search(query, cancelToken: token);
-  } on DioException catch (e) {
-    if (e.type == DioExceptionType.cancel) {
-      return const [];
-    }
-    rethrow;
-  }
-});
+      try {
+        final service = ref.read(prowlarrServiceProvider);
+        return await service.search(query, cancelToken: token);
+      } on DioException catch (e) {
+        if (e.type == DioExceptionType.cancel) {
+          return const [];
+        }
+        rethrow;
+      }
+    });
 
 /// History records for the Prowlarr indexers screen.
-final prowlarrHistoryProvider = FutureProvider.autoDispose<List<ProwlarrHistoryRecord>>((
-  ref,
-) async {
-  final service = ref.watch(prowlarrServiceProvider);
-  return await service.getHistory();
-});
+final prowlarrHistoryProvider =
+    FutureProvider.autoDispose<List<ProwlarrHistoryRecord>>((ref) async {
+      final service = ref.watch(prowlarrServiceProvider);
+      return await service.getHistory();
+    });
 
 final radarrQueuedMovieIdsProvider = FutureProvider<Set<int>>((ref) async {
   return _loadQueuedIds(

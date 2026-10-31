@@ -14,6 +14,24 @@ class UrlUtils {
     return '$cleanBaseUrl$cleanPath';
   }
 
+  /// Normalises a user-entered base URL: trims surrounding whitespace,
+  /// prepends `http://` when no scheme was given and strips one trailing `/`.
+  ///
+  /// Used by clients whose base URL feeds a path-bearing request (e.g. NZBGet
+  /// at `/jsonrpc`), so `host:6789/nzbget/` becomes `http://host:6789/nzbget`.
+  static String normalizeBaseUrl(String url) {
+    var normalized = url.trim();
+    if (normalized.isEmpty) return '';
+    if (!normalized.startsWith('http://') &&
+        !normalized.startsWith('https://')) {
+      normalized = 'http://$normalized';
+    }
+    while (normalized.endsWith('/')) {
+      normalized = normalized.substring(0, normalized.length - 1);
+    }
+    return normalized;
+  }
+
   /// Validates a service URL for *arr and Seerr configuration.
   static String? validateServiceUrl(String? value) {
     if (value == null || value.trim().isEmpty) {
