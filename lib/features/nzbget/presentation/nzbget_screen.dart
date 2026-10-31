@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/widgets/async_value_widget.dart';
 import 'package:seekarr/features/nzbget/domain/models/nzbget_history_item.dart';
 import 'package:seekarr/features/nzbget/domain/models/nzbget_queue_item.dart';
@@ -132,7 +133,10 @@ class _QueueTab extends ConsumerWidget {
           },
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 4, bottom: 80),
+            padding: EdgeInsets.only(
+              top: 4,
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
             itemCount: items.length,
             itemBuilder: (context, index) {
               final item = items[index];
@@ -228,7 +232,10 @@ class _HistoryTab extends ConsumerWidget {
                 },
                 child: ListView.builder(
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.only(top: 4, bottom: 80),
+                  padding: EdgeInsets.only(
+              top: 4,
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
                   itemCount: visible.length,
                   itemBuilder: (context, index) {
                     final item = visible[index];

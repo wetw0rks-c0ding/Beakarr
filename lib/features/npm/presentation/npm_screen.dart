@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/widgets/async_value_widget.dart';
 import 'package:seekarr/features/npm/domain/models/npm_certificate.dart';
 import 'package:seekarr/features/npm/domain/models/npm_proxy_host.dart';
@@ -203,7 +204,10 @@ class _HostsTab extends StatelessWidget {
           onRefresh: onRefresh,
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 4, bottom: 80),
+            padding: EdgeInsets.only(
+              top: 4,
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
             itemCount: items.length,
             itemBuilder: (context, index) {
               final host = items[index];
@@ -239,7 +243,10 @@ class _CertificatesTab extends StatelessWidget {
           onRefresh: onRefresh,
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 4, bottom: 80),
+            padding: EdgeInsets.only(
+              top: 4,
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
             itemCount: items.length,
             itemBuilder: (context, index) =>
                 NpmCertTile(certificate: items[index]),

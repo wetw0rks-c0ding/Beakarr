@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/widgets/async_value_widget.dart';
@@ -80,6 +81,10 @@ class _OverviewTab extends ConsumerWidget {
           },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
+            // Nav clearance (see settings_services_screen.dart).
+            padding: EdgeInsets.only(
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
             children: [
               OmvStatTile(label: 'Hostname', value: info.hostname ?? '—'),
               OmvStatTile(label: 'Version', value: info.displayVersion.isEmpty ? '—' : info.displayVersion),
@@ -141,6 +146,10 @@ class _StorageTab extends ConsumerWidget {
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
+            // Nav clearance (see settings_services_screen.dart).
+            padding: EdgeInsets.only(
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
               children: const [
                 SizedBox(height: 64),
                 Center(child: Text('No filesystems')),
@@ -155,6 +164,10 @@ class _StorageTab extends ConsumerWidget {
           },
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
+            // Nav clearance (see settings_services_screen.dart).
+            padding: EdgeInsets.only(
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
             itemCount: items.length,
             itemBuilder: (context, index) {
               final fs = items[index];
@@ -215,6 +228,10 @@ class _DisksTab extends ConsumerWidget {
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
+            // Nav clearance (see settings_services_screen.dart).
+            padding: EdgeInsets.only(
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
               children: const [
                 SizedBox(height: 64),
                 Center(child: Text('No disks')),
@@ -230,6 +247,10 @@ class _DisksTab extends ConsumerWidget {
           },
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
+            // Nav clearance (see settings_services_screen.dart).
+            padding: EdgeInsets.only(
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
             itemCount: items.length,
             itemBuilder: (context, index) {
               final disk = items[index];
@@ -291,6 +312,10 @@ class _ServicesTab extends ConsumerWidget {
             },
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
+            // Nav clearance (see settings_services_screen.dart).
+            padding: EdgeInsets.only(
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
               children: const [
                 SizedBox(height: 64),
                 Center(child: Text('No services')),
@@ -305,6 +330,10 @@ class _ServicesTab extends ConsumerWidget {
           },
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
+            // Nav clearance (see settings_services_screen.dart).
+            padding: EdgeInsets.only(
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
             itemCount: items.length,
             itemBuilder: (context, index) {
               final s = items[index];

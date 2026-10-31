@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 
@@ -19,6 +20,10 @@ class SettingsAppearanceScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Appearance')),
       body: ListView(
+        // Nav clearance (see settings_services_screen.dart).
+        padding: EdgeInsets.only(
+          bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+        ),
         children: [
           Padding(
             padding: const EdgeInsets.all(AppSpacing.lg),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/utils/service_routes.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_indexer.dart';
@@ -74,7 +75,10 @@ class _IndexersScreenState extends ConsumerState<IndexersScreen> {
         i.implementationName.toLowerCase().contains(query)).toList();
 
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
       itemCount: filtered.length,
       separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {

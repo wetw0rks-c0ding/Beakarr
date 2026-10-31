@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:infinite_scroll_pagination/infinite_scroll_pagination.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/models/media_preview.dart';
 import 'package:seekarr/core/utils/service_routes.dart';
 import 'package:seekarr/core/widgets/content_card.dart';
@@ -77,7 +78,13 @@ class _DiscoverSeeAllScreenState extends ConsumerState<DiscoverSeeAllScreen> {
             PagedGridView<int, MediaPreview>(
               state: state,
               fetchNextPage: fetchNextPage,
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              // Nav clearance (see settings_services_screen.dart).
+              padding: EdgeInsets.fromLTRB(
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg,
+                AppSpacing.lg + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 childAspectRatio: 2 / 3,

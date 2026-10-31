@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/core/utils/url_utils.dart';
@@ -210,7 +211,14 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          // Nav clearance (see settings_services_screen.dart).
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md,
+            AppSpacing.md +
+                FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+          ),
           children: [
             _buildHeader(context),
             const SizedBox(height: AppSpacing.lg),

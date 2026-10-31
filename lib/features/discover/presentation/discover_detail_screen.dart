@@ -209,6 +209,12 @@ class DiscoverDetailScreen extends ConsumerWidget {
               SliverToBoxAdapter(
                 child: _DiscoverKeywordsSection(keywords: viewModel.keywords),
               ),
+            // Nav clearance: last item must clear the floating bar.
+            SliverPadding(
+              padding: EdgeInsets.only(
+                bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
+            ),
           ],
         );
       },

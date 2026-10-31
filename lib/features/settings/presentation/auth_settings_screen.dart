@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/features/auth/data/pkce.dart';
 import 'package:seekarr/features/auth/data/oidc_session_service.dart';
 import 'package:seekarr/features/auth/data/sonarr_oidc_session_provider.dart';
@@ -134,7 +135,13 @@ class _AuthSettingsScreenState extends ConsumerState<AuthSettingsScreen> {
       appBar: AppBar(title: const Text('OIDC / Authentik')),
       body: SingleChildScrollView(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          // Nav clearance (see settings_services_screen.dart).
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            16 + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/widgets/app_card.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
@@ -19,7 +20,15 @@ class SettingsServicesScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Services')),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        // Nav clearance: the floating bar overlays extended body content;
+        // without this the last rows scroll underneath it.
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg,
+          AppSpacing.lg +
+              FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+        ),
         children: [
           SettingsGroupCard(
             children: [
