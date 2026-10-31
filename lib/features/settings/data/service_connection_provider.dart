@@ -342,6 +342,17 @@ Future<({bool ok, String detail})> testServiceConnection(
     } on NpmAuthException catch (e) {
       return (ok: false, detail: e.message);
     } catch (e) {
+      // NPM wraps failures as {"error": {"message": ...}} — surface the
+      // server text (e.g. "Invalid email or password" on HTTP 400) instead
+      // of a bare status code. Secrets are scrubbed, like everywhere else.
+      final envelope = _npmErrorMessage(e);
+      if (envelope != null) {
+        final detail = _scrub(envelope, settings, service);
+        return (
+          ok: false,
+          detail: detail.length <= 140 ? detail : detail.substring(0, 140),
+        );
+      }
       final code = _httpStatusCode(e);
       if (code != null) {
         return (ok: false, detail: 'HTTP $code');
@@ -446,6 +457,26 @@ String _errorDetail(Object e, SettingsModel settings, ServiceKey service) {
   message = _scrub(message, settings, service);
   final combined = '$type: $message';
   return combined.length <= 140 ? combined : combined.substring(0, 140);
+}
+
+/// Extracts NPM's `{"error": {"message": ...}}` (or plain-string `error`)
+/// from a failed response, or null when the body carries no message.
+String? _npmErrorMessage(Object e) {
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map) {
+      final error = data['error'];
+      if (error is Map) {
+        final message = error['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      } else if (error is String && error.trim().isNotEmpty) {
+        return error.trim();
+      }
+    }
+  }
+  return null;
 }
 
 String _messageOf(Object e) {

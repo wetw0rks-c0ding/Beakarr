@@ -159,6 +159,24 @@ void main() {
     expect(result.detail, 'HTTP 401');
   });
 
+  test('npm test connection surfaces the server error message', () async {
+    final server = await _npmServer(
+      tokenStatus: 400,
+      tokenBody: {
+        'error': {'message': 'Invalid email or password'},
+      },
+    );
+    final settings = SettingsModel(
+      npmUrl: 'http://127.0.0.1:${server.port}',
+      npmIdentity: 'admin@example.com',
+      npmPassword: 'wrong',
+    );
+
+    final result = await testServiceConnection(ServiceKey.npm, settings);
+    expect(result.ok, isFalse);
+    expect(result.detail, contains('Invalid email or password'));
+  });
+
   test('npm test connection surfaces the 2FA message', () async {
     final server = await _npmServer(twoFactor: true);
     final settings = SettingsModel(
@@ -256,6 +274,7 @@ class _FakeNpmServer {
 Future<_FakeNpmServer> _npmServer({
   bool twoFactor = false,
   int tokenStatus = 200,
+  Map<String, dynamic>? tokenBody,
   int hostsStatus = 200,
   List<dynamic> hostsBody = const [],
 }) async {
@@ -278,15 +297,16 @@ Future<_FakeNpmServer> _npmServer({
       request.response.statusCode = tokenStatus;
       request.response.write(
         jsonEncode(
-          twoFactor
-              ? {'requires_2fa': true}
-              : {
-                  'token': 'tok-1',
-                  'expires': DateTime.now()
-                      .toUtc()
-                      .add(const Duration(hours: 1))
-                      .toIso8601String(),
-                },
+          tokenBody ??
+              (twoFactor
+                  ? {'requires_2fa': true}
+                  : {
+                      'token': 'tok-1',
+                      'expires': DateTime.now()
+                          .toUtc()
+                          .add(const Duration(hours: 1))
+                          .toIso8601String(),
+                    }),
         ),
       );
     } else {
