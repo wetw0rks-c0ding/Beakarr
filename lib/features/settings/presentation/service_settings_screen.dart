@@ -299,6 +299,18 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
         final result = await testServiceConnection(widget.service, updated);
         if (!mounted) return;
         setState(() => _testDetail = result.detail);
+        // A green test used to imply "saved" while persisting nothing —
+        // users backed out and lost everything. Persist the tested
+        // values on success (same path as Save, without popping).
+        if (result.ok) {
+          if (!_formKey.currentState!.validate()) return;
+          await ref.read(settingsProvider.notifier).updateSettings(updated);
+          if (!mounted) return;
+          SnackBarHelper.success(
+            context,
+            '${widget.service.title} connected — settings saved',
+          );
+        }
       },
       icon: const Icon(Icons.network_check_rounded),
       label: const Text('Test Connection'),

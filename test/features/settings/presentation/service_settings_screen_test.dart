@@ -154,6 +154,35 @@ void main() {
       });
     });
 
+    testWidgets('failed test connection never clobbers saved values', (
+      tester,
+    ) async {
+      // Regression guard for the test-without-save trap: a failing
+      // Test Connection must leave stored settings untouched (unreachable
+      // host fails fast; nothing is persisted on failure).
+      final harness = await _pumpServiceSettings(
+        tester,
+        service: ServiceKey.soulsync,
+        settings: const SettingsModel(
+          soulsyncUrl: 'https://unreachable.invalid',
+          soulsyncApiKey: 'key',
+          soulsyncProfileId: '7',
+        ),
+      );
+
+      await tester.tap(find.text('Test Connection'));
+      await tester.pumpAndSettle();
+
+      expect(
+        harness.container.read(settingsProvider).soulsyncProfileId,
+        '7',
+      );
+      expect(
+        harness.container.read(settingsProvider).soulsyncUrl,
+        'https://unreachable.invalid',
+      );
+    });
+
     testWidgets('copy button writes the API key to the clipboard', (
       tester,
     ) async {
