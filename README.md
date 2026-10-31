@@ -10,7 +10,7 @@ every service instead of an API key per box.
 ![Dart](https://img.shields.io/badge/Dart-%5E3.10.0-0175C2?logo=dart)
 ![Platforms](https://img.shields.io/badge/platforms-Android%20%7C%20iOS-informational)
 ![License](https://img.shields.io/badge/license-MIT-green)
-![Latest release](https://img.shields.io/github/v/release/wetw0rks-c0ding/seekarr?include_prereleases)
+![Latest release](https://img.shields.io/github/v/release/wetw0rks-c0ding/Beakarr?include_prereleases)
 
 ## Table of Contents
 
@@ -114,7 +114,7 @@ every service instead of an API key per box.
 
 ## Getting Started
 
-> **Just want to use the app?** Skip ahead to [Platform-specific Install](#platform-specific-install) — download the right file for your platform from [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) and install it. No prerequisites.
+> **Just want to use the app?** Skip ahead to [Platform-specific Install](#platform-specific-install) — download the right file for your platform from [Releases](https://github.com/wetw0rks-c0ding/Beakarr/releases) and install it. No prerequisites.
 
 ### Prerequisites (for building from source)
 
@@ -126,7 +126,7 @@ every service instead of an API key per box.
 ### Installation
 
 ```bash
-git clone https://github.com/wetw0rks-c0ding/seekarr.git
+git clone https://github.com/wetw0rks-c0ding/Beakarr.git
 cd seekarr
 flutter pub get
 flutter run
@@ -166,22 +166,22 @@ them out, or mix per service.
 
 | Platform | Status | Distribution |
 | --- | --- | --- |
-| Android | ✅ Supported | `.apk` from [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) |
-| iOS | ✅ Supported (sideload) | Unsigned `.ipa` from [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) |
-| macOS | ✅ Supported | `.dmg` from [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) |
+| Android | ✅ Supported | `.apk` from [Releases](https://github.com/wetw0rks-c0ding/Beakarr/releases) |
+| iOS | ✅ Supported (sideload) | Unsigned `.ipa` from [Releases](https://github.com/wetw0rks-c0ding/Beakarr/releases) |
+| macOS | ✅ Supported | `.dmg` from [Releases](https://github.com/wetw0rks-c0ding/Beakarr/releases) |
 | Web / Linux / Windows | ⚠️ Scaffolding only | Build from source, not officially tested |
 
 ### Android
 
-Download the `.apk` file from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page and install it on your device (you may need to allow installs from unknown sources).
+Download the `.apk` file from the [Releases](https://github.com/wetw0rks-c0ding/Beakarr/releases) page and install it on your device (you may need to allow installs from unknown sources).
 
 ### macOS
 
-Download the `.dmg` file from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page, drag Seekarr to `/Applications`, and launch it. On first run, right-click the app and choose **Open** to bypass Gatekeeper.
+Download the `.dmg` file from the [Releases](https://github.com/wetw0rks-c0ding/Beakarr/releases) page, drag Seekarr to `/Applications`, and launch it. On first run, right-click the app and choose **Open** to bypass Gatekeeper.
 
 ### iOS
 
-Download the unsigned `.ipa` from the [Releases](https://github.com/wetw0rks-c0ding/seekarr/releases) page and sideload it with one of the standard tools:
+Download the unsigned `.ipa` from the [Releases](https://github.com/wetw0rks-c0ding/Beakarr/releases) page and sideload it with one of the standard tools:
 
 - **[AltStore](https://altstore.io/)** — refreshes over Wi-Fi on the same machine
 - **[Sideloadly](https://sideloadly.io/)** — desktop tool, no account needed on macOS

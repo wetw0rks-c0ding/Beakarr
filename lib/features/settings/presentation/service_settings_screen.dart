@@ -26,6 +26,44 @@ class ServiceSettingsScreen extends ConsumerStatefulWidget {
       _ServiceSettingsScreenState();
 }
 
+/// Resolves which profile id the SoulSync picker should hold after a
+/// (re)load. Pure for unit testing.
+///
+/// - Empty/failed load (`profiles` empty): keep `savedId` untouched —
+///   never wipe a stored selection on a network failure.
+/// - Saved id still present: keep it (no silent switches).
+/// - Saved id gone (e.g. deleted server-side): null, signalling the
+///   caller to force an explicit re-pick. The caller must KEEP the stale
+///   id in state for persistence (Save/Test must never wipe it without
+///   an explicit user pick) and render [soulSyncDropdownValue] (null)
+///   in the dropdown — passing the stale id as the dropdown value
+///   throws, and silently falling back to first picks the wrong profile.
+/// - No saved id: first profile, fresh-setup convenience.
+String? resolveSoulSyncProfileSelection({
+  required List<SoulSyncProfile> profiles,
+  required String? savedId,
+}) {
+  if (profiles.isEmpty) return savedId;
+  final ids = profiles.map((p) => p.id).toSet();
+  if (savedId != null && savedId.isNotEmpty && !ids.contains(savedId)) {
+    return null;
+  }
+  return savedId ?? profiles.first.id;
+}
+
+/// Null-safe value for the SoulSync profile dropdown. Returns
+/// [selectedId] only when it matches a loaded item, else null (hint).
+/// Pure for unit testing — lets a stale stored id survive in state
+/// (persistence) while the dropdown shows a re-pick hint instead of
+/// throwing on a value with no matching item.
+String? soulSyncDropdownValue({
+  required List<SoulSyncProfile> profiles,
+  required String? selectedId,
+}) {
+  if (selectedId == null || selectedId.isEmpty) return null;
+  return profiles.any((p) => p.id == selectedId) ? selectedId : null;
+}
+
 class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _urlController;
@@ -43,6 +81,13 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
   String? _selectedProfileId;
   List<SoulSyncProfile> _profiles = const [];
   bool _loadingProfiles = false;
+
+  /// What the profile dropdown renders. Null (hint) when the stored id
+  /// has no loaded item — state keeps the stale id so saves preserve it.
+  String? get _profileDropdownValue => soulSyncDropdownValue(
+    profiles: _profiles,
+    selectedId: _selectedProfileId,
+  );
 
   @override
   void initState() {
@@ -64,6 +109,17 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
       _selectedProfileId = settings.soulsyncProfileId.isEmpty
           ? null
           : settings.soulsyncProfileId;
+      // Profiles list is transient screen state (gone on every open),
+      // which reads as "the profile disappeared". Auto-load when
+      // credentials exist so the picker — and the saved selection —
+      // are visible without an extra tap.
+      final hasKey = _apiKeyController.text.trim().isNotEmpty;
+      final hasCookie = settings.soulsyncProxyCookie.trim().isNotEmpty;
+      if (_urlController.text.trim().isNotEmpty && (hasKey || hasCookie)) {
+        WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _loadSoulSyncProfiles(silent: true),
+        );
+      }
     }
   }
 
@@ -163,64 +219,97 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
     );
   }
 
+  /// Loads SoulSync profiles into the picker. Silent mode (auto-load on
+  /// open) skips the missing-credentials snackbar — the fields may
+  /// legitimately be empty on first setup. Cookie-SSO setups (no API
+  /// key) authenticate via the stored proxy cookie instead.
+  Future<void> _loadSoulSyncProfiles({bool silent = false}) async {
+    final url = _urlController.text.trim();
+    final key = _apiKeyController.text.trim();
+    final cookie = ref.read(currentSettingsProvider).soulsyncProxyCookie;
+    if (url.isEmpty || (key.isEmpty && cookie.isEmpty)) {
+      if (!silent && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Enter the URL and API key first')),
+        );
+      }
+      return;
+    }
+    setState(() => _loadingProfiles = true);
+    ApiClient? client;
+    try {
+      client = ApiClient(
+        baseUrl: url,
+        auth: SoulSyncAuth(key, proxyCookie: cookie),
+      );
+      final service = SoulSyncService(client);
+      final profiles = await service
+          .getProfiles()
+          .timeout(const Duration(seconds: 10));
+      if (!mounted) return;
+      // Fields edited mid-load: this response belongs to the old
+      // credentials — discard it instead of showing profiles (and a
+      // selection) for the wrong setup.
+      if (_urlController.text.trim() != url ||
+          _apiKeyController.text.trim() != key ||
+          ref.read(currentSettingsProvider).soulsyncProxyCookie != cookie) {
+        return;
+      }
+      setState(() {
+        _profiles = profiles;
+        final resolved = resolveSoulSyncProfileSelection(
+          profiles: profiles,
+          savedId: _selectedProfileId,
+        );
+        // Stale saved id (resolved null): keep it in state so Save and
+        // Test auto-save never wipe the stored value without an explicit
+        // re-pick. The dropdown renders [_profileDropdownValue] (null +
+        // hint) instead — passing the stale id as its value throws.
+        _selectedProfileId = resolved ?? _selectedProfileId;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _profiles = const []);
+      if (!silent) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not load profiles: $e')));
+      }
+    } finally {
+      client?.close();
+      if (mounted) setState(() => _loadingProfiles = false);
+    }
+  }
+
   Widget _buildProfilePicker() {
+    // Saved value stays visible even before/after list loads, so the
+    // selection never reads as "disappeared".
+    final savedProfileId = ref
+        .watch(currentSettingsProvider)
+        .soulsyncProfileId;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         OutlinedButton.icon(
-          onPressed: _loadingProfiles
-              ? null
-              : () async {
-                  final url = _urlController.text.trim();
-                  final key = _apiKeyController.text.trim();
-                  if (url.isEmpty || key.isEmpty) {
-                    if (!mounted) return;
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Enter the URL and API key first'),
-                      ),
-                    );
-                    return;
-                  }
-                  setState(() => _loadingProfiles = true);
-                  ApiClient? client;
-                  try {
-                    client = ApiClient(
-                      baseUrl: url,
-                      auth: SoulSyncAuth(key),
-                    );
-                    final service = SoulSyncService(client);
-                    final profiles = await service
-                        .getProfiles()
-                        .timeout(const Duration(seconds: 10));
-                    if (!mounted) return;
-                    setState(() {
-                      _profiles = profiles;
-                      final ids = profiles.map((p) => p.id).toSet();
-                      if (!ids.contains(_selectedProfileId)) {
-                        _selectedProfileId =
-                            profiles.isNotEmpty ? profiles.first.id : null;
-                      }
-                    });
-                  } catch (e) {
-                    if (!mounted) return;
-                    setState(() => _profiles = const []);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Could not load profiles: $e')),
-                    );
-                  } finally {
-                    client?.close();
-                    if (mounted) setState(() => _loadingProfiles = false);
-                  }
-                },
+          onPressed: _loadingProfiles ? null : () => _loadSoulSyncProfiles(),
           icon: const Icon(Icons.refresh_rounded),
           label: Text(_loadingProfiles ? 'Loading…' : 'Load profiles'),
         ),
+        if (_profiles.isEmpty && savedProfileId.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(top: AppSpacing.sm),
+            child: Text(
+              'Saved profile: $savedProfileId',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ),
         if (_profiles.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.sm),
           DropdownButtonFormField<String>(
-            key: ValueKey(_selectedProfileId),
-            initialValue: _selectedProfileId,
+            key: ValueKey(_profileDropdownValue),
+            initialValue: _profileDropdownValue,
             decoration: const InputDecoration(labelText: 'Profile'),
             items: _profiles
                 .map(
@@ -245,6 +334,24 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
         final result = await testServiceConnection(widget.service, updated);
         if (!mounted) return;
         setState(() => _testDetail = result.detail);
+        // A green test used to imply "saved" while persisting nothing —
+        // users backed out and lost everything. Persist the tested
+        // values on success (same path as Save, without popping).
+        if (result.ok) {
+          if (!_formKey.currentState!.validate()) return;
+          // Rebuild from the live fields: the pre-test snapshot may be
+          // stale if the user kept typing during the check. Saving it
+          // would clobber the newer edits.
+          final latest = ref.read(currentSettingsProvider);
+          await ref
+              .read(settingsProvider.notifier)
+              .updateSettings(_updateServiceSettings(latest));
+          if (!mounted) return;
+          SnackBarHelper.success(
+            context,
+            '${widget.service.title} connected — settings saved',
+          );
+        }
       },
       icon: const Icon(Icons.network_check_rounded),
       label: const Text('Test Connection'),
@@ -409,6 +516,18 @@ class _ServiceSettingsScreenState extends ConsumerState<ServiceSettingsScreen> {
 
   String? _validateApiKey(String? value) {
     if (value == null || value.trim().isEmpty) {
+      // SoulSync cookie-SSO setups authenticate via the stored proxy
+      // cookie — no API key needed. Without this carve-out the Test
+      // Connection auto-save below would silently skip persisting a
+      // green cookie-only test.
+      if (isSoulSync &&
+          ref
+              .read(currentSettingsProvider)
+              .soulsyncProxyCookie
+              .trim()
+              .isNotEmpty) {
+        return null;
+      }
       return 'API Key is required';
     }
 

@@ -3,6 +3,8 @@ import 'dart:ui';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'dart:convert';
+import 'package:seekarr/features/settings/domain/oidc_preset.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 
@@ -69,6 +71,7 @@ class SettingsService {
   static const _kSoulSyncProfileId = 'soulsync_profile_id';
   static const _kSoulSyncProxyCookie = 'secure_soulsync_proxy_cookie';
   static const _kJailbroken = 'jailbroken';
+  static const _kOidcPresets = 'oidc_presets';
 
   static const Map<ServiceKey, _ServiceStorageKeys> _serviceStorageKeys = {
     ServiceKey.seerr: _ServiceStorageKeys(
@@ -247,6 +250,7 @@ class SettingsService {
     await _prefs.remove(_kOidcClientId);
     await _prefs.remove(_kSoulSyncProfileId);
     await _prefs.remove(_kJailbroken);
+    await _prefs.remove(_kOidcPresets);
   }
 
   Future<SettingsModel> loadSettings() async {
@@ -287,6 +291,7 @@ class SettingsService {
       oidcIssuer: _prefs.getString(_kOidcIssuer) ?? '',
       oidcClientId: _prefs.getString(_kOidcClientId) ?? 'seekarr',
       jailbroken: _prefs.getBool(_kJailbroken) ?? false,
+      oidcPresets: _loadOidcPresets(),
     );
   }
 
@@ -304,6 +309,7 @@ class SettingsService {
     } else {
       await _prefs.remove(_kSoulSyncProfileId);
     }
+    await _prefs.setString(_kOidcPresets, jsonEncode(settings.oidcPresets.map((p) => p.toJson()).toList()));
     await _saveApiKey(
       _kSoulSyncProxyCookie,
       settings.soulsyncProxyCookie,
@@ -386,6 +392,16 @@ class SettingsService {
       if (storageKeys.legacySecureApiKey != null) {
         await _secureStore.delete(key: storageKeys.legacySecureApiKey!);
       }
+    }
+  }
+
+  List<OidcPreset> _loadOidcPresets() {
+    try {
+      final raw = _prefs.getString(_kOidcPresets) ?? '[]';
+      final list = jsonDecode(raw) as List<dynamic>;
+      return list.map((e) => OidcPreset.tryFromJson(e as Map<String, dynamic>)).whereType<OidcPreset>().toList();
+    } catch (_) {
+      return [];
     }
   }
 

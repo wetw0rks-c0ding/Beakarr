@@ -9,6 +9,7 @@ import 'package:seekarr/features/settings/data/settings_service.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 import 'package:seekarr/features/settings/presentation/service_settings_screen.dart';
+import 'package:seekarr/features/soulsync/domain/models/soulsync_profile.dart';
 
 import '../../../test_helpers/fake_secure_settings_store.dart';
 
@@ -89,6 +90,126 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('API Key is required'), findsOneWidget);
+    });
+
+    testWidgets('soulsync shows the saved profile hint without loading', (
+      tester,
+    ) async {
+      // Regression: the profile list is transient (gone on every open),
+      // which read as "the profile disappeared". The saved value must
+      // stay visible even when the list never loads (unreachable host:
+      // auto-load fails silently, no crash, no dropdown).
+      await _pumpServiceSettings(
+        tester,
+        service: ServiceKey.soulsync,
+        settings: const SettingsModel(
+          soulsyncUrl: 'https://unreachable.invalid',
+          soulsyncApiKey: 'key',
+          soulsyncProfileId: '7',
+        ),
+      );
+
+      expect(find.text('Saved profile: 7'), findsOneWidget);
+      expect(find.text('Load profiles'), findsOneWidget);
+    });
+
+    group('resolveSoulSyncProfileSelection', () {
+      SoulSyncProfile p(String id) => SoulSyncProfile(id: id, name: 'n$id');
+
+      test('keeps the saved id when still present (no silent switch)', () {
+        expect(
+          resolveSoulSyncProfileSelection(
+            profiles: [p('1'), p('2')],
+            savedId: '2',
+          ),
+          '2',
+        );
+      });
+
+      test('nulls a stale id missing from a fresh list (safe re-pick)', () {
+        expect(
+          resolveSoulSyncProfileSelection(
+            profiles: [p('1'), p('2')],
+            savedId: '9',
+          ),
+          isNull,
+        );
+      });
+
+      test('auto-selects first with no saved id (fresh setup)', () {
+        expect(
+          resolveSoulSyncProfileSelection(
+            profiles: [p('1'), p('2')],
+            savedId: null,
+          ),
+          '1',
+        );
+      });
+
+      test('failed/empty load keeps the saved id untouched', () {
+        expect(
+          resolveSoulSyncProfileSelection(profiles: const [], savedId: '7'),
+          '7',
+        );
+      });
+    });
+
+    group('soulSyncDropdownValue', () {
+      SoulSyncProfile p(String id) => SoulSyncProfile(id: id, name: 'n$id');
+
+      test('passes through an id that matches a loaded item', () {
+        expect(
+          soulSyncDropdownValue(profiles: [p('1'), p('2')], selectedId: '2'),
+          '2',
+        );
+      });
+
+      test('nulls a stale id so the dropdown shows the re-pick hint', () {
+        expect(
+          soulSyncDropdownValue(profiles: [p('1'), p('2')], selectedId: '9'),
+          isNull,
+        );
+      });
+
+      test('nulls empty and null selections', () {
+        expect(
+          soulSyncDropdownValue(profiles: [p('1')], selectedId: null),
+          isNull,
+        );
+        expect(
+          soulSyncDropdownValue(profiles: [p('1')], selectedId: ''),
+          isNull,
+        );
+      });
+    });
+
+    testWidgets('failed test connection never clobbers saved values', (
+      tester,
+    ) async {
+      // Regression guard for the test-without-save trap: a failing
+      // Test Connection must leave stored settings untouched (unreachable
+      // host fails fast; nothing is persisted on failure).
+      final harness = await _pumpServiceSettings(
+        tester,
+        service: ServiceKey.soulsync,
+        settings: const SettingsModel(
+          soulsyncUrl: 'https://unreachable.invalid',
+          soulsyncApiKey: 'key',
+          soulsyncProfileId: '7',
+        ),
+      );
+
+      await tester.tap(find.text('Test Connection'));
+      await tester.pumpAndSettle();
+
+      expect(
+        harness.container.read(settingsProvider).soulsyncProfileId,
+        '7',
+      );
+      expect(
+        harness.container.read(settingsProvider).soulsyncUrl,
+        'https://unreachable.invalid',
+      );
     });
 
     testWidgets('copy button writes the API key to the clipboard', (
