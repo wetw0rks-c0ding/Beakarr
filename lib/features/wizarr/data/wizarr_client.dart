@@ -29,7 +29,13 @@ class WizarrClient {
     'User.list',
     'Users.list',
     'Server.getAll',
+    'Servers.getAll',
+    'Server.list',
+    'Servers.list',
     'Library.getAll',
+    'Libraries.getAll',
+    'Library.list',
+    'Libraries.list',
   };
 
   // Sole v1 mutation exception — see spec Phase 2 (POST /api/invitations).
@@ -64,9 +70,19 @@ class WizarrClient {
 
   String? _pathForKey(String key) {
     final lower = key.toLowerCase();
-    // Exact path mappings for servers and libraries endpoints
-    if (key == 'Server.getAll') return '/api/servers';
-    if (key == 'Library.getAll') return '/api/libraries';
+    // Exact path mappings for servers and libraries endpoints (incl. plural/list aliases)
+    if (key == 'Server.getAll' ||
+        key == 'Servers.getAll' ||
+        key == 'Server.list' ||
+        key == 'Servers.list') {
+      return '/api/servers';
+    }
+    if (key == 'Library.getAll' ||
+        key == 'Libraries.getAll' ||
+        key == 'Library.list' ||
+        key == 'Libraries.list') {
+      return '/api/libraries';
+    }
     // Invitation paths: create uses exact path, getAll uses generic fallback
     if (lower.contains('invitation.create')) return '/api/invitations';
     if (lower.contains('invitation.getall')) return '/api/invitations';

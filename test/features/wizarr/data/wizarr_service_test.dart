@@ -165,10 +165,10 @@ class _PayloadVerifierAdapter implements HttpClientAdapter {
         headers: {Headers.contentTypeHeader: ['application/json']},
       );
     } catch (_) {
-      // If verification fails, still return success for testing purposes
+      // Verification failed: return a non-2xx response so the check is real.
       return ResponseBody.fromBytes(
-        utf8.encode(jsonEncode({'invitation': {'code': 'x'}})),
-        201,
+        utf8.encode(jsonEncode({'error': {'message': 'payload verification failed'}})),
+        500,
         headers: {Headers.contentTypeHeader: ['application/json']},
       );
     }
@@ -341,14 +341,13 @@ void main() {
     );
 
     // Verify argument validation passes (serverIds is not empty) and request succeeds
-    try {
-      await service.createInvitation(serverIds: [1], expiresInDays: 7, duration: '7d', unlimited: false);
-    } catch (e) {
-      fail('Unexpected error: $e');
-    }
-
-    // The mock adapter properly verifies payload and returns success response
-    expect(true, isTrue); // Test passed - request completed successfully with correct payload
+    final invitation = await service.createInvitation(
+      serverIds: [1],
+      expiresInDays: 7,
+      duration: '7d',
+      unlimited: false,
+    );
+    expect(invitation.code, 'x');
   });
 
   test('createInvitation sends X-API-Key header', () async {
