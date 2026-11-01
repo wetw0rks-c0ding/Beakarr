@@ -237,6 +237,11 @@ Future<void> showRevokeDialog(
 ) {
   return showDialog<void>(
     context: context,
+    // Never dismissible by barrier tap: while a DELETE is in flight an
+    // accidental tap-out would skip list invalidation (unmounted state).
+    // Idle dismissal stays available via Cancel; in-flight back/gesture
+    // is blocked by the PopScope in _RevokeDialogState.build.
+    barrierDismissible: false,
     builder: (_) => _RevokeDialog(invitation: invitation),
   );
 }
@@ -283,7 +288,11 @@ class _RevokeDialogState extends ConsumerState<_RevokeDialog> {
   @override
   Widget build(BuildContext context) {
     final code = widget.invitation.code ?? '';
-    return AlertDialog(
+    // Block system back / gesture pop while the DELETE is in flight;
+    // otherwise the unmounted state would skip list invalidation.
+    return PopScope(
+      canPop: !_submitting,
+      child: AlertDialog(
       title: Text('Revoke invite $code?'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -315,6 +324,7 @@ class _RevokeDialogState extends ConsumerState<_RevokeDialog> {
               : const Text('Revoke'),
         ),
       ],
+      ),
     );
   }
 }

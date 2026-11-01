@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
@@ -295,6 +296,59 @@ void main() {
 
     expect(find.byType(WizarrInviteTile), findsNothing);
   });
+
+  testWidgets('in-flight revoke blocks dismissal until done', (tester) async {
+    final adapter = _HangingDeleteAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'https://wizarr.example.com'));
+    dio.httpClientAdapter = adapter;
+    final service = WizarrService(
+      WizarrClient(url: 'https://wizarr.example.com', apiKey: 'k', dio: dio),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          wizarrServiceProvider.overrideWith((ref) => service),
+          wizarrInvitationsProvider.overrideWith((ref) async {
+            if (adapter.deleted) return <WizarrInvitation>[];
+            return [_liveInvite()];
+          }),
+          wizarrUsersProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: WizarrScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // open confirm dialog
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // start revoke; the DELETE hangs so the dialog stays in-flight
+    await tester.tap(find.text('Revoke'));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    // barrier tap must not dismiss while submitting
+    await tester.tapAt(const Offset(10, 10));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('Revoke invite'), findsOneWidget);
+
+    // system back must not dismiss while submitting
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    expect(find.textContaining('Revoke invite'), findsOneWidget);
+
+    // finish the DELETE: dialog closes, row disappears
+    adapter.completeDelete();
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Revoke invite'), findsNothing);
+    expect(find.byType(WizarrInviteTile), findsNothing);
+  });
 }
 
 class _CountingAdapter implements HttpClientAdapter {
@@ -347,6 +401,49 @@ class _RevokeFlowAdapter implements HttpClientAdapter {
       );
     }
     // GET
+    if (deleted) {
+      return ResponseBody.fromBytes(
+        Uint8List.fromList('{"invitations":[]}'.codeUnits),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      );
+    }
+    return ResponseBody.fromBytes(
+      Uint8List.fromList('{"invitations":[{"id":7,"code":"code-123","url":"https://example.com/j/code-123","status":"active"}]}'.codeUnits),
+      200,
+      headers: {Headers.contentTypeHeader: ['application/json']},
+    );
+  }
+}
+
+class _HangingDeleteAdapter implements HttpClientAdapter {
+  bool deleted = false;
+  Completer<ResponseBody>? _gate;
+
+  void completeDelete() {
+    deleted = true;
+    _gate?.complete(
+      ResponseBody.fromBytes(
+        Uint8List.fromList('{"message":"deleted"}'.codeUnits),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      ),
+    );
+  }
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    if (options.method == 'DELETE') {
+      _gate ??= Completer<ResponseBody>();
+      return _gate!.future;
+    }
     if (deleted) {
       return ResponseBody.fromBytes(
         Uint8List.fromList('{"invitations":[]}'.codeUnits),
