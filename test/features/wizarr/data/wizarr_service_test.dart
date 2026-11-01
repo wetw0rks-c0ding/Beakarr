@@ -481,4 +481,80 @@ void main() {
     expect(checkAdapter.capturedBody?['server_ids'], isA<List>());
     expect(checkAdapter.capturedBody?['library_ids'], isA<List>());
   });
+
+  test('revokeInvitation returns true on 200', () async {
+    final adapter = _MockAdapter(data: {'message': 'deleted'});
+    final dio = Dio(BaseOptions(baseUrl: 'http://localhost'));
+    dio.httpClientAdapter = adapter;
+    final service = WizarrService(
+      WizarrClient(url: 'http://localhost', apiKey: 'k', dio: dio),
+    );
+    expect(await service.revokeInvitation(id: 7), true);
+    expect(adapter.requests.single.method, 'DELETE');
+    expect(adapter.requests.single.path, '/api/invitations/7');
+  });
+
+  test('revokeInvitation empty 200 body completes true', () async {
+    final adapter = _EmptyBodyAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'http://localhost'));
+    dio.httpClientAdapter = adapter;
+    final service = WizarrService(
+      WizarrClient(url: 'http://localhost', apiKey: 'k', dio: dio),
+    );
+    expect(await service.revokeInvitation(id: 7), true);
+  });
+
+  test('revokeInvitation 404 throws with not found', () async {
+    final adapter = _StatusAdapter(404, '{"error":{"message":"Invitation not found"}}');
+    final dio = Dio(BaseOptions(baseUrl: 'http://localhost'));
+    dio.httpClientAdapter = adapter;
+    final service = WizarrService(
+      WizarrClient(url: 'http://localhost', apiKey: 'k', dio: dio),
+    );
+    Object? error;
+    try {
+      await service.revokeInvitation(id: 7);
+    } catch (e) {
+      error = e;
+    }
+    expect(error, isA<WizarrException>());
+    expect((error as WizarrException).message, contains('Invitation not found'));
+  });
+}
+
+class _EmptyBodyAdapter implements HttpClientAdapter {
+  @override
+  void close({bool force = false}) {}
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromBytes(
+      Uint8List(0),
+      200,
+      headers: {Headers.contentTypeHeader: ['application/json']},
+    );
+  }
+}
+
+class _StatusAdapter implements HttpClientAdapter {
+  _StatusAdapter(this.status, this.body);
+  final int status;
+  final String body;
+  @override
+  void close({bool force = false}) {}
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromBytes(
+      Uint8List.fromList(body.codeUnits),
+      status,
+      headers: {Headers.contentTypeHeader: ['application/json']},
+    );
+  }
 }

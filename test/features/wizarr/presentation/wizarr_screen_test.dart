@@ -1,3 +1,6 @@
+import 'dart:typed_data';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -190,4 +193,171 @@ void main() {
     // escaping the tab build would fail the test with an exception.
     expect(find.byType(NotConfiguredPlaceholder), findsWidgets);
   });
+
+  testWidgets('revoke hidden when id is null', (tester) async {
+    final noIdInvite = WizarrInvitation.fromJson({
+      'code': 'no-id',
+      'url': 'https://example.com/j/no-id',
+      'status': 'active',
+    });
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          wizarrServiceProvider.overrideWith(
+            (ref) => WizarrService(
+              WizarrClient(url: 'https://wizarr.example.com', apiKey: 'k'),
+            ),
+          ),
+          wizarrInvitationsProvider.overrideWith((ref) async => [noIdInvite]),
+          wizarrUsersProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: WizarrScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byType(WizarrInviteTile), findsOneWidget);
+    expect(find.byIcon(Icons.delete_outline_rounded), findsNothing);
+  });
+
+  testWidgets('Cancel performs zero DELETEs', (tester) async {
+    final adapter = _CountingAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'https://wizarr.example.com'));
+    dio.httpClientAdapter = adapter;
+    final service = WizarrService(
+      WizarrClient(url: 'https://wizarr.example.com', apiKey: 'k', dio: dio),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          wizarrServiceProvider.overrideWith((ref) => service),
+          wizarrInvitationsProvider.overrideWith((ref) async => [_liveInvite()]),
+          wizarrUsersProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: WizarrScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // open confirm dialog
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.text('Cancel'), findsOneWidget);
+
+    // tap Cancel
+    await tester.tap(find.text('Cancel'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(adapter.deleteCount, 0);
+  });
+
+  testWidgets('confirm revokes and row disappears', (tester) async {
+    final adapter = _RevokeFlowAdapter();
+    final dio = Dio(BaseOptions(baseUrl: 'https://wizarr.example.com'));
+    dio.httpClientAdapter = adapter;
+    final service = WizarrService(
+      WizarrClient(url: 'https://wizarr.example.com', apiKey: 'k', dio: dio),
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          wizarrServiceProvider.overrideWith((ref) => service),
+          wizarrInvitationsProvider.overrideWith((ref) async {
+            if (adapter.deleted) return <WizarrInvitation>[];
+            return [_liveInvite()];
+          }),
+          wizarrUsersProvider.overrideWith((ref) async => const []),
+        ],
+        child: const MaterialApp(home: WizarrScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    expect(find.byType(WizarrInviteTile), findsOneWidget);
+
+    // open confirm dialog
+    await tester.tap(find.byIcon(Icons.delete_outline_rounded));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // confirm revoke
+    await tester.tap(find.text('Revoke'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(find.byType(WizarrInviteTile), findsNothing);
+  });
+}
+
+class _CountingAdapter implements HttpClientAdapter {
+  int deleteCount = 0;
+  final List<RequestOptions> requests = [];
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    requests.add(options);
+    if (options.method == 'DELETE') deleteCount++;
+    if (options.method == 'GET') {
+      return ResponseBody.fromBytes(
+        Uint8List.fromList('{"invitations":[{"id":7,"code":"code-123","url":"https://example.com/j/code-123","status":"active"}]}'.codeUnits),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      );
+    }
+    return ResponseBody.fromBytes(
+      Uint8List.fromList('{"message":"deleted"}'.codeUnits),
+      200,
+      headers: {Headers.contentTypeHeader: ['application/json']},
+    );
+  }
+}
+
+class _RevokeFlowAdapter implements HttpClientAdapter {
+  bool deleted = false;
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    if (options.method == 'DELETE') {
+      deleted = true;
+      return ResponseBody.fromBytes(
+        Uint8List.fromList('{"message":"deleted"}'.codeUnits),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      );
+    }
+    // GET
+    if (deleted) {
+      return ResponseBody.fromBytes(
+        Uint8List.fromList('{"invitations":[]}'.codeUnits),
+        200,
+        headers: {Headers.contentTypeHeader: ['application/json']},
+      );
+    }
+    return ResponseBody.fromBytes(
+      Uint8List.fromList('{"invitations":[{"id":7,"code":"code-123","url":"https://example.com/j/code-123","status":"active"}]}'.codeUnits),
+      200,
+      headers: {Headers.contentTypeHeader: ['application/json']},
+    );
+  }
 }

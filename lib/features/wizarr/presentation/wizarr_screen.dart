@@ -263,8 +263,8 @@ class _RevokeDialogState extends ConsumerState<_RevokeDialog> {
     try {
       final service = ref.read(wizarrServiceProvider);
       await service.revokeInvitation(id: widget.invitation.id!);
-      ref.invalidate(wizarrInvitationsProvider);
       if (!mounted) return;
+      ref.invalidate(wizarrInvitationsProvider);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Invite revoked')));

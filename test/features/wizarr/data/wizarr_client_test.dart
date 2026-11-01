@@ -270,4 +270,43 @@ void main() {
     await client.rpc('Invitation', 'getAll');
     expect(adapter.callIndex, 1);
   });
+
+  test('deleteInvitation hits literal path with id', () async {
+    final adapter = _ScriptAdapter(
+      script: [(200, {'message': 'deleted'})],
+    );
+    final client = _client(adapter);
+    await client.deleteInvitation(id: 7);
+    expect(adapter.requests.single.method, 'DELETE');
+    expect(adapter.requests.single.path, '/api/invitations/7');
+  });
+
+  test('deleteInvitation empty 200 body succeeds without parse crash', () async {
+    final adapter = _ScriptAdapter(script: [(200, '')]);
+    final client = _client(adapter);
+    await client.deleteInvitation(id: 7);
+    expect(adapter.callIndex, 1);
+  });
+
+  test('deleteInvitation 404 surfaces not-found message', () async {
+    final adapter = _ScriptAdapter(
+      script: [(404, {'error': {'message': 'Invitation not found'}})],
+    );
+    final client = _client(adapter);
+    Object? error;
+    try {
+      await client.deleteInvitation(id: 7);
+    } catch (e) {
+      error = e;
+    }
+    expect(error, isA<WizarrException>());
+    expect((error as WizarrException).message, contains('Invitation not found'));
+  });
+
+  test('second mutating shape still blocked', () async {
+    final adapter = _ScriptAdapter(script: const []);
+    final client = _client(adapter);
+    expect(() => client.post('Invitation', 'delete'), throwsStateError);
+    expect(adapter.callIndex, 0);
+  });
 }
