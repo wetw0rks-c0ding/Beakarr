@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:seekarr/features/wizarr/data/wizarr_client.dart';
 import 'package:seekarr/features/wizarr/data/wizarr_providers.dart';
+import 'package:seekarr/features/wizarr/data/wizarr_service.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_invitation.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_user.dart';
 import 'package:seekarr/features/wizarr/presentation/wizarr_screen.dart';
@@ -36,6 +38,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          wizarrServiceProvider.overrideWith(
+            (ref) => WizarrService(
+              WizarrClient(url: 'https://wizarr.example.com', apiKey: 'k'),
+            ),
+          ),
           wizarrInvitationsProvider.overrideWith((ref) async => const []),
           wizarrUsersProvider.overrideWith((ref) async => const []),
         ],
@@ -53,6 +60,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          wizarrServiceProvider.overrideWith(
+            (ref) => WizarrService(
+              WizarrClient(url: 'https://wizarr.example.com', apiKey: 'k'),
+            ),
+          ),
           wizarrInvitationsProvider.overrideWith((ref) async => const []),
           wizarrUsersProvider.overrideWith((ref) async => const []),
         ],
@@ -74,6 +86,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          wizarrServiceProvider.overrideWith(
+            (ref) => WizarrService(
+              WizarrClient(url: 'https://wizarr.example.com', apiKey: 'k'),
+            ),
+          ),
           wizarrInvitationsProvider.overrideWith(
             (ref) async => [_liveInvite()],
           ),
@@ -124,6 +141,11 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
+          wizarrServiceProvider.overrideWith(
+            (ref) => WizarrService(
+              WizarrClient(url: 'https://wizarr.example.com', apiKey: 'k'),
+            ),
+          ),
           wizarrInvitationsProvider.overrideWith((ref) async => [liveInvite]),
           wizarrUsersProvider.overrideWith((ref) async => [liveUser]),
         ],

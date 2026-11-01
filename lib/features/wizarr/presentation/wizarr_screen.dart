@@ -74,6 +74,7 @@ class _InvitationsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(wizarrInvitationsProvider);
+    final baseUrl = ref.watch(wizarrServiceProvider).client.baseUrl;
     return AsyncValueWidget<List<WizarrInvitation>>(
       value: async,
       serviceName: 'Wizarr',
@@ -100,8 +101,10 @@ class _InvitationsTab extends ConsumerWidget {
               bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
             ),
             itemCount: items.length,
-            itemBuilder: (context, index) =>
-                WizarrInviteTile(invitation: items[index]),
+            itemBuilder: (context, index) => WizarrInviteTile(
+              invitation: items[index],
+              baseUrl: baseUrl,
+            ),
           ),
         );
       },

@@ -102,4 +102,16 @@ class WizarrInvitation {
     if (isExhausted) return 'Used up';
     return 'Active';
   }
+
+  /// Shareable link: the API returns a relative path (`/j/<code>`);
+  /// join it onto the configured server URL so copied links open anywhere.
+  String? absoluteInviteUrl(String baseUrl) {
+    final u = inviteUrl;
+    if (u == null || u.isEmpty) return null;
+    if (u.startsWith('http://') || u.startsWith('https://')) return u;
+    final base = baseUrl.trim();
+    if (base.isEmpty) return u;
+    final b = base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+    return u.startsWith('/') ? '$b$u' : '$b/$u';
+  }
 }

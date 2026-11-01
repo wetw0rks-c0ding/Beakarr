@@ -10,12 +10,21 @@ import 'package:seekarr/features/wizarr/domain/models/wizarr_invitation.dart';
 class WizarrInviteTile extends StatelessWidget {
   final WizarrInvitation invitation;
 
-  const WizarrInviteTile({super.key, required this.invitation});
+  /// Server base URL used to expand the relative invite path into a
+  /// shareable absolute link. Empty keeps the API value as-is.
+  final String baseUrl;
+
+  const WizarrInviteTile({
+    super.key,
+    required this.invitation,
+    this.baseUrl = '',
+  });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final inv = invitation;
+    final link = inv.absoluteInviteUrl(baseUrl) ?? inv.inviteUrl;
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -97,13 +106,13 @@ class WizarrInviteTile extends StatelessWidget {
               const SizedBox(height: 6),
               GestureDetector(
                 onTap: () {
-                  Clipboard.setData(ClipboardData(text: inv.inviteUrl!));
+                  Clipboard.setData(ClipboardData(text: link ?? ''));
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Invite link copied')),
                   );
                 },
                 child: Text(
-                  inv.inviteUrl!,
+                  link ?? inv.inviteUrl!,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.labelSmall?.copyWith(

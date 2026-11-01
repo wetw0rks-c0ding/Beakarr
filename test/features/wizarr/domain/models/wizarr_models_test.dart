@@ -110,6 +110,29 @@ void main() {
     expect(inv.isExpired, isTrue);
   });
 
+  test('absoluteInviteUrl expands the relative invite path', () {
+    const inv = WizarrInvitation(code: 'x', inviteUrl: '/j/x');
+    expect(
+      inv.absoluteInviteUrl('https://bertha.tail4a794.ts.net:5691/'),
+      'https://bertha.tail4a794.ts.net:5691/j/x',
+    );
+    expect(
+      inv.absoluteInviteUrl('https://bertha.tail4a794.ts.net:5691'),
+      'https://bertha.tail4a794.ts.net:5691/j/x',
+    );
+    expect(inv.absoluteInviteUrl(''), '/j/x');
+    const absolute = WizarrInvitation(
+      code: 'y',
+      inviteUrl: 'https://other.example/j/y',
+    );
+    expect(
+      absolute.absoluteInviteUrl('https://bertha.tail4a794.ts.net:5691'),
+      'https://other.example/j/y',
+    );
+    const missing = WizarrInvitation(code: 'z');
+    expect(missing.absoluteInviteUrl('https://example.com'), isNull);
+  });
+
   test('user tolerates missing keys', () {
     final u = WizarrUser.fromJson({});
     expect(u.username, isNull);
