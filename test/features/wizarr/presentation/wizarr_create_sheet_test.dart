@@ -269,4 +269,46 @@ void main() {
     // Client maps transport failures to a clean WizarrException.
     expect(find.text('Request failed'), findsOneWidget);
   });
+
+  testWidgets('deselecting every server disables Create with zero POSTs', (
+    tester,
+  ) async {
+    final adapter = _Adapter();
+    await pumpSheet(tester, adapter: adapter);
+    await tester.tap(find.text('Plex'));
+    await tester.pump();
+    final button = tester.widget<ElevatedButton>(
+      find.widgetWithText(ElevatedButton, 'Create'),
+    );
+    expect(button.onPressed, isNull);
+    await tester.tap(find.text('Create'), warnIfMissed: false);
+    await tester.pump();
+    expect(adapter.callCount, 0);
+  });
+
+  testWidgets('stale saved server IDs are dropped before submit', (
+    tester,
+  ) async {
+    final prefs = await makePrefs();
+    await saveCreateDefaults(
+      prefs,
+      serverIds: const [1, 999],
+      libraryIds: const [],
+      expiresInDays: 1,
+      unlimited: false,
+      durationDays: 30,
+      allowDownloads: true,
+      allowLiveTv: true,
+      allowMobileUploads: true,
+    );
+    final adapter = _Adapter();
+    await pumpSheet(tester, adapter: adapter, prefs: prefs);
+    await tester.ensureVisible(find.text('Create'));
+    await tester.pump();
+    await tester.tap(find.text('Create'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(adapter.callCount, 1);
+    expect(adapter.capturedBody?['server_ids'], [1]);
+  });
 }

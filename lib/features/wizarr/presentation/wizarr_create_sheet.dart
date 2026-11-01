@@ -90,7 +90,12 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
             .whereType<int>()
             .toSet();
       } else {
-        _selectedServers = d.serverIds.toSet();
+        // Intersect with the loaded servers: a saved server removed from
+        // Wizarr has no chip and could never be deselected, yet its ID
+        // would otherwise be submitted (and fail) forever.
+        final known =
+            servers.map((s) => s.id).whereType<int>().toSet();
+        _selectedServers = d.serverIds.where(known.contains).toSet();
       }
       _selectedLibraries = d.libraryIds.toSet();
       _expiresInDays = d.expiresInDays;
@@ -105,9 +110,6 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
   }
 
   int get _effectiveServerCount {
-    final servers = ref.read(wizarrServersProvider).asData?.value ??
-        const <WizarrServer>[];
-    if (_selectedServers.isEmpty) return servers.length;
     return _selectedServers.length;
   }
 
@@ -126,17 +128,13 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
       _submitting = true;
     });
 
-    final servers = ref.read(wizarrServersProvider).asData?.value ??
-        const <WizarrServer>[];
     final libraries = ref.read(wizarrLibrariesProvider).asData?.value ??
         const <WizarrLibrary>[];
-    final serverIds = _selectedServers.isEmpty
-        ? servers.map((s) => s.id).whereType<int>().toList()
-        : _selectedServers.toList();
+    final serverIds = _selectedServers.toList();
 
     if (serverIds.isEmpty) {
       setState(() {
-        _error = 'No servers';
+        _error = 'Select at least one server';
         _submitting = false;
       });
       return;
@@ -169,17 +167,21 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
 
       final prefs = _prefs;
       if (prefs != null) {
-        await saveCreateDefaults(
-        prefs,
-        serverIds: _selectedServers.toList(),
-        libraryIds: prunedLibraryIds,
-        expiresInDays: _expiresInDays,
-        unlimited: _unlimited,
-        durationDays: durationDays,
-        allowDownloads: _allowDownloads,
-        allowLiveTv: _allowLiveTv,
-        allowMobileUploads: _allowMobileUploads,
-      );
+        // Best effort: the invite already exists; a prefs failure must
+        // not report the create as failed (or invite a retry duplicate).
+        try {
+          await saveCreateDefaults(
+          prefs,
+          serverIds: _selectedServers.toList(),
+          libraryIds: prunedLibraryIds,
+          expiresInDays: _expiresInDays,
+          unlimited: _unlimited,
+          durationDays: durationDays,
+          allowDownloads: _allowDownloads,
+          allowLiveTv: _allowLiveTv,
+          allowMobileUploads: _allowMobileUploads,
+        );
+        } catch (_) {}
       }
 
       ref.invalidate(wizarrInvitationsProvider);
@@ -377,7 +379,9 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: (servers.isEmpty || _submitting)
+                      onPressed: (servers.isEmpty ||
+                              _selectedServers.isEmpty ||
+                              _submitting)
                           ? null
                           : _submit,
                       child: _submitting
