@@ -107,8 +107,82 @@ precedent: no request-body logger on the auth path).
    notes + `docs/project-log/` entry, tagged alpha + APK + xcross
    IPA (established loop).
 
-## Phase 2 (explicitly out of v1)
+## Phase 2 — invite creation (approved 2026-11-01, invites-only)
 
-`POST` create-invitation behind an explicit confirm dialog, its own
-spec delta + review gate + device proof. Revoke/delete deferred
-until the owner asks.
+Full form sheet from the Invitations tab (+ action). Verified live
+ Swagger shapes (2026-11-01) drive every field; no guessing.
+
+### Endpoints (all verified against live swagger)
+
+- `GET /api/servers` → `200`, `{servers: [{id, name, server_type,
+  server_url, external_url, verified, allow_downloads, allow_live_tv,
+  allow_mobile_uploads, created_at}], count}`.
+- `GET /api/libraries` → `200`, `{libraries: [{id, name,
+  external_id, server_id, server_name, enabled}], count}`.
+- `POST /api/invitations` with `InvitationCreateRequest`
+  `{server_ids[], expires_in_days (1|7|30|null), duration
+  (days-string | "unlimited"), unlimited bool, library_ids[],
+  allow_downloads bool, allow_live_tv bool, allow_mobile_uploads bool}`
+  → `201` + `{message, invitation}`. `wizard_bundle_id` always
+  omitted (automatic selection).
+
+### Client changes
+
+- Allowlist gains exactly one mutating key (`Invitation.create` →
+  `POST /api/invitations`), annotated as the sole v1 exception with
+  a comment pointing at this section. Every other non-list call
+  still throws `StateError` before any network I/O (existing test
+  extended to assert a second mutating path is still blocked).
+- New `WizarrService.createInvitation({...named params...})`
+  returning the created `WizarrInvitation` from the `201` body.
+
+### Models
+
+- `WizarrServer` (id, name, serverType) and `WizarrLibrary` (id,
+  name, serverId, serverName, enabled) with the same tolerant
+  parsing as siblings. Library picker filters by selected servers
+  via `serverId`.
+
+### Form + flow
+
+- Full-screen sheet (not dialog — the form is long): server
+  multi-select chips, library multi-select chips (scoped to chosen
+  servers; empty = all libraries), expiry segmented control
+  (Never | 1 | 7 | 30 days; Never sends null), unlimited toggle
+  (on → `duration: "unlimited"`; off → duration days field,
+  default 30), downloads / live-TV / mobile-upload switches.
+- Defaults: last-used snapshot from SharedPreferences (non-secret
+  JSON under `wiz_last_*` keys); first run falls back to all
+  servers, no library restriction, 7-day expiry, unlimited off,
+  duration 30, all switches on. Snapshot updates only on successful
+  creation.
+- Validation: ≥1 server required (client-side; the API 400 message
+  surfaces as backup). Create button shows a confirm step stating
+  server count + expiry ("Create invite for 2 servers, expires in
+  7 days?") — explicit user consent for the mutation.
+- Success: show the absolute share link with copy button (reuse
+  `absoluteInviteUrl`), then close and invalidate the invitations
+  provider so the new invite appears.
+- Errors: server message surfaced verbatim (scrubbed); 401 →
+  "Unauthorized" path already exists.
+
+### Tests
+
+- Client: the one mutating key allowed; a second mutating shape
+  still throws `StateError`; 400 envelope message surfaces.
+- Service: `createInvitation` maps the `201` body to a model.
+- Widget: defaults load from last-used snapshot; blank snapshot
+  falls back to the documented defaults; empty-server submit shows
+  validation and performs no POST (assert via mock adapter call
+  count); success path shows the share link.
+- `flutter analyze` clean; full suite green.
+
+### Device proof + gates
+
+- Pixel 6 vs live bertha: create a real invite with 1-day expiry
+  (self-cleaning; no revoke endpoint exists in v1), verify the link
+  row appears, tap-to-copy works.
+- OCR pre-pass + exactly one CodeRabbit gate, project log entry,
+  next alpha (tag + APK + xcross IPA).
+- Server management (adding servers/libraries to Wizarr) is NOT
+  phase 2 — separate decision, separate spec.
