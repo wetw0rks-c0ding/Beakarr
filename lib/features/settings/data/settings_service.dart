@@ -326,6 +326,8 @@ class SettingsService {
       openmediavaultUrl: serviceSettings[ServiceKey.openmediavault]!.$1,
       openmediavaultUsername: omvUsername,
       openmediavaultPassword: omvPassword,
+      wizarrUrl: serviceSettings[ServiceKey.wizarr]!.$1,
+      wizarrApiKey: serviceSettings[ServiceKey.wizarr]!.$2,
       soulsyncUrl: serviceSettings[ServiceKey.soulsync]!.$1,
       soulsyncApiKey: serviceSettings[ServiceKey.soulsync]!.$2,
       soulsyncProxyCookie: await _loadApiKey(_kSoulSyncProxyCookie),

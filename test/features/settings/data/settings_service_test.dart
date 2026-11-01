@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
+import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 
 import '../../../test_helpers/fake_secure_settings_store.dart';
@@ -112,6 +113,20 @@ void main() {
       expect(loaded.lidarrApiKey, settings.lidarrApiKey);
       expect(loaded.region, settings.region);
       expect(loaded.themeMode, settings.themeMode);
+    });
+
+    test('saveSettings and loadSettings round-trip Wizarr', () async {
+      const settings = SettingsModel(
+        wizarrUrl: 'https://wizarr.example.com:5691',
+        wizarrApiKey: 'wizarr-key',
+      );
+
+      await service.saveSettings(settings);
+      final loaded = await service.loadSettings();
+
+      expect(loaded.wizarrUrl, settings.wizarrUrl);
+      expect(loaded.wizarrApiKey, settings.wizarrApiKey);
+      expect(loaded.isServiceConfigured(ServiceKey.wizarr), isTrue);
     });
 
     test('saveSettings and loadSettings round-trip NZBGet and NPM', () async {
