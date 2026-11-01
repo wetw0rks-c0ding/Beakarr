@@ -191,12 +191,12 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
       });
     } catch (e) {
       if (!mounted) return;
-      String msg;
-      if (e is WizarrException) {
-        msg = e.message;
-      } else {
-        msg = e.toString();
-      }
+      // WizarrException already carries a scrubbed server message; anything
+      // else (programming errors, unexpected failure shapes) stays generic
+      // so internals never reach the screen.
+      final msg = e is WizarrException
+          ? e.message
+          : "Couldn't create invite — check connection and try again.";
       setState(() {
         _error = msg;
         _submitting = false;

@@ -2,9 +2,9 @@ import 'package:seekarr/core/utils/dynamic_map_utils.dart';
 
 /// Tolerant model for a Wizarr server (Phase 2).
 ///
-/// Follows the live Wizarr v3 `/api/swagger.json` shape:
-/// {id, name, server_type, server_url, external_url, verified,
-/// allow_downloads, allow_live_tv, allow_mobile_uploads, created_at}
+/// Live shape (`/api/swagger.json`) carries more fields (server_url,
+/// external_url, verified, allow_*, created_at); only the UI-needed
+/// subset is modeled, the rest is ignored.
 class WizarrServer {
   final int? id;
   final String? name;

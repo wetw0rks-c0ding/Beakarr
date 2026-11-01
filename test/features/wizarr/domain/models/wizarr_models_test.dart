@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_invitation.dart';
+import 'package:seekarr/features/wizarr/domain/models/wizarr_library.dart';
+import 'package:seekarr/features/wizarr/domain/models/wizarr_server.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_user.dart';
 
 /// Fixture matching the live Wizarr v3 `Invitation` schema
@@ -152,5 +154,48 @@ void main() {
     expect(u.serverType, 'plex');
     expect(u.expiresAt, isNotNull);
     expect(u.createdAt, isNotNull);
+  });
+
+  test('server parses live v3 shape', () {
+    final s = WizarrServer.fromJson(const {
+      'id': 1,
+      'name': 'The hub',
+      'server_type': 'plex',
+      'server_url': 'http://plex:32400',
+      'verified': true,
+    });
+    expect(s.id, 1);
+    expect(s.name, 'The hub');
+    expect(s.serverType, 'plex');
+  });
+
+  test('server tolerates missing keys', () {
+    const s = WizarrServer();
+    expect(s.id, isNull);
+    expect(s.name, isNull);
+    expect(s.serverType, isNull);
+  });
+
+  test('library parses live v3 shape', () {
+    final l = WizarrLibrary.fromJson(const {
+      'id': 10,
+      'name': 'Movies',
+      'external_id': 1,
+      'server_id': 1,
+      'server_name': 'The hub',
+      'enabled': true,
+    });
+    expect(l.id, 10);
+    expect(l.name, 'Movies');
+    expect(l.serverId, 1);
+    expect(l.serverName, 'The hub');
+    expect(l.isEnabled, isTrue);
+  });
+
+  test('library tolerates missing keys, defaults enabled', () {
+    final l = WizarrLibrary.fromJson(const {'name': 'Mystery'});
+    expect(l.id, isNull);
+    expect(l.serverId, isNull);
+    expect(l.isEnabled, isTrue);
   });
 }

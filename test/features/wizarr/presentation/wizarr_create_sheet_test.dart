@@ -52,6 +52,54 @@ WizarrService makeService(_Adapter adapter, {String url = 'https://wizarr.exampl
   return WizarrService(WizarrClient(url: url, apiKey: 'k', dio: dio));
 }
 
+WizarrService makeCustomService(
+  HttpClientAdapter adapter, {
+  String url = 'https://wizarr.example.com',
+}) {
+  final dio = Dio(BaseOptions(baseUrl: url));
+  dio.httpClientAdapter = adapter;
+  return WizarrService(WizarrClient(url: url, apiKey: 'k', dio: dio));
+}
+
+class _StatusAdapter implements HttpClientAdapter {
+  _StatusAdapter(this.status, this.body);
+  final int status;
+  final String body;
+
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    return ResponseBody.fromBytes(
+      utf8.encode(body),
+      status,
+      headers: {Headers.contentTypeHeader: ['application/json']},
+    );
+  }
+}
+
+class _ThrowingAdapter implements HttpClientAdapter {
+  @override
+  void close({bool force = false}) {}
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    throw DioException.connectionError(
+      requestOptions: options,
+      reason: 'SocketException: Connection failed (OS Error: Network is unreachable, errno = 51)',
+    );
+  }
+}
+
 Future<SharedPreferences> makePrefs() async {
   SharedPreferences.setMockInitialValues({});
   return SharedPreferences.getInstance();
@@ -59,12 +107,12 @@ Future<SharedPreferences> makePrefs() async {
 
 Future<void> pumpSheet(
   WidgetTester tester, {
-  required _Adapter adapter,
+  required HttpClientAdapter adapter,
   List<WizarrServer> servers = const [WizarrServer(id: 1, name: 'Plex', serverType: 'plex')],
   List<WizarrLibrary> libraries = const [],
   SharedPreferences? prefs,
 }) async {
-  final service = makeService(adapter);
+  final service = makeCustomService(adapter);
   final p = prefs ?? await makePrefs();
   await tester.pumpWidget(ProviderScope(overrides: [
     sharedPreferencesProvider.overrideWith((ref) => p),
@@ -192,5 +240,33 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('https://wizarr.example.com/j/abc'), findsOneWidget);
     expect(find.byIcon(Icons.copy), findsOneWidget);
+  });
+
+  testWidgets('server error surfaces message, no crash', (tester) async {
+    final adapter = _StatusAdapter(
+      400,
+      '{"error": {"message": "pick a server"}}',
+    );
+    await pumpSheet(tester, adapter: adapter);
+    await tester.ensureVisible(find.text('Create'));
+    await tester.pump();
+    await tester.tap(find.text('Create'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('pick a server'), findsOneWidget);
+  });
+
+  testWidgets('network failure shows clean error, no internals', (
+    tester,
+  ) async {
+    final adapter = _ThrowingAdapter();
+    await pumpSheet(tester, adapter: adapter);
+    await tester.ensureVisible(find.text('Create'));
+    await tester.pump();
+    await tester.tap(find.text('Create'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    // Client maps transport failures to a clean WizarrException.
+    expect(find.text('Request failed'), findsOneWidget);
   });
 }

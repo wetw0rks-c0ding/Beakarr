@@ -86,6 +86,24 @@ void main() {
     expect((error as WizarrException).httpStatus, 401);
   });
 
+  test('401 on POST maps to Unauthorized', () async {
+    final adapter = _ScriptAdapter(
+      script: [
+        (401, {'error': 'Unauthorized'}),
+      ],
+    );
+    final client = _client(adapter);
+    Object? error;
+    try {
+      await client.post('Invitation', 'create', {'server_ids': const [1]});
+    } catch (e) {
+      error = e;
+    }
+    expect(error, isA<WizarrException>());
+    expect((error as WizarrException).httpStatus, 401);
+    expect((error).message, contains('Unauthorized'));
+  });
+
   test('allowlisted read returns data', () async {
     final adapter = _ScriptAdapter(
       script: [
