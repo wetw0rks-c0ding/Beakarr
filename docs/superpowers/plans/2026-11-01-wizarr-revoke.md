@@ -81,8 +81,18 @@ Expected: FAIL (undefined `deleteInvitation`/`revokeInvitation`, no revoke UI)
 
 - [ ] **Step 3: Implement `deleteInvitation` in `wizarr_client.dart`**
 
-Single-purpose method (deliberately NOT a generic `delete(service, method)` passthrough, so no new allowlist key or bypass class is created):
-`Future<void> deleteInvitation({required int id})` → `_dio.delete('/api/invitations/$id')` with the `X-API-Key` header and the same 10/10/15 s timeouts; 2xx (object or empty body) completes normally, anything else throws `WizarrException` via the existing `_extractError` path.
+Single-purpose method with a checked sibling set (same pattern as
+`post()` + `_createOnly`, per-verb sets rather than one renamed bag):
+`static const _deleteOnly = {'Invitation.delete'}`; `Future<void>
+deleteInvitation({required int id})` verifies membership first (so a
+second mutating shape such as `client.delete('Invitation', 'update')`
+throws `StateError` before any I/O) and `_dio.delete`s the EXACT
+literal path `'/api/invitations/$id'` (never via the fuzzy
+`_pathForKey`, which is GET-only) with the `X-API-Key` header and the
+same 10/10/15 s timeouts; 2xx (object or empty body) completes
+normally, anything else (including any present-or-future 409) throws
+`WizarrException` via the existing `_extractError` path — no
+per-state special-casing.
 
 - [ ] **Step 4: Implement `revokeInvitation` in `wizarr_service.dart`**
 
@@ -90,7 +100,7 @@ Single-purpose method (deliberately NOT a generic `delete(service, method)` pass
 
 - [ ] **Step 5: Implement the tile action + dialog + wiring**
 
-`WizarrInviteTile` gains an optional `onRevoke` (`VoidCallback?`, hidden when null); the screen passes a callback that shows a confirm `AlertDialog` ("Revoke invite CODE? …"), and on confirm calls `revokeInvitation`, invalidates `wizarrInvitationsProvider`, and shows a snackbar; errors surface verbatim (scrubbed) in the dialog with no state change. The screen passes `onRevoke: null` when `invitation.id == null`. Guard double-submit with a submitting flag.
+`WizarrInviteTile` gains an optional `onRevoke` (`VoidCallback?`, hidden when null — existing screen tests construct tiles without it and are unaffected); the screen passes a callback that shows a confirm `AlertDialog` ("Revoke invite CODE? …") implemented as a small local `StatefulWidget` holding the `_submitting` flag (both buttons disabled + spinner while the DELETE is in flight, guarding double-submit), and on confirm calls `revokeInvitation`, invalidates `wizarrInvitationsProvider`, and shows a snackbar; errors surface verbatim (scrubbed) in the dialog with no state change. The screen passes `onRevoke: null` when `invitation.id == null`.
 
 - [ ] **Step 6: Run `flutter test test/features/wizarr/`, full `flutter test`, `flutter analyze`** → green/clean
 
