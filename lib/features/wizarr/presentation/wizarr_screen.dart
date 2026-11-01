@@ -74,11 +74,14 @@ class _InvitationsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(wizarrInvitationsProvider);
-    final baseUrl = ref.watch(wizarrServiceProvider).client.baseUrl;
     return AsyncValueWidget<List<WizarrInvitation>>(
       value: async,
       serviceName: 'Wizarr',
       data: (items) {
+        // Read inside the data branch: the service provider throws when
+        // unconfigured, and that must stay inside AsyncValueWidget's error
+        // UI (NotConfiguredPlaceholder), not escape this build.
+        final baseUrl = ref.read(wizarrServiceProvider).client.baseUrl;
         if (items.isEmpty) {
           return _emptyState(
             context,

@@ -10,6 +10,7 @@ import 'package:seekarr/features/wizarr/domain/models/wizarr_user.dart';
 import 'package:seekarr/features/wizarr/presentation/wizarr_screen.dart';
 import 'package:seekarr/features/wizarr/presentation/widgets/wizarr_invite_tile.dart';
 import 'package:seekarr/features/wizarr/presentation/widgets/wizarr_user_tile.dart';
+import 'package:seekarr/core/widgets/not_configured_placeholder.dart';
 
 WizarrInvitation _liveInvite() => WizarrInvitation.fromJson({
   'id': 7,
@@ -163,5 +164,30 @@ void main() {
     await tester.pump(const Duration(milliseconds: 50));
     expect(find.byType(WizarrUserTile), findsOneWidget);
     expect(find.text('bob'), findsOneWidget);
+  });
+
+  testWidgets('unconfigured service shows placeholder, not a crash', (
+    tester,
+  ) async {
+    // Mirror production: the sync client provider throws when no URL or
+    // key is configured, which puts the list providers in AsyncError.
+    // (Overriding the FutureProviders to throw instead would linger in
+    // AsyncLoading-with-error and never reach the error branch.)
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          wizarrClientProvider.overrideWith(
+            (ref) => throw Exception('Wizarr not configured'),
+          ),
+        ],
+        child: const MaterialApp(home: WizarrScreen()),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+
+    // Must render the friendly placeholder — a synchronous provider throw
+    // escaping the tab build would fail the test with an exception.
+    expect(find.byType(NotConfiguredPlaceholder), findsWidgets);
   });
 }
