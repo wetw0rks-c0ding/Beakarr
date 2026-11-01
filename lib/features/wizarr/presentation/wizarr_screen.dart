@@ -5,6 +5,7 @@ import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/widgets/async_value_widget.dart';
+import 'package:seekarr/features/wizarr/data/wizarr_client.dart';
 import 'package:seekarr/features/wizarr/data/wizarr_providers.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_invitation.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_user.dart';
@@ -132,10 +133,16 @@ class _InvitationsTab extends ConsumerWidget {
               bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
             ),
             itemCount: items.length,
-            itemBuilder: (context, index) => WizarrInviteTile(
-              invitation: items[index],
-              baseUrl: baseUrl,
-            ),
+            itemBuilder: (context, index) {
+              final inv = items[index];
+              return WizarrInviteTile(
+                invitation: inv,
+                baseUrl: baseUrl,
+                onRevoke: inv.id == null
+                    ? null
+                    : () => showRevokeDialog(context, ref, inv),
+              );
+            },
           ),
         );
       },
@@ -222,4 +229,93 @@ Widget _emptyState(
       ],
     ),
   );
+}
+
+Future<void> showRevokeDialog(
+  BuildContext context,
+  WidgetRef ref,
+  WizarrInvitation invitation,
+) {
+  return showDialog<void>(
+    context: context,
+    builder: (_) => _RevokeDialog(invitation: invitation),
+  );
+}
+
+class _RevokeDialog extends ConsumerStatefulWidget {
+  final WizarrInvitation invitation;
+
+  const _RevokeDialog({required this.invitation});
+
+  @override
+  ConsumerState<_RevokeDialog> createState() => _RevokeDialogState();
+}
+
+class _RevokeDialogState extends ConsumerState<_RevokeDialog> {
+  bool _submitting = false;
+  String? _error;
+
+  Future<void> _revoke() async {
+    setState(() {
+      _submitting = true;
+      _error = null;
+    });
+    try {
+      final service = ref.read(wizarrServiceProvider);
+      await service.revokeInvitation(id: widget.invitation.id!);
+      ref.invalidate(wizarrInvitationsProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Invite revoked')));
+      Navigator.of(context).pop();
+    } catch (e) {
+      if (!mounted) return;
+      final msg = e is WizarrException
+          ? e.message
+          : "Couldn't revoke invite — check connection and try again.";
+      setState(() {
+        _error = msg;
+        _submitting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final code = widget.invitation.code ?? '';
+    return AlertDialog(
+      title: Text('Revoke invite $code?'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Guests with the link will no longer be able to join.'),
+          if (_error != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _error!,
+              style: TextStyle(color: Theme.of(context).colorScheme.error),
+            ),
+          ],
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: _submitting ? null : () => Navigator.of(context).pop(),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: _submitting ? null : _revoke,
+          child: _submitting
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Revoke'),
+        ),
+      ],
+    );
+  }
 }

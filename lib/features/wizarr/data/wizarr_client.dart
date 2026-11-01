@@ -43,6 +43,11 @@ class WizarrClient {
     'Invitation.create',
   };
 
+  // v1 revoke mutation — DELETE /api/invitations/{id}.
+  static const _deleteOnly = <String>{
+    'Invitation.delete',
+  };
+
   final String baseUrl;
   final String apiKey;
 
@@ -172,6 +177,66 @@ class WizarrClient {
         );
       }
       
+      final message =
+          parsed?.$1 ?? (status == 401 ? 'Unauthorized' : 'Request failed');
+      throw WizarrException(
+        message: message,
+        httpStatus: status,
+        code: parsed?.$2,
+      );
+    }
+  }
+
+  /// DELETE endpoint for revoking an invitation.
+  /// Only allowed key is `Invitation.delete`; throws [StateError] otherwise.
+  Future<void> deleteInvitation({required int id}) async {
+    const key = 'Invitation.delete';
+    if (!_deleteOnly.contains(key)) {
+      throw StateError('Wizarr RPC "$key" is not in the DELETE allowlist');
+    }
+    final path = '/api/invitations/$id';
+    try {
+      final response = await _dio.delete<dynamic>(
+        path,
+        options: Options(
+          headers: {'X-API-Key': apiKey},
+          responseType: ResponseType.plain,
+        ),
+      );
+      final status = response.statusCode ?? 500;
+
+      if (status >= 400) {
+        final parsed = _extractError(response.data);
+        final message = parsed?.$1 ?? 'Request failed';
+        throw WizarrException(
+          message: message,
+          httpStatus: status,
+          code: parsed?.$2,
+        );
+      }
+
+      final decoded = _decode(response.data);
+      if (decoded is String && decoded.contains('<html')) {
+        throw WizarrException(
+          message: 'Unexpected HTML response on success',
+          httpStatus: status,
+        );
+      }
+    } on DioException catch (e) {
+      final status = e.response?.statusCode ?? 500;
+      final respData = e.response?.data;
+      final parsed = _extractError(respData);
+
+      if (status < 400 && e.response != null) {
+        final respParsed = _extractError(respData);
+        final respMessage = respParsed?.$1 ?? 'Request failed';
+        throw WizarrException(
+          message: respMessage,
+          httpStatus: status,
+          code: respParsed?.$2,
+        );
+      }
+
       final message =
           parsed?.$1 ?? (status == 401 ? 'Unauthorized' : 'Request failed');
       throw WizarrException(

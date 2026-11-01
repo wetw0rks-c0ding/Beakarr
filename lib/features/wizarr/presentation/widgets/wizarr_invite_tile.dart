@@ -14,10 +14,15 @@ class WizarrInviteTile extends StatelessWidget {
   /// shareable absolute link. Empty keeps the API value as-is.
   final String baseUrl;
 
+  /// Optional revoke callback. Hidden when null (or when the invitation
+  /// has no id).
+  final VoidCallback? onRevoke;
+
   const WizarrInviteTile({
     super.key,
     required this.invitation,
     this.baseUrl = '',
+    this.onRevoke,
   });
 
   @override
@@ -58,6 +63,19 @@ class WizarrInviteTile extends StatelessWidget {
                 ),
                 const SizedBox(width: 6),
                 _statusChip(context, inv.statusLabel),
+                if (onRevoke != null && inv.id != null) ...[
+                  const SizedBox(width: 2),
+                  IconButton(
+                    icon: Icon(
+                      Icons.delete_outline_rounded,
+                      size: 18,
+                      color: colorScheme.error,
+                    ),
+                    tooltip: 'Revoke',
+                    visualDensity: VisualDensity.compact,
+                    onPressed: onRevoke,
+                  ),
+                ],
               ],
             ),
             if ((inv.displayName != null &&

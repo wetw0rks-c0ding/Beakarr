@@ -63,6 +63,13 @@ class WizarrService {
     return _mapToInvitation(response);
   }
 
+  /// Revokes (deletes) a guest invitation via DELETE /api/invitations/{id}.
+  /// Returns true on success; exceptions propagate untouched.
+  Future<bool> revokeInvitation({required int id}) async {
+    await client.deleteInvitation(id: id);
+    return true;
+  }
+
   /// Unwraps a list from the RPC response. Envelope precedence:
   /// explicit [envelopeKeys] first, then generic `data`/`results`/`items`/
   /// `list`, then the first list-valued entry, then a bare top-level array.
