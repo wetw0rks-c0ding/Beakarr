@@ -71,23 +71,17 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
   Future<void> _loadDefaults() async {
     if (_loadingDefaults || _defaultsLoaded) return;
     _loadingDefaults = true;
-    SharedPreferences? prefs;
+    late SharedPreferences prefs;
     try {
       prefs = ref.read(sharedPreferencesProvider);
     } catch (_) {
-      try {
-        prefs = await SharedPreferences.getInstance();
-      } catch (_) {
-        prefs = null;
-      }
+      prefs = await SharedPreferences.getInstance();
     }
     _prefs = prefs;
 
     final servers = ref.read(wizarrServersProvider).asData?.value ??
         const <WizarrServer>[];
-    final d = prefs == null
-        ? decodeCreateDefaults(null)
-        : loadCreateDefaults(prefs!);
+    final d = loadCreateDefaults(prefs);
     if (!mounted) return;
     setState(() {
       if (d.serverIds.isEmpty) {
@@ -134,6 +128,8 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
 
     final servers = ref.read(wizarrServersProvider).asData?.value ??
         const <WizarrServer>[];
+    final libraries = ref.read(wizarrLibrariesProvider).asData?.value ??
+        const <WizarrLibrary>[];
     final serverIds = _selectedServers.isEmpty
         ? servers.map((s) => s.id).whereType<int>().toList()
         : _selectedServers.toList();
@@ -151,9 +147,18 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
 
     try {
       final service = ref.read(wizarrServiceProvider);
+      final effectiveServerIds = serverIds.toSet();
+      final prunedLibraryIds = _selectedLibraries.where((libId) {
+        final lib = libraries.firstWhere(
+          (l) => l.id == libId,
+          orElse: () => WizarrLibrary(id: libId),
+        );
+        return lib.serverId == null || effectiveServerIds.contains(lib.serverId);
+      }).toList();
+
       final invitation = await service.createInvitation(
         serverIds: serverIds,
-        libraryIds: _selectedLibraries.toList(),
+        libraryIds: prunedLibraryIds,
         expiresInDays: _expiresInDays,
         duration: duration,
         unlimited: _unlimited,
@@ -167,7 +172,7 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
         await saveCreateDefaults(
         prefs,
         serverIds: _selectedServers.toList(),
-        libraryIds: _selectedLibraries.toList(),
+        libraryIds: prunedLibraryIds,
         expiresInDays: _expiresInDays,
         unlimited: _unlimited,
         durationDays: durationDays,
@@ -259,6 +264,16 @@ class _WizarrCreateSheetState extends ConsumerState<WizarrCreateSheet> {
                                   if (s.id != null) _selectedServers.add(s.id!);
                                 } else {
                                   _selectedServers.remove(s.id);
+                                  final libs = ref
+                                          .read(wizarrLibrariesProvider)
+                                          .asData
+                                          ?.value ??
+                                      const <WizarrLibrary>[];
+                                  for (final l in libs) {
+                                    if (l.serverId == s.id) {
+                                      _selectedLibraries.remove(l.id);
+                                    }
+                                  }
                                 }
                               });
                             },

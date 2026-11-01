@@ -12,16 +12,12 @@ import 'package:seekarr/features/settings/domain/settings_model.dart';
 import 'package:seekarr/features/wizarr/data/wizarr_client.dart';
 import 'package:seekarr/features/wizarr/data/wizarr_providers.dart';
 import 'package:seekarr/features/wizarr/data/wizarr_service.dart';
-import 'package:seekarr/features/wizarr/domain/models/wizarr_invitation.dart';
+import 'package:seekarr/features/wizarr/data/wizarr_create_defaults.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_library.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_server.dart';
 import 'package:seekarr/features/wizarr/presentation/wizarr_create_sheet.dart';
 
 class _Adapter implements HttpClientAdapter {
-  _Adapter({this.body, this.statusCode = 201, this.responseBody});
-  final Map<String, dynamic>? body; // ignored, captured via options
-  final int statusCode;
-  final String? responseBody;
   int callCount = 0;
   final List<RequestOptions> requests = [];
   Map<String, dynamic>? capturedBody;
@@ -41,10 +37,10 @@ class _Adapter implements HttpClientAdapter {
       if (raw is String && raw.isNotEmpty) raw = jsonDecode(raw);
       if (raw is Map) capturedBody = Map<String, dynamic>.from(raw);
     } catch (_) {}
-    final rb = responseBody ?? '{"invitation":{"code":"abc","url":"/j/abc"}}';
+    const rb = '{"invitation":{"code":"abc","url":"/j/abc"}}';
     return ResponseBody.fromBytes(
       rb.codeUnits,
-      statusCode,
+      201,
       headers: {Headers.contentTypeHeader: ['application/json']},
     );
   }
@@ -105,7 +101,6 @@ void main() {
     await pumpSheet(tester, adapter: adapter);
     await tester.pump();
     // find duration field
-    final fields = find.byType(TextField);
     // toggle the Unlimited switch specifically
     await tester.tap(find.widgetWithText(SwitchListTile, 'Allow downloads').first, warnIfMissed: false);
     await tester.pump();
@@ -145,6 +140,46 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
     expect(adapter.callCount, 1);
     expect(adapter.capturedBody?['expires_in_days'], isNull);
+  });
+
+  testWidgets('deselecting server prunes its library from submit and snapshot', (tester) async {
+    final adapter = _Adapter();
+    final prefs = await makePrefs();
+    await pumpSheet(
+      tester,
+      adapter: adapter,
+      servers: const [
+        WizarrServer(id: 1, name: 'ServerA', serverType: 'plex'),
+        WizarrServer(id: 2, name: 'ServerB', serverType: 'plex'),
+      ],
+      libraries: const [
+        WizarrLibrary(id: 10, name: 'LibA', serverId: 1, serverName: 'ServerA'),
+        WizarrLibrary(id: 20, name: 'LibB', serverId: 2, serverName: 'ServerB'),
+      ],
+      prefs: prefs,
+    );
+    // select LibA
+    await tester.ensureVisible(find.text('LibA'));
+    await tester.pump();
+    await tester.tap(find.text('LibA'));
+    await tester.pump();
+    // deselect ServerA
+    await tester.ensureVisible(find.text('ServerA'));
+    await tester.pump();
+    await tester.tap(find.text('ServerA'));
+    await tester.pump();
+    // submit
+    await tester.ensureVisible(find.text('Create'));
+    await tester.pump();
+    await tester.tap(find.text('Create'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(adapter.callCount, 1);
+    final libs = adapter.capturedBody?['library_ids'] as List?;
+    expect(libs == null || !libs.contains(10), isTrue);
+    // persisted snapshot
+    final d = loadCreateDefaults(prefs);
+    expect(d.libraryIds.contains(10), isFalse);
   });
 
   testWidgets('success shows full url and copy affordance', (tester) async {
