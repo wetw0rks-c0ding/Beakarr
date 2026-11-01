@@ -47,7 +47,7 @@ void main() {
   test('getInvitations tolerates {data:[...]} envelope', () async {
     final service = _service({
       'data': [
-        {'code': 'a', 'maxUses': 2, 'usedCount': 1},
+        {'code': 'a', 'unlimited': false},
       ],
     });
     final list = await service.getInvitations();

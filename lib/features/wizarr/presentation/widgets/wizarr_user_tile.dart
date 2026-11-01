@@ -66,10 +66,10 @@ class WizarrUserTile extends StatelessWidget {
               const SizedBox(height: 5),
               _metaChip(context, u.serverType!, muted: true),
             ],
-            if (u.lastActiveAt != null) ...[
+            if (u.expiresAt != null) ...[
               const SizedBox(height: 5),
               Text(
-                'Last active: ${_formatDate(u.lastActiveAt!)}',
+                'Expires: ${_formatDate(u.expiresAt!)}',
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                   fontSize: 10,

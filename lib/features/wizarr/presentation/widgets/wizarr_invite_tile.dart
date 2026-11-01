@@ -51,15 +51,23 @@ class WizarrInviteTile extends StatelessWidget {
                 _statusChip(context, inv.statusLabel),
               ],
             ),
-            if (inv.server != null && inv.server!.isNotEmpty) ...[
+            if ((inv.displayName != null &&
+                    inv.displayName!.isNotEmpty) ||
+                inv.serverNames.isNotEmpty) ...[
               const SizedBox(height: 5),
-              Row(
+              Wrap(
+                spacing: 6,
+                runSpacing: 4,
                 children: [
-                  _metaChip(context, inv.server!, color: AppColors.wizarr),
-                  if (inv.serverType != null && inv.serverType!.isNotEmpty) ...[
-                    const SizedBox(width: 6),
-                    _metaChip(context, inv.serverType!, muted: true),
-                  ],
+                  if (inv.displayName != null &&
+                      inv.displayName!.isNotEmpty)
+                    _metaChip(
+                      context,
+                      inv.displayName!,
+                      color: AppColors.wizarr,
+                    ),
+                  for (final name in inv.serverNames)
+                    _metaChip(context, name, muted: true),
                 ],
               ),
             ],

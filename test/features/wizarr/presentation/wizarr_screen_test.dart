@@ -9,24 +9,27 @@ import 'package:seekarr/features/wizarr/presentation/wizarr_screen.dart';
 import 'package:seekarr/features/wizarr/presentation/widgets/wizarr_invite_tile.dart';
 import 'package:seekarr/features/wizarr/presentation/widgets/wizarr_user_tile.dart';
 
-WizarrInvitation _liveInvite() => const WizarrInvitation(
-  code: 'code-123',
-  inviteUrl: 'https://example.com/j/code-123',
-  server: 'Plex',
-  serverType: 'plex',
-  maxUses: 5,
-  usedCount: 2,
-  expiresAt: null,
-  createdAt: null,
-);
+WizarrInvitation _liveInvite() => WizarrInvitation.fromJson({
+  'id': 7,
+  'code': 'code-123',
+  'url': 'https://example.com/j/code-123',
+  'status': 'active',
+  'display_name': 'Weekend Guest',
+  'server_names': ['Plex'],
+  'unlimited': false,
+  'expires': '2026-11-20T10:00:00Z',
+  'created': '2026-10-20T10:00:00Z',
+});
 
-WizarrUser _liveUser() => const WizarrUser(
-  username: 'alice',
-  server: 'Plex',
-  serverType: 'plex',
-  email: 'alice@example.com',
-  lastActiveAt: null,
-);
+WizarrUser _liveUser() => WizarrUser.fromJson({
+  'id': 3,
+  'username': 'alice',
+  'email': 'alice@example.com',
+  'server': 'Plex',
+  'server_type': 'plex',
+  'expires': '2026-11-20T10:00:00Z',
+  'created_at': '2026-10-20T10:00:00Z',
+});
 
 void main() {
   testWidgets('WizarrScreen renders tabs', (tester) async {
@@ -96,32 +99,26 @@ void main() {
   });
 
   testWidgets('live-shaped populated models render', (tester) async {
+    // Live v3 shapes (verified 2026-11-01 against real swagger).
     final liveInvite = WizarrInvitation.fromJson(const {
+      'id': 9,
       'code': 'live-code',
-      'inviteUrl': 'https://wizarr.example.com/j/live-code',
-      'invite_url': 'https://wizarr.example.com/j/live-code',
-      'server': 'Jellyfin',
-      'serverName': 'Jellyfin',
-      'serverType': 'jellyfin',
-      'server_type': 'jellyfin',
-      'maxUses': 10,
-      'max_uses': 10,
-      'usedCount': 3,
-      'used_count': 3,
-      'expiresAt': '2030-01-01T00:00:00.000Z',
-      'expires_at': '2030-01-01T00:00:00.000Z',
-      'createdAt': '2024-01-01T00:00:00.000Z',
-      'created_at': '2024-01-01T00:00:00.000Z',
+      'url': 'https://wizarr.example.com/j/live-code',
+      'status': 'active',
+      'display_name': 'Live Guest',
+      'server_names': ['Jellyfin'],
+      'unlimited': false,
+      'expires': '2030-01-01T00:00:00.000Z',
+      'created': '2024-01-01T00:00:00.000Z',
     });
     final liveUser = WizarrUser.fromJson(const {
+      'id': 4,
       'username': 'bob',
-      'server': 'Jellyfin',
-      'serverName': 'Jellyfin',
-      'serverType': 'jellyfin',
-      'server_type': 'jellyfin',
       'email': 'bob@example.com',
-      'lastActiveAt': '2024-06-01T00:00:00.000Z',
-      'last_active_at': '2024-06-01T00:00:00.000Z',
+      'server': 'Jellyfin',
+      'server_type': 'jellyfin',
+      'expires': '2030-06-01T00:00:00.000Z',
+      'created_at': '2024-01-01T00:00:00.000Z',
     });
 
     await tester.pumpWidget(
