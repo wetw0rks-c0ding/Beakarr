@@ -13,6 +13,8 @@ server management (no API exists), undo (no un-revoke endpoint).
 
 - `DELETE /api/invitations/{invitation_id}` → `200` on success;
   `401` unauthenticated, `404` unknown id, `500` server error.
+  The `200` body is `{message: string}` per swagger, but the client
+  must also tolerate an empty body (no parse crash either way).
 - Path param is the integer `id` (the model already carries it;
   tiles keyed by `code` must resolve the id first — every live
   invitation has one).
@@ -53,7 +55,8 @@ dashboard changes (tile count derives from the refreshed list).
 ## Testing
 
 - Client: delete key allowed; a second mutating shape still throws
-  `StateError`; 404 maps to message + status.
+  `StateError`; 404 maps to message + status; empty-`200` and
+  `{message}`-`200` bodies both succeed without parse errors.
 - Service: 200 → true; 404 → throws with "not found".
 - Widget: revoke button hidden when id is null; confirm dialog
   Cancel performs zero DELETEs (mock adapter call count);
