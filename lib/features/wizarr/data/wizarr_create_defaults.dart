@@ -17,72 +17,16 @@ String encodeCreateDefaults({
   required bool allowLiveTv,
   required bool allowMobileUploads,
 }) {
-  final map = <String, dynamic>{
-    'server_ids': List<int>.from(serverIds),
+  return jsonEncode(<String, dynamic>{
     'serverIds': List<int>.from(serverIds),
-    'library_ids': List<int>.from(libraryIds),
     'libraryIds': List<int>.from(libraryIds),
-    'expires_in_days': expiresInDays,
     'expiresInDays': expiresInDays,
     'unlimited': unlimited,
-    'duration_days': durationDays,
     'durationDays': durationDays,
-    'allow_downloads': allowDownloads,
     'allowDownloads': allowDownloads,
-    'allow_live_tv': allowLiveTv,
     'allowLiveTv': allowLiveTv,
-    'allow_mobile_uploads': allowMobileUploads,
     'allowMobileUploads': allowMobileUploads,
-  };
-  return jsonEncode(map);
-}
-
-/// Looks up the first present (non-null OR explicitly present) value among
-/// [keys] in [map], returning null if none of the keys exist.
-dynamic _lookup(Map<String, dynamic> map, List<String> keys) {
-  for (final key in keys) {
-    if (map.containsKey(key)) {
-      return map[key];
-    }
-  }
-  return _missing;
-}
-
-const Object _missing = Object();
-
-List<int> _asIntList(dynamic value) {
-  if (value == null) return const <int>[];
-  if (value is List) {
-    final out = <int>[];
-    for (final element in value) {
-      if (element is int) {
-        out.add(element);
-      } else if (element is num) {
-        out.add(element.toInt());
-      } else {
-        // Wrong element type -> whole field falls back to default (empty).
-        return const <int>[];
-      }
-    }
-    return out;
-  }
-  // Wrong type -> default.
-  return const <int>[];
-}
-
-int _asInt(dynamic value, int fallback) {
-  if (value is int) return value;
-  if (value is num) return value.toInt();
-  if (value is String) {
-    final parsed = int.tryParse(value);
-    if (parsed != null) return parsed;
-  }
-  return fallback;
-}
-
-bool _asBool(dynamic value, bool fallback) {
-  if (value is bool) return value;
-  return fallback;
+  });
 }
 
 /// Decodes a create-invite defaults snapshot. Tolerant: a null/invalid input
@@ -104,7 +48,6 @@ bool _asBool(dynamic value, bool fallback) {
     }
   }
 
-  // serverIds
   List<int> serverIds = const <int>[];
   List<int> libraryIds = const <int>[];
   int? expiresInDays = 7;
@@ -115,89 +58,73 @@ bool _asBool(dynamic value, bool fallback) {
   bool allowMobileUploads = true;
 
   if (map != null) {
-    final serverVal = _lookup(map, const [
-      'serverIds',
-      'server_ids',
-      'servers',
-    ]);
-    if (serverVal != _missing) {
+    // serverIds
+    final serverVal = map['serverIds'];
+    if (map.containsKey('serverIds')) {
       serverIds = _asIntList(serverVal);
     }
 
-    final libraryVal = _lookup(map, const [
-      'libraryIds',
-      'library_ids',
-      'libraries',
-    ]);
-    if (libraryVal != _missing) {
+    final libraryVal = map['libraryIds'];
+    if (map.containsKey('libraryIds')) {
       libraryIds = _asIntList(libraryVal);
     }
 
-    final expiryVal = _lookup(map, const [
-      'expiresInDays',
-      'expires_in_days',
-      'expiresIn',
-      'expiryDays',
-    ]);
-    if (expiryVal != _missing) {
-      if (expiryVal == null) {
+    if (map.containsKey('expiresInDays')) {
+      final v = map['expiresInDays'];
+      if (v == null) {
         expiresInDays = null;
-      } else if (expiryVal is int || expiryVal is num) {
-        expiresInDays = _asInt(expiryVal, 7);
-      } else if (expiryVal is String) {
-        final parsed = int.tryParse(expiryVal);
-        expiresInDays = parsed; // wrong string -> null? fallback? 
-        // Per spec, wrong type falls back to default 7. A non-numeric string
-        // is a wrong type, so use default.
-        if (parsed == null) expiresInDays = 7;
+      } else if (v is int) {
+        expiresInDays = v;
       } else {
         expiresInDays = 7;
       }
     }
 
-    final unlimitedVal = _lookup(map, const ['unlimited']);
-    if (unlimitedVal != _missing) {
-      unlimited = _asBool(unlimitedVal, false);
-      // If wrong type, _asBool returns fallback false, which matches default.
-    }
-
-    final durationVal = _lookup(map, const [
-      'durationDays',
-      'duration_days',
-      'duration',
-    ]);
-    if (durationVal != _missing) {
-      if (durationVal is String) {
-        // "unlimited" is not a day count; fall back to default.
-        final parsed = int.tryParse(durationVal);
-        durationDays = parsed ?? 30;
+    if (map.containsKey('unlimited')) {
+      final v = map['unlimited'];
+      if (v is bool) {
+        unlimited = v;
       } else {
-        durationDays = _asInt(durationVal, 30);
+        unlimited = false;
       }
     }
 
-    final downloadsVal = _lookup(map, const ['allowDownloads', 'allow_downloads']);
-    if (downloadsVal != _missing) {
-      allowDownloads = _asBool(downloadsVal, true);
+    if (map.containsKey('durationDays')) {
+      final v = map['durationDays'];
+      if (v is int) {
+        durationDays = v;
+      } else {
+        durationDays = 30;
+      }
     }
 
-    final liveTvVal = _lookup(map, const ['allowLiveTv', 'allow_live_tv']);
-    if (liveTvVal != _missing) {
-      allowLiveTv = _asBool(liveTvVal, true);
+    if (map.containsKey('allowDownloads')) {
+      final v = map['allowDownloads'];
+      if (v is bool) {
+        allowDownloads = v;
+      } else {
+        allowDownloads = true;
+      }
     }
 
-    final mobileVal = _lookup(map, const [
-      'allowMobileUploads',
-      'allow_mobile_uploads',
-    ]);
-    if (mobileVal != _missing) {
-      allowMobileUploads = _asBool(mobileVal, true);
+    if (map.containsKey('allowLiveTv')) {
+      final v = map['allowLiveTv'];
+      if (v is bool) {
+        allowLiveTv = v;
+      } else {
+        allowLiveTv = true;
+      }
+    }
+
+    if (map.containsKey('allowMobileUploads')) {
+      final v = map['allowMobileUploads'];
+      if (v is bool) {
+        allowMobileUploads = v;
+      } else {
+        allowMobileUploads = true;
+      }
     }
   }
-
-  // If a field was present but wrong type, _asBool returns fallback already.
-  // But for unlimited wrong type, _asBool returns false (default) - good.
-  // However if unlimited present wrong type, we called _asBool -> false. Good.
 
   return (
     serverIds: List<int>.from(serverIds),
@@ -209,6 +136,22 @@ bool _asBool(dynamic value, bool fallback) {
     allowLiveTv: allowLiveTv,
     allowMobileUploads: allowMobileUploads,
   );
+}
+
+List<int> _asIntList(dynamic value) {
+  if (value == null) return const <int>[];
+  if (value is List) {
+    final out = <int>[];
+    for (final element in value) {
+      if (element is int) {
+        out.add(element);
+      } else {
+        return const <int>[];
+      }
+    }
+    return out;
+  }
+  return const <int>[];
 }
 
 /// Loads the persisted snapshot, or documented defaults when absent.

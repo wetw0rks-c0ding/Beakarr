@@ -78,16 +78,16 @@ void main() {
       expect(decoded.allowMobileUploads, snap.allowMobileUploads);
     });
 
-    test('tolerant decode falls back per field', () {
+    test('tolerant decode falls back per field (strict types)', () {
       final raw = jsonEncode({
-        'server_ids': 'nope',
-        'library_ids': 42,
-        'expires_in_days': 'bad',
+        'serverIds': 'nope',
+        'libraryIds': 42,
+        'expiresInDays': '14',
         'unlimited': 'yes',
-        'duration_days': null,
-        'allow_downloads': 1,
-        'allow_live_tv': null,
-        'allow_mobile_uploads': 'false',
+        'durationDays': '30',
+        'allowDownloads': 1,
+        'allowLiveTv': null,
+        'allowMobileUploads': 'false',
       });
       final decoded = decodeCreateDefaults(raw);
       expect(decoded.serverIds, isEmpty);
@@ -100,8 +100,20 @@ void main() {
       expect(decoded.allowMobileUploads, isTrue);
     });
 
+    test('tolerant decode rejects numeric int subclasses', () {
+      final raw = jsonEncode({
+        'serverIds': [1.0],
+        'expiresInDays': 14.0,
+        'durationDays': 30.0,
+      });
+      final decoded = decodeCreateDefaults(raw);
+      expect(decoded.serverIds, isEmpty);
+      expect(decoded.expiresInDays, 7);
+      expect(decoded.durationDays, 30);
+    });
+
     test('decode handles null expiresInDays (Never)', () {
-      final raw = jsonEncode({'expires_in_days': null});
+      final raw = jsonEncode({'expiresInDays': null});
       final decoded = decodeCreateDefaults(raw);
       expect(decoded.expiresInDays, isNull);
     });
