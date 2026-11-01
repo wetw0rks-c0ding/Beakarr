@@ -1,5 +1,7 @@
 import 'package:seekarr/features/wizarr/data/wizarr_client.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_invitation.dart';
+import 'package:seekarr/features/wizarr/domain/models/wizarr_server.dart';
+import 'package:seekarr/features/wizarr/domain/models/wizarr_library.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_user.dart';
 
 class WizarrService {
@@ -15,6 +17,50 @@ class WizarrService {
   Future<List<WizarrUser>> getUsers() async {
     final response = await client.rpc('User', 'getAll');
     return _items(response, WizarrUser.fromJson, const ['users']);
+  }
+
+  /// Get all servers from the Wizarr API.
+  Future<List<WizarrServer>> getServers() async {
+    final response = await client.rpc('Server', 'getAll');
+    return _items(response, WizarrServer.fromJson, const ['servers']);
+  }
+
+  /// Get all libraries from the Wizarr API.
+  Future<List<WizarrLibrary>> getLibraries() async {
+    final response = await client.rpc('Library', 'getAll');
+    return _items(response, WizarrLibrary.fromJson, const ['libraries']);
+  }
+
+  /// Creates a guest invitation via POST to /api/invitations.
+  /// Only allowed via the [post()] method; throws [StateError] for other mutations.
+  Future<WizarrInvitation> createInvitation({
+    required List<int> serverIds,
+    List<int> libraryIds = const [],
+    int? expiresInDays,
+    String? duration,
+    bool? unlimited,
+    bool allowDownloads = true,
+    bool allowLiveTv = true,
+    bool allowMobileUploads = true,
+  }) async {
+    // Argument validation before I/O
+    if (serverIds.isEmpty) {
+      throw ArgumentError('serverIds cannot be empty');
+    }
+
+    final payload = <String, dynamic>{
+      'server_ids': serverIds,
+      'expires_in_days': expiresInDays,
+      'duration': duration,
+      'unlimited': unlimited ?? false,
+      'library_ids': libraryIds,
+      'allow_downloads': allowDownloads,
+      'allow_live_tv': allowLiveTv,
+      'allow_mobile_uploads': allowMobileUploads,
+    };
+
+    final response = await client.post('Invitation', 'create', payload);
+    return _mapToInvitation(response);
   }
 
   /// Unwraps a list from the RPC response. Envelope precedence:
@@ -61,5 +107,38 @@ class WizarrService {
       if (map != null) items.add(fromJson(map));
     }
     return items;
+  }
+
+  /// Maps a raw RPC response to [WizarrInvitation].
+  /// Handles both 201 (created) and 200 responses, extracting the invitation object.
+  static WizarrInvitation _mapToInvitation(dynamic response) {
+    dynamic data = response;
+    
+    // Check for common envelope keys
+    if (response is Map) {
+      for (final key in ['invitation', 'data']) {
+        if (response[key] != null) {
+          data = response[key];
+          break;
+        }
+      }
+    }
+    
+    if (data is! Map) {
+      throw const WizarrException(
+        message: 'Unexpected response from createInvitation (not an invitation object)',
+      );
+    }
+
+    final map = data is Map<String, dynamic>
+        ? data
+        : Map<String, dynamic>.from(data);
+    final invitation = WizarrInvitation.fromJson(map);
+    if (invitation.code == null) {
+      throw const WizarrException(
+        message: 'Invalid invitation response (missing code or id)',
+      );
+    }
+    return invitation;
   }
 }

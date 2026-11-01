@@ -28,6 +28,13 @@ class WizarrClient {
     'Users.getAll',
     'User.list',
     'Users.list',
+    'Server.getAll',
+    'Library.getAll',
+  };
+
+  // Sole v1 mutation exception — see spec Phase 2 (POST /api/invitations).
+  static const _createOnly = <String>{
+    'Invitation.create',
   };
 
   final String baseUrl;
@@ -57,12 +64,109 @@ class WizarrClient {
 
   String? _pathForKey(String key) {
     final lower = key.toLowerCase();
-    if (lower.contains('invitation')) return '/api/invitations';
-    if (lower.contains('user')) return '/api/users';
+    // Exact path mappings for servers and libraries endpoints
+    if (key == 'Server.getAll') return '/api/servers';
+    if (key == 'Library.getAll') return '/api/libraries';
+    // Invitation paths: create uses exact path, getAll uses generic fallback
+    if (lower.contains('invitation.create')) return '/api/invitations';
+    if (lower.contains('invitation.getall')) return '/api/invitations';
+    if (lower.contains('invitation.list')) return '/api/invitations';
+    // User paths: same pattern
+    if (lower.contains('user.getall')) return '/api/users';
+    if (lower.contains('user.list')) return '/api/users';
     return null;
   }
 
   Future<dynamic> rpc(
+    String service,
+    String method, [
+    Map<String, dynamic>? params,
+  ]) async {
+    final key = '$service.$method';
+    // rpc() is for read-only operations via GET. Mutations must use post().
+    if (!_readOnly.contains(key)) {
+      throw StateError('Wizarr RPC "$key" is not in the read-only allowlist');
+    }
+    return _rpcGet(service, method, params);
+  }
+
+  /// POST endpoint for mutation operations (createInvitation, etc.)
+  /// Only allowed methods are listed in [_createOnly].
+  Future<dynamic> post(
+    String service,
+    String method, [
+    Map<String, dynamic>? params,
+  ]) async {
+    final key = '$service.$method';
+    if (!_createOnly.contains(key)) {
+      throw StateError('Wizarr RPC "$key" is not in the POST allowlist');
+    }
+    // Exact literal path — never via the fuzzy _pathForKey (GET-only).
+    const path = '/api/invitations';
+    try {
+      final payload = Map<String, dynamic>.from({
+        if (params != null && params.isNotEmpty) ...params,
+      });
+      final response = await _dio.post<dynamic>(
+        path,
+        data: payload.isEmpty ? null : payload,
+        options: Options(
+          headers: {'X-API-Key': apiKey},
+          responseType: ResponseType.plain,
+        ),
+      );
+      final status = response.statusCode ?? 500;
+      
+      // Handle 4xx/5xx errors with JSON or HTML bodies
+      if (status >= 400) {
+        final parsed = _extractError(response.data);
+        final message =
+            parsed?.$1 ?? ('Request failed');
+        throw WizarrException(
+          message: message,
+          httpStatus: status,
+          code: parsed?.$2,
+        );
+      }
+      
+      // Handle 200 OK with non-JSON bodies (likely HTML error pages)
+      final decoded = _decode(response.data);
+      if (decoded is String && decoded.contains('<html')) {
+        throw WizarrException(
+          message: 'Unexpected HTML response on success',
+          httpStatus: status,
+        );
+      }
+      
+      return decoded;
+    } on DioException catch (e) {
+      final status = e.response?.statusCode ?? 500;
+      final respData = e.response?.data;
+      final parsed = _extractError(respData);
+      
+      // For mock tests where status is 2xx but we still got a DioException,
+      // extract error from the response if available
+      if (status < 400 && e.response != null) {
+        final respParsed = _extractError(respData);
+        final respMessage = respParsed?.$1 ?? 'Request failed';
+        throw WizarrException(
+          message: respMessage,
+          httpStatus: status,
+          code: respParsed?.$2,
+        );
+      }
+      
+      final message =
+          parsed?.$1 ?? (status == 401 ? 'Unauthorized' : 'Request failed');
+      throw WizarrException(
+        message: message,
+        httpStatus: status,
+        code: parsed?.$2,
+      );
+    }
+  }
+
+  Future<dynamic> _rpcGet(
     String service,
     String method, [
     Map<String, dynamic>? params,
@@ -81,10 +185,47 @@ class WizarrClient {
           responseType: ResponseType.plain,
         ),
       );
-      return _decode(response.data);
+      final status = response.statusCode ?? 500;
+      
+      // Handle 4xx/5xx errors with JSON or HTML bodies
+      if (status >= 400) {
+        final parsed = _extractError(response.data);
+        final message =
+            parsed?.$1 ?? ('Request failed');
+        throw WizarrException(
+          message: message,
+          httpStatus: status,
+          code: parsed?.$2,
+        );
+      }
+      
+      // Handle 200 OK with non-JSON bodies (likely HTML error pages)
+      final decoded = _decode(response.data);
+      if (decoded is String && decoded.contains('<html')) {
+        throw WizarrException(
+          message: 'Unexpected HTML response on success',
+          httpStatus: status,
+        );
+      }
+      
+      return decoded;
     } on DioException catch (e) {
-      final status = e.response?.statusCode;
-      final parsed = _extractError(e.response?.data);
+      final status = e.response?.statusCode ?? 500;
+      final respData = e.response?.data;
+      final parsed = _extractError(respData);
+      
+      // For mock tests where status is 2xx but we still got a DioException,
+      // extract error from the response if available
+      if (status < 400 && e.response != null) {
+        final respParsed = _extractError(respData);
+        final respMessage = respParsed?.$1 ?? 'Request failed';
+        throw WizarrException(
+          message: respMessage,
+          httpStatus: status,
+          code: respParsed?.$2,
+        );
+      }
+      
       final message =
           parsed?.$1 ?? (status == 401 ? 'Unauthorized' : 'Request failed');
       throw WizarrException(

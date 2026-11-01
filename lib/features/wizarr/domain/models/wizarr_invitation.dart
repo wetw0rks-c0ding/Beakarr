@@ -1,6 +1,6 @@
 import 'package:seekarr/core/utils/dynamic_map_utils.dart';
 
-/// Tolerant model for a Wizarr invitation (read-only v1).
+/// Tolerant model for a Wizarr invitation (read-only v1 and Phase 2 creation response).
 ///
 /// Field names follow the live Wizarr v3 `/api/swagger.json`
 /// (`Invitation`: id/code/url/status/created/expires/used_at/used_by/

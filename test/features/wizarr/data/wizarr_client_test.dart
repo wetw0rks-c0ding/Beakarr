@@ -130,4 +130,126 @@ void main() {
     await client.rpc('Invitation', 'getAll');
     expect(adapter.requests.single.headers['X-API-Key'], 'secret');
   });
+
+  test('Invitation.create posts, Invitation.delete still throws', () async {
+    final adapter = _ScriptAdapter(script: [(201, {'message': 'ok', 'invitation': {'code': 'n'}})]);
+    final client = _client(
+      adapter,
+      apiKey: 'secret',
+    );
+    // post method is allowlisted and posts
+    final response = await client.post('Invitation', 'create', {
+      'server_ids': [1],
+      'expires_in_days': 7,
+      'duration': '7d',
+      'unlimited': false,
+      'library_ids': [],
+      'allow_downloads': true,
+      'allow_live_tv': true,
+      'allow_mobile_uploads': true,
+    });
+    expect(response, isA<Map>());
+    final data = response as Map<String, dynamic>;
+    expect(data['message'], 'ok');
+    expect((data['invitation'] as Map<String, dynamic>)['code'], 'n');
+
+    // delete is still blocked (not in _createOnly nor _readOnly)
+    expect(
+      () => client.post('Invitation', 'delete'),
+      throwsA(isA<StateError>()),
+    );
+  });
+
+  test('400 envelope message surfaces', () async {
+    final adapter = _ScriptAdapter(
+      script: [(400, {'error': {'message': 'pick a server'}})],
+    );
+    final client = _client(adapter);
+    Object? error;
+    try {
+      await client.post('Invitation', 'create', {});
+    } catch (e) {
+      error = e;
+    }
+    expect(error, isA<WizarrException>());
+    expect((error as WizarrException).message, contains('pick a server'));
+  });
+
+  test('HTML 200 body throws WizarrException', () async {
+    final adapter = _ScriptAdapter(script: [(200, '<html>login</html>')]);
+    final client = _client(adapter);
+    Object? error;
+    try {
+      await client.post('Invitation', 'create', {});
+    } catch (e) {
+      error = e;
+    }
+    expect(error, isA<WizarrException>());
+  });
+
+  test('Server.getAll and Library.getAll are allowlisted', () async {
+    final adapter = _ScriptAdapter(
+      script: [
+        (200, {'servers': [], 'count': 0}),
+        (200, {'libraries': [], 'count': 0}),
+      ],
+    );
+    final client = _client(adapter);
+    final servers = await client.rpc('Server', 'getAll');
+    expect(servers, isA<Map>());
+    final libraries = await client.rpc('Library', 'getAll');
+    expect(libraries, isA<Map>());
+  });
+
+  test('Server.getAll and Library getAll have exact paths', () async {
+    final adapter = _ScriptAdapter(
+      script: [
+        (200, {'servers': []}),
+      ],
+    );
+    final client = _client(adapter);
+    await client.rpc('Server', 'getAll');
+    expect(adapter.requests.single.path, '/api/servers');
+  });
+
+  test('Library.getAll has exact path', () async {
+    final adapter = _ScriptAdapter(
+      script: [
+        (200, {'libraries': []}),
+      ],
+    );
+    final client = _client(adapter);
+    await client.rpc('Library', 'getAll');
+    expect(adapter.requests.single.path, '/api/libraries');
+  });
+
+  test('post uses exact path for Invitation.create', () async {
+    final adapter = _ScriptAdapter(
+      script: [
+        (201, {'invitation': {'code': 'x'}}),
+      ],
+    );
+    final client = _client(adapter);
+    await client.post('Invitation', 'create', {});
+    expect(adapter.requests.single.path, '/api/invitations');
+  });
+
+  test('post to other methods still throws StateError', () async {
+    final adapter = _ScriptAdapter(script: const []);
+    final client = _client(adapter);
+    expect(
+      () => client.post('User', 'getAll'),
+      throwsStateError,
+    );
+    expect(adapter.callIndex, 0);
+  });
+
+  test('Invitation.getAll still works (not blocked)', () async {
+    final adapter = _ScriptAdapter(
+      script: [(200, {'invitations': []})],
+    );
+    final client = _client(adapter);
+    await client.rpc('Invitation', 'getAll');
+    expect(adapter.callIndex, 1);
+  });
 }
