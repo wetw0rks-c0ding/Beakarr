@@ -23,7 +23,7 @@
 
 - A non-201 response (400 envelope, 401 HTML login page) surfaces as an error state, never a parse crash — pin with a 400-envelope test and an HTML-200 test in the owning task, most likely first.
 - Empty server list renders a "no servers" state with creation disabled — pin with an empty-servers widget test.
-- Submit with no server selected shows validation and performs zero POSTs — pin with a mock-adapter call-count test.
+- Submit with no server selected shows validation and performs zero POSTs — pin with a mock-adapter call-count test (service-level: `createInvitation(serverIds: [])` throws `ArgumentError` before any I/O; widget-level: empty server list renders "no servers" with creation disabled).
 - Unlimited toggle on hides/disables the duration field and sends `duration: "unlimited"` — pin with a payload-capture test.
 - Success with a relative `/j/<code>` link shows the absolute share URL — pin with a sheet test asserting the full URL text (reuses `absoluteInviteUrl`).
 
@@ -69,9 +69,9 @@ test('HTML 200 body throws WizarrException', () async {
 Run: `flutter test test/features/wizarr/data/ 2>&1 | tail -2`
 Expected: FAIL (undefined `post`/`createInvitation`/models)
 
-- [ ] **Step 3: Implement in `wizarr_client.dart`: `static const _createOnly = {'Invitation.create'}` with a comment naming it the sole v1 exception; `Future<dynamic> post(String service, String method, [Map<String, dynamic>? body])` that throws `StateError` unless the key is in `_createOnly`, then `_dio.post(path, data: body)` with the `X-API-Key` header and the same 10/10/15 s timeouts; extend `_readOnly` with `'Server.getAll'`/`'Library.getAll'` (+ the same alias style as existing entries) and `_pathForKey` with `'server' → '/api/servers'`, `'library' → '/api/libraries'`**
+- [ ] **Step 3: Implement in `wizarr_client.dart`: `static const _createOnly = {'Invitation.create'}` with a comment naming it the sole v1 exception; `Future<dynamic> post(String service, String method, [Map<String, dynamic>? body])` that throws `StateError` unless the key is in `_createOnly`, then `_dio.post` to the EXACT path `'/api/invitations'` (a literal constant — never via the fuzzy `_pathForKey`, which is GET-only) with the `X-API-Key` header and the same 10/10/15 s timeouts; extend `_readOnly` with `'Server.getAll'`/`'Library.getAll'` (+ the same alias style as existing entries) and `_pathForKey` with exact `'server' → '/api/servers'`, `'library' → '/api/libraries'`**
 
-- [ ] **Step 4: Implement in `wizarr_service.dart`: `Future<WizarrInvitation> createInvitation({required List<int> serverIds, List<int> libraryIds = const [], int? expiresInDays, required String duration, required bool unlimited, bool allowDownloads = true, bool allowLiveTv = true, bool allowMobileUploads = true})` posting body `{server_ids, expires_in_days, duration, unlimited, library_ids, allow_downloads, allow_live_tv, allow_mobile_uploads}` and mapping the `201` `invitation` map via `WizarrInvitation.fromJson`; plus `getServers()` (`client.rpc('Server', 'getAll')` → envelope `servers`) and `getLibraries()` (`client.rpc('Library', 'getAll')` → `libraries`)**
+- [ ] **Step 4: Implement in `wizarr_service.dart`: `Future<WizarrInvitation> createInvitation({required List<int> serverIds, List<int> libraryIds = const [], int? expiresInDays, required String duration, required bool unlimited, bool allowDownloads = true, bool allowLiveTv = true, bool allowMobileUploads = true})` that throws `ArgumentError` on empty `serverIds` before any network I/O, posting body `{server_ids, expires_in_days, duration, unlimited, library_ids, allow_downloads, allow_live_tv, allow_mobile_uploads}` (never `wizard_bundle_id` — assert its absence in the payload-capture test) and mapping the `201` `invitation` map via `WizarrInvitation.fromJson`; plus `getServers()` (`client.rpc('Server', 'getAll')` → envelope `servers`) and `getLibraries()` (`client.rpc('Library', 'getAll')` → `libraries`)**
 
 - [ ] **Step 5: Implement `WizarrServer` (`id`, `name`, `serverType`, all nullable, tolerant `fromJson`) and `WizarrLibrary` (`id`, `name`, `serverId`, `serverName`, `enabled`) in `domain/models/`**
 
@@ -131,11 +131,12 @@ test('missing snapshot decodes to documented defaults', () {
 // empty servers state: providers return [], expect "no servers" text and disabled create
 // validation: tap Create with no server selected, expect error text + mock adapter call count 0
 // unlimited on: duration field disabled, captured POST body has duration "unlimited"
+// expiry Never: captured POST body has expires_in_days null (not 0)
 // success: mock 201 with relative url "/j/abc", expect full "https://<host>/j/abc" text + copy affordance
 ```
 
 - [ ] **Step 2: Run to verify they fail**
-- [ ] **Step 3: Implement the sheet** — `MaterialPageRoute(fullscreenDialog: true)` pushed from the Invitations tab header action; server `FilterChip`s (multi), library chips filtered by selected `serverId`s (empty selection = all libraries), expiry `SegmentedButton<int?>` (Never=null, 1, 7, 30), unlimited `Switch` disabling the duration days field, three permission switches, defaults from Task 2 snapshot (fallback: all servers, no library restriction, 7-day expiry, unlimited off, 30 days, all on); confirm block ("Create invite for N servers, expires in X?") + Create button; on success persist the snapshot, show the absolute link (via `absoluteInviteUrl`) with copy, then close and invalidate the invitations provider; server errors surface verbatim (scrubbed)
+- [ ] **Step 3: Implement the sheet** — `MaterialPageRoute(fullscreenDialog: true)` pushed from the Invitations tab header action; server `FilterChip`s (multi), library chips filtered by selected `serverId`s (empty selection = all libraries), expiry `SegmentedButton<int?>` (Never=null, 1, 7, 30), unlimited `Switch` disabling the duration days field, three permission switches, defaults from Task 2 snapshot (fallback: all servers, no library restriction, 7-day expiry, unlimited off, 30 days, all on); at submit an empty server selection expands to all loaded server IDs (the service `ArgumentError` is the backstop, never the path); confirm block ("Create invite for N servers, expires in X?") + Create button; on success persist the snapshot, show the absolute link (via `absoluteInviteUrl`) with copy, then close and invalidate the invitations provider; server errors surface verbatim (scrubbed)
 - [ ] **Step 4: Run `flutter test test/features/wizarr/`, full `flutter test`, `flutter analyze`** → green/clean
 - [ ] **Step 5: Commit** (`feat(wizarr): invite creation sheet`)
 
