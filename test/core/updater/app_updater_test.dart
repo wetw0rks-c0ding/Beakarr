@@ -52,7 +52,33 @@ void main() {
   });
 
   group('pickAsset', () {
-    test('matches needle', () {
+    test('matches release asset names', () {
+      final release = GitHubRelease(
+        tagName: 'v0.9.18-alpha',
+        assets: const [
+          GitHubAsset(
+            name: 'beakarr-0.9.18-alpha.apk',
+            browserDownloadUrl: 'u',
+          ),
+          GitHubAsset(
+            name: 'beakarr-0.9.18-alpha.ipa',
+            browserDownloadUrl: 'i',
+          ),
+        ],
+      );
+      // Callers pass extension needles (see settings update flow).
+      expect(
+        pickAsset(release, '.apk')?.name,
+        'beakarr-0.9.18-alpha.apk',
+      );
+      expect(
+        pickAsset(release, '.ipa')?.name,
+        'beakarr-0.9.18-alpha.ipa',
+      );
+      expect(pickAsset(release, '-foo'), isNull);
+    });
+
+    test('matches legacy infix names', () {
       final release = GitHubRelease(
         tagName: 'v0.9.4',
         assets: const [
