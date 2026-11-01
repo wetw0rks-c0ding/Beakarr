@@ -6,7 +6,8 @@ import 'package:seekarr/core/app_spacing.dart';
 import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_invitation.dart';
 
-/// One Wizarr invitation row. Read-only by design (v1): no revoke/create.
+/// One Wizarr invitation row. Exposes an optional [onRevoke] affordance (a
+/// delete icon) when a revoke callback is supplied and the invitation has an id.
 class WizarrInviteTile extends StatelessWidget {
   final WizarrInvitation invitation;
 

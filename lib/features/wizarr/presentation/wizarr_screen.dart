@@ -140,7 +140,7 @@ class _InvitationsTab extends ConsumerWidget {
                 baseUrl: baseUrl,
                 onRevoke: inv.id == null
                     ? null
-                    : () => showRevokeDialog(context, ref, inv),
+                    : () => showRevokeDialog(context, inv),
               );
             },
           ),
@@ -233,7 +233,6 @@ Widget _emptyState(
 
 Future<void> showRevokeDialog(
   BuildContext context,
-  WidgetRef ref,
   WizarrInvitation invitation,
 ) {
   return showDialog<void>(
