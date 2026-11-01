@@ -8,6 +8,7 @@ import 'package:seekarr/core/widgets/async_value_widget.dart';
 import 'package:seekarr/features/wizarr/data/wizarr_providers.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_invitation.dart';
 import 'package:seekarr/features/wizarr/domain/models/wizarr_user.dart';
+import 'package:seekarr/features/wizarr/presentation/wizarr_create_sheet.dart';
 import 'package:seekarr/features/wizarr/presentation/widgets/wizarr_invite_tile.dart';
 import 'package:seekarr/features/wizarr/presentation/widgets/wizarr_user_tile.dart';
 
@@ -74,10 +75,37 @@ class _InvitationsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(wizarrInvitationsProvider);
-    return AsyncValueWidget<List<WizarrInvitation>>(
-      value: async,
-      serviceName: 'Wizarr',
-      data: (items) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.xs,
+          ),
+          child: Row(
+            children: [
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      fullscreenDialog: true,
+                      builder: (_) => const WizarrCreateSheet(),
+                    ),
+                  );
+                  ref.invalidate(wizarrInvitationsProvider);
+                },
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('New invite'),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: AsyncValueWidget<List<WizarrInvitation>>(
+            value: async,
+            serviceName: 'Wizarr',
+            data: (items) {
         // Read inside the data branch: the service provider throws when
         // unconfigured, and that must stay inside AsyncValueWidget's error
         // UI (NotConfiguredPlaceholder), not escape this build.
@@ -111,7 +139,10 @@ class _InvitationsTab extends ConsumerWidget {
           ),
         );
       },
-    );
+    ), // AsyncValueWidget
+        ), // Expanded
+      ], // Column
+    ); // Column
   }
 }
 
