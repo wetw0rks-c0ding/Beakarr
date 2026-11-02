@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -124,7 +125,10 @@ class _QbittorrentScreenState extends ConsumerState<QbittorrentScreen>
           },
           child: ListView.builder(
             physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(top: 4, bottom: 80),
+            padding: EdgeInsets.only(
+              top: 4,
+              bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+            ),
             itemCount: torrents.length,
             itemBuilder: (context, index) {
               final torrent = torrents[index];

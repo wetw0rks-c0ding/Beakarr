@@ -120,5 +120,39 @@ void main() {
         );
       });
     });
+
+    group('normalizeBaseUrl', () {
+      test('trims whitespace', () {
+        expect(
+          UrlUtils.normalizeBaseUrl('  http://localhost:6789  '),
+          'http://localhost:6789',
+        );
+      });
+
+      test('prepends http:// when the scheme is missing', () {
+        expect(
+          UrlUtils.normalizeBaseUrl('nzbget.local:6789'),
+          'http://nzbget.local:6789',
+        );
+      });
+
+      test('strips a trailing slash', () {
+        expect(
+          UrlUtils.normalizeBaseUrl('https://proxy.example.com/nzbget/'),
+          'https://proxy.example.com/nzbget',
+        );
+      });
+
+      test('keeps a sub-path intact', () {
+        expect(
+          UrlUtils.normalizeBaseUrl('http://host/nzbget'),
+          'http://host/nzbget',
+        );
+      });
+
+      test('returns empty for empty input', () {
+        expect(UrlUtils.normalizeBaseUrl('   '), '');
+      });
+    });
   });
 }

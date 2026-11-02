@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/bazarr/domain/models/bazarr_series.dart';
 import 'package:seekarr/features/bazarr/domain/models/bazarr_movie.dart';
@@ -92,7 +93,10 @@ class _SeriesList extends StatelessWidget {
     final filtered = items.where((s) => s.title.toLowerCase().contains(query) || '${s.year}'.contains(query)).toList();
     if (filtered.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No series found')));
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
       itemCount: filtered.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
@@ -146,7 +150,10 @@ class _MoviesList extends StatelessWidget {
     final filtered = items.where((m) => m.title.toLowerCase().contains(query) || '${m.year}'.contains(query)).toList();
     if (filtered.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No movies found')));
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
       itemCount: filtered.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
@@ -199,7 +206,10 @@ class _WantedList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (items.isEmpty) return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('No wanted items')));
-    return ListView.separated(padding: const EdgeInsets.symmetric(vertical: AppSpacing.md), itemCount: items.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, i) {
+    return ListView.separated(padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ), itemCount: items.length, separatorBuilder: (_, __) => const SizedBox(height: 8), itemBuilder: (context, i) {
       final w = items[i];
       return ListTile(title: Text(w.title), subtitle: Text('${w.type} • $label'), trailing: const Icon(Icons.download_rounded));
     });
@@ -212,7 +222,10 @@ class _ProvidersTab extends ConsumerWidget {
     final async = ref.watch(bazarrProvidersProvider);
     return async.when(
       data: (list) => ListView.separated(
-        padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+        padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
         itemCount: list.length,
         separatorBuilder: (_, __) => const SizedBox(height: 8),
         itemBuilder: (context, index) {

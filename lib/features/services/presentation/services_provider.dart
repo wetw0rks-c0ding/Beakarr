@@ -14,6 +14,13 @@ import 'package:seekarr/features/movies/presentation/movies_provider.dart';
 import 'package:seekarr/features/music/data/lidarr_service.dart';
 import 'package:seekarr/features/music/presentation/music_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
+import 'package:seekarr/features/npm/data/npm_client.dart';
+import 'package:seekarr/features/npm/data/npm_service.dart';
+import 'package:seekarr/features/openmediavault/data/openmediavault_client.dart';
+import 'package:seekarr/features/openmediavault/data/openmediavault_providers.dart';
+import 'package:seekarr/features/wizarr/data/wizarr_providers.dart';
+import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
+import 'package:seekarr/features/nzbget/data/nzbget_service.dart';
 import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
 import 'package:seekarr/features/prowlarr/data/prowlarr_service.dart';
 import 'package:seekarr/features/prowlarr/domain/models/prowlarr_history_record.dart';
@@ -113,7 +120,10 @@ Future<String?> _loadVersion(
   if (service == ServiceKey.navidrome) {
     final client = ApiClient(
       baseUrl: settings.navidromeUrl,
-      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+      auth: SubsonicAuth(
+        settings.navidromeUsername,
+        settings.navidromePassword,
+      ),
     );
     try {
       final response = await client
@@ -152,6 +162,61 @@ Future<String?> _loadVersion(
       rethrow;
     } finally {
       client.close();
+    }
+  }
+
+  if (service == ServiceKey.nzbget) {
+    final client = NzbgetClient(
+      url: settings.nzbgetUrl,
+      username: settings.nzbgetUsername,
+      password: settings.nzbgetPassword,
+    );
+    try {
+      final version = await client.getVersion().timeout(
+        const Duration(seconds: 5),
+      );
+      return version.isNotEmpty ? version : null;
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.npm) {
+    // No version endpoint: the token exchange is the reachability + auth
+    // check, and the summary falls back to "REST API" for the label.
+    final client = NpmClient(
+      url: settings.npmUrl,
+      identity: settings.npmIdentity,
+      password: settings.npmPassword,
+    );
+    try {
+      await client.ensureAuthenticated().timeout(const Duration(seconds: 5));
+      return null;
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.openmediavault) {
+    final client = OpenMediaVaultClient(
+      url: settings.openmediavaultUrl,
+      username: settings.openmediavaultUsername,
+      password: settings.openmediavaultPassword,
+    );
+    try {
+      await client.login().timeout(const Duration(seconds: 5));
+      final info = await client
+          .rpc('System', 'getInformation', const {})
+          .timeout(const Duration(seconds: 5));
+      // A null version is only for connected-but-versionless. Connection
+      // failures must throw: _loadServiceSummary treats a clean return as
+      // online (same rule as the NZBGet arm).
+      if (info is Map) {
+        return (info['version'])?.toString();
+      }
+      return null;
+    } finally {
+      client.close(logout: true);
     }
   }
 
@@ -194,6 +259,14 @@ String _statusEndpointFor(ServiceKey service) {
       return '/rest/ping.view';
     case ServiceKey.soulsync:
       return '/api/v1/profiles';
+    case ServiceKey.nzbget:
+      return '/jsonrpc';
+    case ServiceKey.npm:
+      return '/api/nginx/proxy-hosts';
+    case ServiceKey.openmediavault:
+      return '/rpc.php';
+    case ServiceKey.wizarr:
+      return '/api/invitations';
   }
 }
 
@@ -256,8 +329,18 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
           return 0;
         }
 
-        final ep = await client.get('/api/episodes/wanted', queryParameters: {'start': 0, 'length': 1}).timeout(const Duration(seconds: 5));
-        final mv = await client.get('/api/movies/wanted', queryParameters: {'start': 0, 'length': 1}).timeout(const Duration(seconds: 5));
+        final ep = await client
+            .get(
+              '/api/episodes/wanted',
+              queryParameters: {'start': 0, 'length': 1},
+            )
+            .timeout(const Duration(seconds: 5));
+        final mv = await client
+            .get(
+              '/api/movies/wanted',
+              queryParameters: {'start': 0, 'length': 1},
+            )
+            .timeout(const Duration(seconds: 5));
         count = wantedCount(ep.data) + wantedCount(mv.data);
       } catch (_) {
         // Error propagated via null return
@@ -270,7 +353,10 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       final settings = ref.read(currentSettingsProvider);
       final client = createClient(
         baseUrl: settings.navidromeUrl,
-        auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+        auth: SubsonicAuth(
+          settings.navidromeUsername,
+          settings.navidromePassword,
+        ),
       );
       int? count;
       try {
@@ -313,6 +399,36 @@ Future<int> _loadItemCount(Ref ref, ServiceKey service) async {
       } catch (_) {
         throw StateError('SoulSync wishlist count unavailable');
       }
+    case ServiceKey.nzbget:
+      // 5 s outer timeout matches the other dashboard arms; the client
+      // also enforces its own 10 s per-call timeout.
+      return (await ref
+              .watch(nzbgetServiceProvider)
+              .getQueue()
+              .timeout(const Duration(seconds: 5)))
+          .length;
+    case ServiceKey.npm:
+      // 5 s outer timeout matches the other dashboard arms; the client also
+      // enforces its own per-request timeout.
+      return (await ref
+              .watch(npmServiceProvider)
+              .getProxyHosts()
+              .timeout(const Duration(seconds: 5)))
+          .length;
+    case ServiceKey.openmediavault:
+      // Disk count is the dashboard item count ("4 disks").
+      return (await ref
+              .watch(openMediaVaultServiceProvider)
+              .getDisks()
+              .timeout(const Duration(seconds: 5)))
+          .length;
+    case ServiceKey.wizarr:
+      final invites = await ref
+          .watch(wizarrInvitationsProvider.future)
+          .timeout(const Duration(seconds: 5));
+      return invites
+          .where((i) => !i.isExpired && !i.isExhausted)
+          .length;
   }
 }
 
@@ -331,12 +447,11 @@ final servicesSeriesProvider = seriesProvider;
 final servicesMusicProvider = musicProvider;
 
 // Prowlarr providers
-final prowlarrIndexersProvider = FutureProvider.autoDispose<List<ProwlarrIndexer>>(
-  (ref) async {
-    final service = ref.watch(prowlarrServiceProvider);
-    return await service.getIndexers();
-  },
-);
+final prowlarrIndexersProvider =
+    FutureProvider.autoDispose<List<ProwlarrIndexer>>((ref) async {
+      final service = ref.watch(prowlarrServiceProvider);
+      return await service.getIndexers();
+    });
 
 /// Current search query for the Prowlarr search screen.
 final prowlarrSearchQueryProvider = StateProvider<String>((ref) => '');
@@ -368,35 +483,33 @@ final prowlarrSortProvider = StateProvider<ProwlarrSort>(
 );
 
 /// Search results driven by [prowlarrSearchQueryProvider].
-final prowlarrSearchResultsProvider = FutureProvider<List<ProwlarrSearchResult>>((
-  ref,
-) async {
-  final query = ref.watch(prowlarrSearchQueryProvider).trim();
-  if (query.isEmpty) {
-    return const [];
-  }
+final prowlarrSearchResultsProvider =
+    FutureProvider<List<ProwlarrSearchResult>>((ref) async {
+      final query = ref.watch(prowlarrSearchQueryProvider).trim();
+      if (query.isEmpty) {
+        return const [];
+      }
 
-  final token = CancelToken();
-  ref.onDispose(token.cancel);
+      final token = CancelToken();
+      ref.onDispose(token.cancel);
 
-  try {
-    final service = ref.read(prowlarrServiceProvider);
-    return await service.search(query, cancelToken: token);
-  } on DioException catch (e) {
-    if (e.type == DioExceptionType.cancel) {
-      return const [];
-    }
-    rethrow;
-  }
-});
+      try {
+        final service = ref.read(prowlarrServiceProvider);
+        return await service.search(query, cancelToken: token);
+      } on DioException catch (e) {
+        if (e.type == DioExceptionType.cancel) {
+          return const [];
+        }
+        rethrow;
+      }
+    });
 
 /// History records for the Prowlarr indexers screen.
-final prowlarrHistoryProvider = FutureProvider.autoDispose<List<ProwlarrHistoryRecord>>((
-  ref,
-) async {
-  final service = ref.watch(prowlarrServiceProvider);
-  return await service.getHistory();
-});
+final prowlarrHistoryProvider =
+    FutureProvider.autoDispose<List<ProwlarrHistoryRecord>>((ref) async {
+      final service = ref.watch(prowlarrServiceProvider);
+      return await service.getHistory();
+    });
 
 final radarrQueuedMovieIdsProvider = FutureProvider<Set<int>>((ref) async {
   return _loadQueuedIds(
@@ -535,7 +648,11 @@ Future<List<ServiceQueueItem>> _loadServiceQueueItems(
       ServiceKey.qbittorrent ||
       ServiceKey.bazarr ||
       ServiceKey.navidrome ||
-      ServiceKey.soulsync => const <dynamic>[],
+      ServiceKey.soulsync ||
+      ServiceKey.nzbget ||
+      ServiceKey.npm ||
+      ServiceKey.openmediavault ||
+      ServiceKey.wizarr => const <dynamic>[],
     };
     return items
         .whereType<Map>()
@@ -578,6 +695,10 @@ String _queueTypeLabel(ServiceKey service) {
     ServiceKey.bazarr => 'Subtitle',
     ServiceKey.navidrome => 'Artist',
     ServiceKey.soulsync => 'Wishlist',
+    ServiceKey.nzbget => 'NZBGet',
+    ServiceKey.npm => 'Proxy',
+    ServiceKey.openmediavault => 'Disk',
+    ServiceKey.wizarr => 'Invitation',
     ServiceKey.seerr || ServiceKey.qbittorrent => service.title,
   };
 }

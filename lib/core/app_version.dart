@@ -1,7 +1,9 @@
 /// Canonical app version shown in the UI (Settings → About).
 ///
 /// Keep in sync with the `version:` field in pubspec.yaml on every release.
-const String kAppVersion = '0.9.14-alpha';
+/// Pinned by test/core/app_version_test.dart — the in-app updater compares
+/// against this constant, so drift means re-offering installed releases.
+const String kAppVersion = '0.9.21-alpha';
 
 /// Short git commit baked in at build time via
 /// `--dart-define=GIT_HASH=...` (see scripts/build-debug.sh and

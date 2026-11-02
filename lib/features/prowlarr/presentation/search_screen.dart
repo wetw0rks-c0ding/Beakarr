@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/utils/sheet_utils.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
@@ -55,7 +56,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   Widget _buildResultsList(List<ProwlarrSearchResult> results) {
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+      padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
       itemCount: results.length,
       separatorBuilder: (context, index) => const SizedBox(height: 8),
       itemBuilder: (context, index) {

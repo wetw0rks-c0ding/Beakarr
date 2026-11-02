@@ -12,7 +12,16 @@ enum ServiceKey {
   bazarr,
   navidrome,
   soulsync,
+  nzbget,
+  npm,
+  openmediavault,
+  wizarr,
 }
+
+/// How [ServiceKey] collects credentials. Replaces the hand-rolled
+/// `service == qbittorrent || service == navidrome` chains so new
+/// credential services only touch this enum.
+enum ServiceCredentialKind { apiKey, usernamePassword, emailPassword }
 
 extension ServiceKeyExtension on ServiceKey {
   String get title {
@@ -27,6 +36,16 @@ extension ServiceKeyExtension on ServiceKey {
         return 'Lidarr';
       case ServiceKey.qbittorrent:
         return 'qBittorrent';
+      case ServiceKey.nzbget:
+        return 'NZBGet';
+      case ServiceKey.npm:
+        // Short title: the dashboard app bar has no ellipsis and the
+        // full "Nginx Proxy Manager" overflows at 360 dp.
+        return 'Nginx PM';
+      case ServiceKey.openmediavault:
+        return 'OpenMediaVault';
+      case ServiceKey.wizarr:
+        return 'Wizarr';
       case ServiceKey.prowlarr:
         return 'Prowlarr';
       case ServiceKey.bazarr:
@@ -50,6 +69,14 @@ extension ServiceKeyExtension on ServiceKey {
         return Icons.music_note_rounded;
       case ServiceKey.qbittorrent:
         return Icons.download_rounded;
+      case ServiceKey.nzbget:
+        return Icons.cloud_download_rounded;
+      case ServiceKey.npm:
+        return Icons.router_rounded;
+      case ServiceKey.openmediavault:
+        return Icons.storage_rounded;
+      case ServiceKey.wizarr:
+        return Icons.mail_rounded;
       case ServiceKey.prowlarr:
         return Icons.dns_rounded;
       case ServiceKey.bazarr:
@@ -73,6 +100,14 @@ extension ServiceKeyExtension on ServiceKey {
         return AppColors.lidarr;
       case ServiceKey.qbittorrent:
         return AppColors.qbittorrent;
+      case ServiceKey.nzbget:
+        return AppColors.nzbget;
+      case ServiceKey.npm:
+        return AppColors.npm;
+      case ServiceKey.openmediavault:
+        return AppColors.openmediavault;
+      case ServiceKey.wizarr:
+        return AppColors.wizarr;
       case ServiceKey.prowlarr:
         return AppColors.prowlarr;
       case ServiceKey.bazarr:
@@ -85,11 +120,44 @@ extension ServiceKeyExtension on ServiceKey {
   }
 
   bool get usesApiKey {
-    return this != ServiceKey.qbittorrent && this != ServiceKey.navidrome;
+    return credentialKind == ServiceCredentialKind.apiKey;
   }
 
+  /// Which credential shape this service collects.
+  ServiceCredentialKind get credentialKind => switch (this) {
+    ServiceKey.qbittorrent ||
+    ServiceKey.navidrome ||
+    ServiceKey.nzbget ||
+    ServiceKey.openmediavault => ServiceCredentialKind.usernamePassword,
+    ServiceKey.npm => ServiceCredentialKind.emailPassword,
+    _ => ServiceCredentialKind.apiKey,
+  };
+
+  /// Label for the username slot. NPM signs in with an email identity.
+  String get usernameLabel => switch (this) {
+    ServiceKey.openmediavault => 'Username (admin)',
+    _ => switch (credentialKind) {
+      ServiceCredentialKind.emailPassword => 'Email',
+      _ => 'Username',
+    },
+  };
+
+  /// Whether the username/email field must be non-empty. qBittorrent
+  /// allows anonymous instances; every other credential service requires
+  /// both fields.
+  bool get requiresUsername =>
+      credentialKind != ServiceCredentialKind.apiKey &&
+      this != ServiceKey.qbittorrent;
+
+  bool get requiresPassword => requiresUsername;
+
   bool get isSearchable {
-    return this != ServiceKey.qbittorrent && this != ServiceKey.navidrome;
+    return this != ServiceKey.qbittorrent &&
+        this != ServiceKey.navidrome &&
+        this != ServiceKey.nzbget &&
+        this != ServiceKey.npm &&
+        this != ServiceKey.openmediavault &&
+        this != ServiceKey.wizarr;
   }
 
   bool get supportsManualImport {
@@ -113,6 +181,14 @@ extension ServiceKeyExtension on ServiceKey {
         return 'v3';
       case ServiceKey.qbittorrent:
         return 'WebUI';
+      case ServiceKey.nzbget:
+        return 'JSON-RPC';
+      case ServiceKey.npm:
+        return 'REST';
+      case ServiceKey.openmediavault:
+        return 'RPC';
+      case ServiceKey.wizarr:
+        return 'REST';
     }
   }
 
@@ -128,6 +204,14 @@ extension ServiceKeyExtension on ServiceKey {
         return 'artists';
       case ServiceKey.qbittorrent:
         return 'torrents';
+      case ServiceKey.nzbget:
+        return 'downloads';
+      case ServiceKey.npm:
+        return 'proxy hosts';
+      case ServiceKey.openmediavault:
+        return 'disks';
+      case ServiceKey.wizarr:
+        return 'invitations';
       case ServiceKey.prowlarr:
         return 'indexers';
       case ServiceKey.bazarr:
@@ -151,6 +235,10 @@ extension ServiceKeyExtension on ServiceKey {
       case ServiceKey.bazarr:
       case ServiceKey.navidrome:
       case ServiceKey.soulsync:
+      case ServiceKey.nzbget:
+      case ServiceKey.npm:
+      case ServiceKey.openmediavault:
+      case ServiceKey.wizarr:
         return name;
     }
   }

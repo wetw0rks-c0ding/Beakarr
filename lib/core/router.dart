@@ -39,11 +39,21 @@ import 'package:seekarr/features/qbittorrent/presentation/qbittorrent_screen.dar
 import 'package:seekarr/features/qbittorrent/presentation/torrent_detail_screen.dart';
 import 'package:seekarr/features/qbittorrent/presentation/widgets/qbittorrent_actions_bar.dart';
 import 'package:seekarr/features/bazarr/presentation/bazarr_screen.dart' as bz;
-import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart' as p;
-import 'package:seekarr/features/navidrome/presentation/navidrome_screen.dart' as nd;
-import 'package:seekarr/features/soulsync/presentation/soulsync_screen.dart' as ss;
-import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart' as nda;
-import 'package:seekarr/features/prowlarr/presentation/search_screen.dart' as ps;
+import 'package:seekarr/features/prowlarr/presentation/indexers_screen.dart'
+    as p;
+import 'package:seekarr/features/navidrome/presentation/navidrome_screen.dart'
+    as nd;
+import 'package:seekarr/features/soulsync/presentation/soulsync_screen.dart'
+    as ss;
+import 'package:seekarr/features/nzbget/presentation/nzbget_screen.dart' as nz;
+import 'package:seekarr/features/nzbget/presentation/widgets/nzbget_actions_bar.dart';
+import 'package:seekarr/features/npm/presentation/npm_screen.dart' as npm;
+import 'package:seekarr/features/openmediavault/presentation/openmediavault_screen.dart' as omv;
+import 'package:seekarr/features/wizarr/presentation/wizarr_screen.dart' as wz;
+import 'package:seekarr/features/navidrome/presentation/navidrome_artist_screen.dart'
+    as nda;
+import 'package:seekarr/features/prowlarr/presentation/search_screen.dart'
+    as ps;
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -418,6 +428,70 @@ GoRoute _soulsyncRoutes({required String path}) {
   );
 }
 
+GoRoute _nzbgetRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.nzbget,
+        trailingAction: const NzbgetActionsBar(),
+        child: const nz.NzbgetScreen(
+          showAppBar: false,
+          topPadding: _serviceDashboardTopPadding,
+        ),
+      ),
+    ),
+  );
+}
+
+GoRoute _npmRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.npm,
+        child: const npm.NpmScreen(
+          showAppBar: false,
+          topPadding: _serviceDashboardTopPadding,
+        ),
+      ),
+    ),
+  );
+}
+
+GoRoute _openMediaVaultRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.openmediavault,
+        child: const omv.OpenMediaVaultScreen(
+          showAppBar: false,
+          topPadding: _serviceDashboardTopPadding,
+        ),
+      ),
+    ),
+  );
+}
+
+GoRoute _wizarrRoutes({required String path}) {
+  return GoRoute(
+    path: path,
+    pageBuilder: (context, state) => RouteUtils.cupertinoPage(
+      key: state.pageKey,
+      child: ServiceDashboardScreen(
+        service: ServiceKey.wizarr,
+        child: const wz.WizarrScreen(
+          showAppBar: false,
+          topPadding: _serviceDashboardTopPadding,
+        ),
+      ),
+    ),
+  );
+}
 GoRoute _prowlarrRoutes({required String path}) {
   return GoRoute(
     path: path,
@@ -523,6 +597,10 @@ final routerProvider = Provider<GoRouter>((ref) {
               _prowlarrRoutes(path: 'prowlarr'),
               _navidromeRoutes(path: 'navidrome'),
               _soulsyncRoutes(path: 'soulsync'),
+              _nzbgetRoutes(path: 'nzbget'),
+              _npmRoutes(path: 'npm'),
+              _openMediaVaultRoutes(path: 'openmediavault'),
+              _wizarrRoutes(path: 'wizarr'),
             ],
           ),
           GoRoute(

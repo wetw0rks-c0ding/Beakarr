@@ -553,7 +553,9 @@ class SettingsHomeScreen extends ConsumerWidget {
     final jailbroken = ref.read(currentSettingsProvider).jailbroken;
 
     if (Platform.isAndroid) {
-      final asset = pickAsset(latest, '-android.apk');
+      // Release assets are named `beakarr-<version>.apk` (see
+      // scripts/release.sh): match the extension, not an infix.
+      final asset = pickAsset(latest, '.apk');
       if (asset == null) {
         SnackBarHelper.info(
           context,
@@ -567,7 +569,7 @@ class SettingsHomeScreen extends ConsumerWidget {
 
     if (Platform.isIOS) {
       if (jailbroken) {
-        final asset = pickAsset(latest, '-ios.ipa');
+        final asset = pickAsset(latest, '.ipa');
         if (asset == null) {
           SnackBarHelper.info(
             context,
@@ -581,7 +583,7 @@ class SettingsHomeScreen extends ConsumerWidget {
       // Not jailbroken: open releases page.
       await _launchExternalUri(
         context: context,
-        uri: Uri.parse('https://github.com/wetw0rks-c0ding/seekarr/releases'),
+        uri: Uri.parse('https://github.com/wetw0rks-c0ding/beakarr/releases'),
         failureMessage: 'Unable to open the releases page.',
       );
       return;
@@ -590,7 +592,7 @@ class SettingsHomeScreen extends ConsumerWidget {
     // Other platforms: open releases page.
     await _launchExternalUri(
       context: context,
-      uri: Uri.parse('https://github.com/wetw0rks-c0ding/seekarr/releases'),
+      uri: Uri.parse('https://github.com/wetw0rks-c0ding/beakarr/releases'),
       failureMessage: 'Unable to open the releases page.',
     );
   }

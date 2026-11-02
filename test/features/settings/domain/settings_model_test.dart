@@ -148,6 +148,186 @@ void main() {
       expect(ServiceKey.lidarr.itemLabel, 'artists');
     });
 
+    test('classifies credential kinds per service', () {
+      for (final service in [
+        ServiceKey.seerr,
+        ServiceKey.radarr,
+        ServiceKey.sonarr,
+        ServiceKey.lidarr,
+        ServiceKey.prowlarr,
+        ServiceKey.bazarr,
+        ServiceKey.soulsync,
+        ServiceKey.wizarr,
+      ]) {
+        expect(service.credentialKind, ServiceCredentialKind.apiKey);
+        expect(service.usesApiKey, isTrue);
+      }
+      for (final service in [
+        ServiceKey.qbittorrent,
+        ServiceKey.navidrome,
+        ServiceKey.nzbget,
+      ]) {
+        expect(
+          service.credentialKind,
+          ServiceCredentialKind.usernamePassword,
+        );
+        expect(service.usesApiKey, isFalse);
+      }
+      expect(ServiceKey.npm.credentialKind, ServiceCredentialKind.emailPassword);
+      expect(ServiceKey.npm.usesApiKey, isFalse);
+    });
+
+    test('labels the username slot and gates required fields', () {
+      expect(ServiceKey.npm.usernameLabel, 'Email');
+      expect(ServiceKey.nzbget.usernameLabel, 'Username');
+      expect(ServiceKey.seerr.usernameLabel, 'Username');
+
+      // qBittorrent allows anonymous instances; every other credential
+      // service requires both fields.
+      expect(ServiceKey.qbittorrent.requiresUsername, isFalse);
+      expect(ServiceKey.qbittorrent.requiresPassword, isFalse);
+      expect(ServiceKey.nzbget.requiresUsername, isTrue);
+      expect(ServiceKey.nzbget.requiresPassword, isTrue);
+      expect(ServiceKey.npm.requiresUsername, isTrue);
+      expect(ServiceKey.npm.requiresPassword, isTrue);
+      expect(ServiceKey.navidrome.requiresUsername, isTrue);
+      expect(ServiceKey.seerr.requiresUsername, isFalse);
+    });
+
+    test('resolves NZBGet and NPM metadata', () {
+      expect(ServiceKey.nzbget.title, 'NZBGet');
+      expect(ServiceKey.npm.title, 'Nginx PM');
+      expect(ServiceKey.nzbget.routeParam, 'nzbget');
+      expect(ServiceKey.npm.routeParam, 'npm');
+      expect(ServiceKey.nzbget.apiVersion, 'JSON-RPC');
+      expect(ServiceKey.npm.apiVersion, 'REST');
+      expect(ServiceKey.nzbget.itemLabel, 'downloads');
+      expect(ServiceKey.npm.itemLabel, 'proxy hosts');
+      expect(ServiceKey.nzbget.isSearchable, isFalse);
+      expect(ServiceKey.npm.isSearchable, isFalse);
+      expect(ServiceKey.nzbget.icon, Icons.cloud_download_rounded);
+      expect(ServiceKey.npm.icon, Icons.router_rounded);
+      expect(ServiceKey.nzbget.accent.toARGB32(), 0xFF26A69A);
+      expect(ServiceKey.npm.accent.toARGB32(), 0xFFF1583A);
+    });
+
+    test('resolves Wizarr metadata', () {
+      expect(ServiceKey.wizarr.title, 'Wizarr');
+      expect(ServiceKey.wizarr.routeParam, 'wizarr');
+      expect(ServiceKey.wizarr.credentialKind, ServiceCredentialKind.apiKey);
+      expect(ServiceKey.wizarr.icon, Icons.mail_rounded);
+      expect(ServiceKey.wizarr.accent.toARGB32(), 0xFF8B5CF6);
+    });
+
+    test('maps NZBGet and NPM credential fields', () {
+      const settings = SettingsModel(
+        nzbgetUsername: 'nzuser',
+        nzbgetPassword: 'nzpass',
+        npmIdentity: 'admin@example.com',
+        npmPassword: 'nmpass',
+      );
+      expect(settings.usernameFor(ServiceKey.nzbget), 'nzuser');
+      expect(settings.passwordFor(ServiceKey.nzbget), 'nzpass');
+      expect(settings.usernameFor(ServiceKey.npm), 'admin@example.com');
+      expect(settings.passwordFor(ServiceKey.npm), 'nmpass');
+    });
+
+    test('gates isServiceConfigured on the full NZBGet/NPM triple', () {
+      expect(const SettingsModel().isServiceConfigured(ServiceKey.nzbget), isFalse);
+      expect(const SettingsModel().isServiceConfigured(ServiceKey.npm), isFalse);
+      expect(
+        const SettingsModel(nzbgetUrl: 'http://nzbget:6789')
+            .isServiceConfigured(ServiceKey.nzbget),
+        isFalse,
+      );
+      expect(
+        const SettingsModel(
+          nzbgetUrl: 'http://nzbget:6789',
+          nzbgetUsername: 'u',
+          nzbgetPassword: 'p',
+        ).isServiceConfigured(ServiceKey.nzbget),
+        isTrue,
+      );
+      expect(
+        const SettingsModel(
+          npmUrl: 'http://npm:81',
+          npmIdentity: 'admin@example.com',
+          npmPassword: 'p',
+        ).isServiceConfigured(ServiceKey.npm),
+        isTrue,
+      );
+    });
+
+    test('clearedService wipes every stored value per service', () {
+      const full = SettingsModel(
+        seerrUrl: 'u',
+        seerrApiKey: 'k',
+        radarrUrl: 'u',
+        radarrApiKey: 'k',
+        sonarrUrl: 'u',
+        sonarrApiKey: 'k',
+        lidarrUrl: 'u',
+        lidarrApiKey: 'k',
+        qbittorrentUrl: 'u',
+        qbittorrentUsername: 'u',
+        qbittorrentPassword: 'k',
+        prowlarrUrl: 'u',
+        prowlarrApiKey: 'k',
+        bazarrUrl: 'u',
+        bazarrApiKey: 'k',
+        navidromeUrl: 'u',
+        navidromeUsername: 'u',
+        navidromePassword: 'k',
+        soulsyncUrl: 'u',
+        soulsyncApiKey: 'k',
+        nzbgetUrl: 'u',
+        nzbgetUsername: 'u',
+        nzbgetPassword: 'k',
+        npmUrl: 'u',
+        npmIdentity: 'u',
+        npmPassword: 'k',
+        openmediavaultUrl: 'u',
+        openmediavaultUsername: 'u',
+        openmediavaultPassword: 'k',
+        wizarrUrl: 'u',
+        wizarrApiKey: 'k',
+      );
+      for (final service in ServiceKey.values) {
+        final cleared = full.clearedService(service);
+        expect(cleared.urlFor(service), isEmpty, reason: '$service url');
+        expect(cleared.apiKeyFor(service), isEmpty, reason: '$service key');
+        expect(
+          cleared.usernameFor(service),
+          isEmpty,
+          reason: '$service username',
+        );
+        expect(
+          cleared.passwordFor(service),
+          isEmpty,
+          reason: '$service password',
+        );
+        // Other services untouched.
+        for (final other in ServiceKey.values) {
+          if (other == service) continue;
+          expect(cleared.urlFor(other), isNotEmpty, reason: '$other url kept');
+        }
+      }
+    });
+
+    test('clearedService fully removes SoulSync credentials', () {
+      const settings = SettingsModel(
+        soulsyncUrl: 'u',
+        soulsyncApiKey: 'k',
+        soulsyncProxyCookie: 'session=abc',
+        soulsyncProfileId: '1',
+      );
+      final cleared = settings.clearedService(ServiceKey.soulsync);
+      expect(cleared.soulsyncUrl, isEmpty);
+      expect(cleared.soulsyncApiKey, isEmpty);
+      expect(cleared.soulsyncProxyCookie, isEmpty);
+      expect(cleared.soulsyncProfileId, isEmpty);
+    });
+
     test('extracts host labels with ports for service cards', () {
       expect(
         ServiceKey.radarr.extractHost('http://radarr.local:7878'),

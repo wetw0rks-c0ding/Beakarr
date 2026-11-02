@@ -355,5 +355,41 @@ Future<ServiceSummary> _summaryBuilder(Ref ref, ServiceKey service) async {
         itemCount: null,
         itemLabel: 'wishlist',
       );
+    case ServiceKey.nzbget:
+      return const ServiceSummary(
+        service: ServiceKey.nzbget,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'downloads',
+      );
+    case ServiceKey.npm:
+      return const ServiceSummary(
+        service: ServiceKey.npm,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'proxy hosts',
+      );
+    case ServiceKey.openmediavault:
+      return const ServiceSummary(
+        service: ServiceKey.openmediavault,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'disks',
+      );
+    case ServiceKey.wizarr:
+      return const ServiceSummary(
+        service: ServiceKey.wizarr,
+        status: ServiceSummaryStatus.offline,
+        host: '',
+        version: null,
+        itemCount: null,
+        itemLabel: 'invitations',
+      );
   }
 }

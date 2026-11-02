@@ -124,6 +124,29 @@ class SettingsService {
       legacyApiKey: 'soulsync_api_key',
       secureApiKey: 'secure_soulsync_api_key',
     ),
+    ServiceKey.nzbget: _ServiceStorageKeys(
+      url: 'nzbget_url',
+      legacyApiKey: '',
+      secureApiKey: 'secure_nzbget_password',
+      username: 'nzbget_username',
+    ),
+    ServiceKey.npm: _ServiceStorageKeys(
+      url: 'npm_url',
+      legacyApiKey: '',
+      secureApiKey: 'secure_npm_password',
+      username: 'npm_identity',
+    ),
+    ServiceKey.openmediavault: _ServiceStorageKeys(
+      url: 'openmediavault_url',
+      legacyApiKey: '',
+      secureApiKey: 'secure_openmediavault_password',
+      username: 'openmediavault_username',
+    ),
+    ServiceKey.wizarr: _ServiceStorageKeys(
+      url: 'wizarr_url',
+      legacyApiKey: 'wizarr_api_key',
+      secureApiKey: 'secure_wizarr_api_key',
+    ),
   };
 
   final SharedPreferences _prefs;
@@ -263,6 +286,18 @@ class SettingsService {
     final ndUsername = _prefs.getString(ndKeys.username!) ?? '';
     final ndPassword = await _loadApiKey(ndKeys.secureApiKey);
 
+    final nzKeys = _serviceStorageKeys[ServiceKey.nzbget]!;
+    final nzUsername = _prefs.getString(nzKeys.username!) ?? '';
+    final nzPassword = await _loadApiKey(nzKeys.secureApiKey);
+
+    final npmKeys = _serviceStorageKeys[ServiceKey.npm]!;
+    final npmIdentity = _prefs.getString(npmKeys.username!) ?? '';
+    final npmPassword = await _loadApiKey(npmKeys.secureApiKey);
+
+    final omvKeys = _serviceStorageKeys[ServiceKey.openmediavault]!;
+    final omvUsername = _prefs.getString(omvKeys.username!) ?? '';
+    final omvPassword = await _loadApiKey(omvKeys.secureApiKey);
+
     return SettingsModel(
       seerrUrl: serviceSettings[ServiceKey.seerr]!.$1,
       seerrApiKey: serviceSettings[ServiceKey.seerr]!.$2,
@@ -282,6 +317,17 @@ class SettingsService {
       navidromeUrl: serviceSettings[ServiceKey.navidrome]!.$1,
       navidromeUsername: ndUsername,
       navidromePassword: ndPassword,
+      nzbgetUrl: serviceSettings[ServiceKey.nzbget]!.$1,
+      nzbgetUsername: nzUsername,
+      nzbgetPassword: nzPassword,
+      npmUrl: serviceSettings[ServiceKey.npm]!.$1,
+      npmIdentity: npmIdentity,
+      npmPassword: npmPassword,
+      openmediavaultUrl: serviceSettings[ServiceKey.openmediavault]!.$1,
+      openmediavaultUsername: omvUsername,
+      openmediavaultPassword: omvPassword,
+      wizarrUrl: serviceSettings[ServiceKey.wizarr]!.$1,
+      wizarrApiKey: serviceSettings[ServiceKey.wizarr]!.$2,
       soulsyncUrl: serviceSettings[ServiceKey.soulsync]!.$1,
       soulsyncApiKey: serviceSettings[ServiceKey.soulsync]!.$2,
       soulsyncProxyCookie: await _loadApiKey(_kSoulSyncProxyCookie),
@@ -331,6 +377,27 @@ class SettingsService {
     } else {
       await _prefs.remove(ndKeys.username!);
     }
+
+    final nzKeys = _serviceStorageKeys[ServiceKey.nzbget]!;
+    if (settings.nzbgetUsername.isNotEmpty) {
+      await _prefs.setString(nzKeys.username!, settings.nzbgetUsername);
+    } else {
+      await _prefs.remove(nzKeys.username!);
+    }
+
+    final npmKeys = _serviceStorageKeys[ServiceKey.npm]!;
+    if (settings.npmIdentity.isNotEmpty) {
+      await _prefs.setString(npmKeys.username!, settings.npmIdentity);
+    } else {
+      await _prefs.remove(npmKeys.username!);
+    }
+
+    final omvKeys = _serviceStorageKeys[ServiceKey.openmediavault]!;
+    if (settings.openmediavaultUsername.isNotEmpty) {
+      await _prefs.setString(omvKeys.username!, settings.openmediavaultUsername);
+    } else {
+      await _prefs.remove(omvKeys.username!);
+    }
   }
 
   Future<Map<ServiceKey, (String, String)>> _loadServiceSettings() async {
@@ -346,12 +413,11 @@ class SettingsService {
       }
 
       // Load API key, falling back to legacy secure key.
-      // qBittorrent uses username/password instead of API key, so its
-      // secure key is loaded separately in loadSettings() to avoid a
-      // second secure store read here.
+      // Credential services (username/password or email/password) load
+      // their secrets separately in loadSettings() to avoid a second
+      // secure store read here.
       var apiKey = '';
-      if (service != ServiceKey.qbittorrent &&
-          service != ServiceKey.navidrome) {
+      if (service.usesApiKey) {
         apiKey = await _loadApiKey(storageKeys.secureApiKey);
         if (apiKey.isEmpty && storageKeys.legacySecureApiKey != null) {
           apiKey = await _loadApiKey(storageKeys.legacySecureApiKey!);
@@ -383,6 +449,13 @@ class SettingsService {
         await _saveApiKey(
           storageKeys.secureApiKey,
           settings.qbittorrentPassword,
+        );
+        continue;
+      }
+      if (service == ServiceKey.openmediavault) {
+        await _saveApiKey(
+          storageKeys.secureApiKey,
+          settings.openmediavaultPassword,
         );
         continue;
       }

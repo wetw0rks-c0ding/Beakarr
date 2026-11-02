@@ -136,7 +136,7 @@ GitHubAsset? pickAsset(GitHubRelease release, String needle) {
 /// Service that talks to the GitHub releases API.
 class AppUpdater {
   static const releasesUrl =
-      'https://api.github.com/repos/wetw0rks-c0ding/seekarr/releases';
+      'https://api.github.com/repos/wetw0rks-c0ding/beakarr/releases';
 
   final Dio _dio;
 

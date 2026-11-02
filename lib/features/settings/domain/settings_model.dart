@@ -51,6 +51,17 @@ class SettingsModel {
   final String soulsyncApiKey;
   final String soulsyncProxyCookie;
   final String soulsyncProfileId;
+  final String nzbgetUrl;
+  final String nzbgetUsername;
+  final String nzbgetPassword;
+  final String npmUrl;
+  final String npmIdentity;
+  final String npmPassword;
+  final String openmediavaultUrl;
+  final String openmediavaultUsername;
+  final String openmediavaultPassword;
+  final String wizarrUrl;
+  final String wizarrApiKey;
   final String region;
   final AppThemeMode themeMode;
   final String oidcIssuer; // empty = disabled; plain URL-like field (NOT secret)
@@ -120,6 +131,38 @@ class SettingsModel {
             soulsyncApiKey: apiKey,
           ),
         ),
+        ServiceKey.nzbget: _ServiceSettingsAccess(
+          url: (settings) => settings.nzbgetUrl,
+          apiKey: (settings) => settings.nzbgetPassword,
+          update: (settings, {url, apiKey}) => settings.copyWith(
+            nzbgetUrl: url,
+            nzbgetPassword: apiKey,
+          ),
+        ),
+        ServiceKey.npm: _ServiceSettingsAccess(
+          url: (settings) => settings.npmUrl,
+          apiKey: (settings) => settings.npmPassword,
+          update: (settings, {url, apiKey}) => settings.copyWith(
+            npmUrl: url,
+            npmPassword: apiKey,
+          ),
+        ),
+        ServiceKey.openmediavault: _ServiceSettingsAccess(
+          url: (settings) => settings.openmediavaultUrl,
+          apiKey: (settings) => settings.openmediavaultPassword,
+          update: (settings, {url, apiKey}) => settings.copyWith(
+            openmediavaultUrl: url,
+            openmediavaultPassword: apiKey,
+          ),
+        ),
+        ServiceKey.wizarr: _ServiceSettingsAccess(
+          url: (settings) => settings.wizarrUrl,
+          apiKey: (settings) => settings.wizarrApiKey,
+          update: (settings, {url, apiKey}) => settings.copyWith(
+            wizarrUrl: url,
+            wizarrApiKey: apiKey,
+          ),
+        ),
         // Note: soulsyncProxyCookie handled separately (secure store, not
         // in _ServiceSettingsAccess) to keep cookie out of the generic
         // apiKey path — it flows through SoulSyncAuth directly.
@@ -153,6 +196,17 @@ class SettingsModel {
     this.soulsyncApiKey = '',
     this.soulsyncProxyCookie = '',
     this.soulsyncProfileId = '',
+    this.nzbgetUrl = '',
+    this.nzbgetUsername = '',
+    this.nzbgetPassword = '',
+    this.npmUrl = '',
+    this.npmIdentity = '',
+    this.npmPassword = '',
+    this.openmediavaultUrl = '',
+    this.openmediavaultUsername = '',
+    this.openmediavaultPassword = '',
+    this.wizarrUrl = '',
+    this.wizarrApiKey = '',
     this.region = 'US',
     this.themeMode = AppThemeMode.system,
     this.oidcIssuer = '',
@@ -184,6 +238,17 @@ class SettingsModel {
     String? soulsyncApiKey,
     String? soulsyncProxyCookie,
     String? soulsyncProfileId,
+    String? nzbgetUrl,
+    String? nzbgetUsername,
+    String? nzbgetPassword,
+    String? npmUrl,
+    String? npmIdentity,
+    String? npmPassword,
+    String? openmediavaultUrl,
+    String? openmediavaultUsername,
+    String? openmediavaultPassword,
+    String? wizarrUrl,
+    String? wizarrApiKey,
     String? region,
     AppThemeMode? themeMode,
     String? oidcIssuer,
@@ -214,6 +279,19 @@ class SettingsModel {
       soulsyncApiKey: soulsyncApiKey ?? this.soulsyncApiKey,
       soulsyncProxyCookie: soulsyncProxyCookie ?? this.soulsyncProxyCookie,
       soulsyncProfileId: soulsyncProfileId ?? this.soulsyncProfileId,
+      nzbgetUrl: nzbgetUrl ?? this.nzbgetUrl,
+      nzbgetUsername: nzbgetUsername ?? this.nzbgetUsername,
+      nzbgetPassword: nzbgetPassword ?? this.nzbgetPassword,
+      npmUrl: npmUrl ?? this.npmUrl,
+      npmIdentity: npmIdentity ?? this.npmIdentity,
+      npmPassword: npmPassword ?? this.npmPassword,
+      openmediavaultUrl: openmediavaultUrl ?? this.openmediavaultUrl,
+      openmediavaultUsername:
+          openmediavaultUsername ?? this.openmediavaultUsername,
+      openmediavaultPassword:
+          openmediavaultPassword ?? this.openmediavaultPassword,
+      wizarrUrl: wizarrUrl ?? this.wizarrUrl,
+      wizarrApiKey: wizarrApiKey ?? this.wizarrApiKey,
       region: region ?? this.region,
       themeMode: themeMode ?? this.themeMode,
       oidcIssuer: oidcIssuer ?? this.oidcIssuer,
@@ -282,6 +360,68 @@ class SettingsModel {
     );
   }
 
+  SettingsModel copyWithNzbget({
+    String? url,
+    String? username,
+    String? password,
+  }) {
+    return copyWith(
+      nzbgetUrl: url,
+      nzbgetUsername: username,
+      nzbgetPassword: password,
+    );
+  }
+
+  SettingsModel copyWithNpm({
+    String? url,
+    String? identity,
+    String? password,
+  }) {
+    return copyWith(npmUrl: url, npmIdentity: identity, npmPassword: password);
+  }
+
+  SettingsModel copyWithOpenMediaVault({
+    String? url,
+    String? username,
+    String? password,
+  }) {
+    return copyWith(
+      openmediavaultUrl: url,
+      openmediavaultUsername: username,
+      openmediavaultPassword: password,
+    );
+  }
+
+  /// Returns a copy with every stored value for [service] cleared.
+  /// Replaces the hand-rolled clear blocks (which left Navidrome's
+  /// username behind on delete).
+  SettingsModel clearedService(ServiceKey service) => switch (service) {
+    ServiceKey.qbittorrent => copyWithQbittorrent(
+      url: '',
+      username: '',
+      password: '',
+    ),
+    ServiceKey.navidrome => copyWithNavidrome(
+      url: '',
+      username: '',
+      password: '',
+    ),
+    ServiceKey.nzbget => copyWithNzbget(url: '', username: '', password: ''),
+    ServiceKey.npm => copyWithNpm(url: '', identity: '', password: ''),
+    ServiceKey.openmediavault => copyWithOpenMediaVault(
+      url: '',
+      username: '',
+      password: '',
+    ),
+    ServiceKey.soulsync => copyWithSoulSync(
+      url: '',
+      apiKey: '',
+      proxyCookie: '',
+      profileId: '',
+    ),
+    _ => copyWithService(service, url: '', apiKey: ''),
+  };
+
   SettingsModel copyWithSoulSync({
     String? url,
     String? apiKey,
@@ -299,6 +439,9 @@ class SettingsModel {
   String usernameFor(ServiceKey service) {
     if (service == ServiceKey.qbittorrent) return qbittorrentUsername;
     if (service == ServiceKey.navidrome) return navidromeUsername;
+    if (service == ServiceKey.nzbget) return nzbgetUsername;
+    if (service == ServiceKey.npm) return npmIdentity;
+    if (service == ServiceKey.openmediavault) return openmediavaultUsername;
     return '';
   }
 
@@ -306,6 +449,9 @@ class SettingsModel {
     if (service == ServiceKey.qbittorrent) return qbittorrentPassword;
     if (service == ServiceKey.prowlarr) return prowlarrApiKey;
     if (service == ServiceKey.navidrome) return navidromePassword;
+    if (service == ServiceKey.nzbget) return nzbgetPassword;
+    if (service == ServiceKey.npm) return npmPassword;
+    if (service == ServiceKey.openmediavault) return openmediavaultPassword;
     return '';
   }
 
@@ -337,6 +483,21 @@ class SettingsModel {
     if (service == ServiceKey.soulsync) {
       return soulsyncUrl.isNotEmpty &&
           (soulsyncApiKey.isNotEmpty || soulsyncProxyCookie.isNotEmpty);
+    }
+    if (service == ServiceKey.nzbget) {
+      return nzbgetUrl.isNotEmpty &&
+          nzbgetUsername.isNotEmpty &&
+          nzbgetPassword.isNotEmpty;
+    }
+    if (service == ServiceKey.npm) {
+      return npmUrl.isNotEmpty &&
+          npmIdentity.isNotEmpty &&
+          npmPassword.isNotEmpty;
+    }
+    if (service == ServiceKey.openmediavault) {
+      return openmediavaultUrl.isNotEmpty &&
+          openmediavaultUsername.isNotEmpty &&
+          openmediavaultPassword.isNotEmpty;
     }
     return urlFor(service).isNotEmpty && apiKeyFor(service).isNotEmpty;
   }

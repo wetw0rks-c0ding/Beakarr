@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/widgets/search_bar_header.dart';
 import 'package:seekarr/features/navidrome/presentation/navidrome_providers.dart';
 import 'package:seekarr/features/navidrome/presentation/widgets/navidrome_cover.dart';
@@ -87,7 +88,10 @@ class _ArtistsTab extends ConsumerWidget {
           );
         }
         return ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
           itemCount: filtered.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {
@@ -132,7 +136,10 @@ class _AlbumsTab extends ConsumerWidget {
           );
         }
         return ListView.separated(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+          padding: EdgeInsets.only(
+                top: AppSpacing.md,
+                bottom: AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
           itemCount: filtered.length,
           separatorBuilder: (_, __) => const SizedBox(height: 8),
           itemBuilder: (context, index) {

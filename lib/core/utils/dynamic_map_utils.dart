@@ -42,3 +42,14 @@ double? queueProgress(
   if (size == null || size <= 0 || sizeLeft == null) return null;
   return ((size - sizeLeft) / size).clamp(0.0, 1.0).toDouble();
 }
+
+bool? boolOrNull(dynamic value) {
+  if (value == null) return null;
+  if (value is bool) return value;
+  if (value is String) {
+    final lower = value.toLowerCase();
+    if (lower == 'true' || lower == '1' || lower == 'yes') return true;
+    if (lower == 'false' || lower == '0' || lower == 'no') return false;
+  }
+  return null;
+}

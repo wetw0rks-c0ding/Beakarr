@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/widgets/not_configured_placeholder.dart';
 import 'package:seekarr/features/navidrome/domain/models/navidrome_album.dart';
 import 'package:seekarr/features/navidrome/presentation/navidrome_providers.dart';
@@ -63,7 +64,10 @@ class NavidromeArtistScreen extends ConsumerWidget {
               ),
               Expanded(
                 child: ListView.separated(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+                  padding: EdgeInsets.only(
+                    top: AppSpacing.sm,
+                    bottom: AppSpacing.sm + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+                  ),
                   itemCount: albums.length,
                   separatorBuilder: (_, __) =>
                       const SizedBox(height: AppSpacing.sm),

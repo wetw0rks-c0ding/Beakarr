@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/soulsync/data/soulsync_service.dart';
 import 'package:seekarr/features/soulsync/domain/models/soulsync_discover_item.dart';
@@ -153,7 +154,13 @@ class _DownloadsTabState extends ConsumerState<_DownloadsTab> {
             data: (items) => items.isEmpty
                 ? const Center(child: Text('No downloads'))
                 : ListView.separated(
-                    padding: const EdgeInsets.all(AppSpacing.md),
+                    // Nav clearance (see settings_services_screen.dart).
+                    padding: EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                      AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+                    ),
                     itemCount: items.length,
                     separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (context, index) {
@@ -215,7 +222,13 @@ class _DiscoverTab extends ConsumerWidget {
     final recentAsync = ref.watch(soulsyncRecentReleasesProvider);
     final bubblesAsync = ref.watch(soulsyncDiscoveryBubblesProvider);
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      // Nav clearance (see settings_services_screen.dart).
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+      ),
       children: [
         const _PoolSection(),
         const SizedBox(height: AppSpacing.md),

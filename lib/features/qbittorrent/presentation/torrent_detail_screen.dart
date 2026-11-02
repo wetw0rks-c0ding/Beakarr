@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:seekarr/core/app_spacing.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:seekarr/core/theme.dart';
 import 'package:seekarr/core/utils/route_utils.dart';
 import 'package:seekarr/core/utils/snack_bar_helper.dart';
@@ -136,7 +137,13 @@ class _InfoTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      // Nav clearance (see settings_services_screen.dart).
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+      ),
       children: [
         _SectionLabel('Transfer'),
         _InfoRow(label: 'Name', value: torrent.name),
@@ -437,7 +444,10 @@ class _FilesTab extends ConsumerWidget {
           return const Center(child: Text('No files'));
         }
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.only(
+                top: 8,
+                bottom: 8 + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
           itemCount: files.length,
           itemBuilder: (context, index) =>
               _FileRow(file: files[index], index: index, hash: hash),
@@ -560,7 +570,10 @@ class _TrackersTab extends ConsumerWidget {
           return const Center(child: Text('No trackers'));
         }
         return ListView.builder(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: EdgeInsets.only(
+                top: 8,
+                bottom: 8 + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+              ),
           itemCount: trackers.length,
           itemBuilder: (context, index) =>
               _TrackerRow(tracker: trackers[index]),
@@ -660,7 +673,13 @@ class _ActionsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      // Nav clearance (see settings_services_screen.dart).
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg,
+        AppSpacing.lg + FloatingNavBarMetrics.getScrollViewBottomPadding(context),
+      ),
       children: [
         FilledButton.icon(
           onPressed: () => runTorrentAction(

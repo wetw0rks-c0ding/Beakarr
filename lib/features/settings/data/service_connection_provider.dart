@@ -5,6 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:seekarr/core/api/api_client.dart';
 import 'package:seekarr/core/api/service_auth.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
+import 'package:seekarr/features/npm/data/npm_client.dart';
+import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
+import 'package:seekarr/features/openmediavault/data/openmediavault_client.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
@@ -40,6 +43,14 @@ String _healthEndpoint(ServiceKey service) {
       return '/rest/ping.view';
     case ServiceKey.soulsync:
       return '/api/v1/profiles';
+    case ServiceKey.nzbget:
+      return '/jsonrpc';
+    case ServiceKey.npm:
+      return '/api/nginx/proxy-hosts';
+    case ServiceKey.openmediavault:
+      return '/rpc.php';
+    case ServiceKey.wizarr:
+      return '/api/invitations';
   }
 }
 
@@ -77,7 +88,10 @@ Future<ServiceConnectionStatus> _checkService(
   if (service == ServiceKey.navidrome) {
     final client = ApiClient(
       baseUrl: settings.navidromeUrl,
-      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+      auth: SubsonicAuth(
+        settings.navidromeUsername,
+        settings.navidromePassword,
+      ),
     );
     try {
       final response = await client
@@ -95,6 +109,70 @@ Future<ServiceConnectionStatus> _checkService(
 
   final url = settings.urlFor(service);
   final apiKey = settings.apiKeyFor(service);
+
+  if (service == ServiceKey.nzbget) {
+    final client = NzbgetClient(
+      url: settings.nzbgetUrl,
+      username: settings.nzbgetUsername,
+      password: settings.nzbgetPassword,
+    );
+    try {
+      // Reachability + auth first, then the queue endpoint that proves the
+      // credential has queue-control scope (an add-only user fails here).
+      await client.getVersion().timeout(const Duration(seconds: 5));
+      await client.call('status').timeout(const Duration(seconds: 5));
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.npm) {
+    final client = NpmClient(
+      url: settings.npmUrl,
+      identity: settings.npmIdentity,
+      password: settings.npmPassword,
+    );
+    try {
+      // Token exchange proves the credential; the hosts list proves the
+      // bearer token is accepted by the API.
+      await client.ensureAuthenticated().timeout(const Duration(seconds: 5));
+      await client
+          .get('/api/nginx/proxy-hosts', query: const {'expand': 'certificate'})
+          .timeout(const Duration(seconds: 5));
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.openmediavault) {
+    final client = OpenMediaVaultClient(
+      url: settings.openmediavaultUrl,
+      username: settings.openmediavaultUsername,
+      password: settings.openmediavaultPassword,
+    );
+    try {
+      await client.login().timeout(const Duration(seconds: 5));
+      await client
+          .rpc('System', 'getInformation', const {})
+          .timeout(const Duration(seconds: 5));
+      // Non-admin sessions can read hostnames but none of the data tabs —
+      // a green dot would be a lie, same rule as testServiceConnection.
+      if (client.permissions?['role']?.toString() != 'admin') {
+        return ServiceConnectionStatus.disconnected;
+      }
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close(logout: true);
+    }
+  }
 
   if (service == ServiceKey.soulsync) {
     final ssClient = ApiClient(
@@ -125,7 +203,8 @@ Future<ServiceConnectionStatus> _checkService(
       service == ServiceKey.radarr ||
       service == ServiceKey.prowlarr;
   final oidcIssuer = settings.oidcIssuer;
-  final useOidcClient = isArrOidcService &&
+  final useOidcClient =
+      isArrOidcService &&
       oidcIssuer.isNotEmpty &&
       (apiKey.isEmpty || OidcSessionService.isArrstackMode(oidcIssuer)) &&
       settings.oidcClientId.isNotEmpty;
@@ -137,8 +216,8 @@ Future<ServiceConnectionStatus> _checkService(
           serviceKey: service == ServiceKey.radarr
               ? 'radarr'
               : service == ServiceKey.sonarr
-                  ? 'sonarr'
-                  : 'prowlarr',
+              ? 'sonarr'
+              : 'prowlarr',
           session: OidcSessionService(createSecureSettingsStore()),
           issuerUrl: oidcIssuer,
           clientId: settings.oidcClientId,
@@ -213,7 +292,10 @@ Future<({bool ok, String detail})> testServiceConnection(
   if (service == ServiceKey.navidrome) {
     final client = ApiClient(
       baseUrl: settings.navidromeUrl,
-      auth: SubsonicAuth(settings.navidromeUsername, settings.navidromePassword),
+      auth: SubsonicAuth(
+        settings.navidromeUsername,
+        settings.navidromePassword,
+      ),
     );
     try {
       final response = await client
@@ -239,6 +321,126 @@ Future<({bool ok, String detail})> testServiceConnection(
       return (ok: false, detail: _errorDetail(e, settings, service));
     } finally {
       client.close();
+    }
+  }
+
+  if (service == ServiceKey.nzbget) {
+    final client = NzbgetClient(
+      url: settings.nzbgetUrl,
+      username: settings.nzbgetUsername,
+      password: settings.nzbgetPassword,
+    );
+    try {
+      await client.getVersion().timeout(const Duration(seconds: 5));
+      await client.call('status').timeout(const Duration(seconds: 5));
+      return (ok: true, detail: '');
+    } on NzbgetAuthException catch (e) {
+      return (ok: false, detail: e.message);
+    } on NzbgetRpcException catch (e) {
+      // Auth worked but the credential lacks queue scope; show the RPC text.
+      final detail = 'RPC ${e.code}: ${_scrub(e.message, settings, service)}';
+      return (
+        ok: false,
+        detail: detail.length <= 140 ? detail : detail.substring(0, 140),
+      );
+    } catch (e) {
+      final code = _httpStatusCode(e);
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.npm) {
+    final client = NpmClient(
+      url: settings.npmUrl,
+      identity: settings.npmIdentity,
+      password: settings.npmPassword,
+    );
+    try {
+      await client.ensureAuthenticated().timeout(const Duration(seconds: 5));
+      await client
+          .get('/api/nginx/proxy-hosts', query: const {'expand': 'certificate'})
+          .timeout(const Duration(seconds: 5));
+      return (ok: true, detail: '');
+    } on NpmTwoFactorRequiredException catch (e) {
+      return (ok: false, detail: e.message);
+    } on NpmAuthException catch (e) {
+      return (ok: false, detail: e.message);
+    } catch (e) {
+      // NPM wraps failures as {"error": {"message": ...}} — surface the
+      // server text (e.g. "Invalid email or password" on HTTP 400) instead
+      // of a bare status code. Secrets are scrubbed, like everywhere else.
+      final envelope = _npmErrorMessage(e);
+      if (envelope != null) {
+        final detail = _scrub(envelope, settings, service);
+        return (
+          ok: false,
+          detail: detail.length <= 140 ? detail : detail.substring(0, 140),
+        );
+      }
+      final code = _httpStatusCode(e);
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.openmediavault) {
+    final client = OpenMediaVaultClient(
+      url: settings.openmediavaultUrl,
+      username: settings.openmediavaultUsername,
+      password: settings.openmediavaultPassword,
+    );
+    try {
+      await client.login().timeout(const Duration(seconds: 5));
+      await client
+          .rpc('System', 'getInformation', const {})
+          .timeout(const Duration(seconds: 5));
+      if (client.permissions?['role']?.toString() != 'admin') {
+        return (
+          ok: false,
+          detail:
+              'Signed in, but "user" is not an administrator. Most OMV data requires an admin account.',
+        );
+      }
+      return (ok: true, detail: '');
+    } on OpenMediaVaultException catch (e) {
+      final msg = e.message;
+      if (e.httpStatus == 400) {
+        final detail = _scrub(msg, settings, service);
+        return (
+          ok: false,
+          detail: detail.length <= 140 ? detail : detail.substring(0, 140),
+        );
+      }
+      if (e.httpStatus == 401) {
+        return (ok: false, detail: 'Session rejected');
+      }
+      final code = e.httpStatus;
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } catch (e) {
+      // Distinguish timeout/connection refused via _errorDetail; HTTP status
+      // via _httpStatusCode.
+      final code = _httpStatusCode(e);
+      if (code == 401) {
+        return (ok: false, detail: 'Session rejected');
+      }
+      if (code != null) {
+        return (ok: false, detail: 'HTTP $code');
+      }
+      return (ok: false, detail: _errorDetail(e, settings, service));
+    } finally {
+      client.close(logout: true);
     }
   }
 
@@ -283,7 +485,8 @@ Future<({bool ok, String detail})> testServiceConnection(
       service == ServiceKey.radarr ||
       service == ServiceKey.prowlarr;
   final oidcIssuer = settings.oidcIssuer;
-  final useOidcClient = isArrOidcService &&
+  final useOidcClient =
+      isArrOidcService &&
       oidcIssuer.isNotEmpty &&
       (apiKey.isEmpty || OidcSessionService.isArrstackMode(oidcIssuer)) &&
       settings.oidcClientId.isNotEmpty;
@@ -295,10 +498,9 @@ Future<({bool ok, String detail})> testServiceConnection(
           serviceKey: service == ServiceKey.radarr
               ? 'radarr'
               : service == ServiceKey.sonarr
-                  ? 'sonarr'
-                  : 'prowlarr',
-          session: OidcSessionService(
-              createSecureSettingsStore()),
+              ? 'sonarr'
+              : 'prowlarr',
+          session: OidcSessionService(createSecureSettingsStore()),
           issuerUrl: oidcIssuer,
           clientId: settings.oidcClientId,
         )
@@ -338,6 +540,26 @@ String _errorDetail(Object e, SettingsModel settings, ServiceKey service) {
   return combined.length <= 140 ? combined : combined.substring(0, 140);
 }
 
+/// Extracts NPM's `{"error": {"message": ...}}` (or plain-string `error`)
+/// from a failed response, or null when the body carries no message.
+String? _npmErrorMessage(Object e) {
+  if (e is DioException) {
+    final data = e.response?.data;
+    if (data is Map) {
+      final error = data['error'];
+      if (error is Map) {
+        final message = error['message'];
+        if (message is String && message.trim().isNotEmpty) {
+          return message.trim();
+        }
+      } else if (error is String && error.trim().isNotEmpty) {
+        return error.trim();
+      }
+    }
+  }
+  return null;
+}
+
 String _messageOf(Object e) {
   if (e is DioException) {
     return e.message ?? e.toString();
@@ -367,6 +589,24 @@ String _scrub(String text, SettingsModel settings, ServiceKey service) {
       settings.navidromeUrl,
       settings.navidromeUsername,
       settings.navidromePassword,
+    ]);
+  } else if (service == ServiceKey.nzbget) {
+    secrets.addAll([
+      settings.nzbgetUrl,
+      settings.nzbgetUsername,
+      settings.nzbgetPassword,
+    ]);
+  } else if (service == ServiceKey.npm) {
+    secrets.addAll([
+      settings.npmUrl,
+      settings.npmIdentity,
+      settings.npmPassword,
+    ]);
+  } else if (service == ServiceKey.openmediavault) {
+    secrets.addAll([
+      settings.openmediavaultUrl,
+      settings.openmediavaultUsername,
+      settings.openmediavaultPassword,
     ]);
   } else {
     secrets.addAll([settings.urlFor(service), settings.apiKeyFor(service)]);

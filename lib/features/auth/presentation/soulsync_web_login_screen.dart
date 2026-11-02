@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:seekarr/core/widgets/floating_bottom_nav_bar.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 
 /// SoulSync cookie-login WebView: starts at the proxy login initiator
@@ -187,7 +188,11 @@ class _SoulSyncWebLoginScreenState extends State<SoulSyncWebLoginScreen> {
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
-      body: WebViewWidget(controller: controller),
+      // Nav clearance: the login page must stay above the floating bar.
+      body: Padding(
+        padding: EdgeInsets.only(bottom: FloatingNavBarMetrics.getScrollViewBottomPadding(context)),
+        child: WebViewWidget(controller: controller),
+      ),
     );
   }
 }

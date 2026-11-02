@@ -1,4 +1,4 @@
-import 'dart:convert' show utf8;
+import 'dart:convert' show base64Encode, utf8;
 import 'dart:math';
 import 'package:crypto/crypto.dart';
 
@@ -19,7 +19,7 @@ class ApiKeyHeaderAuth implements ServiceAuth {
   const ApiKeyHeaderAuth(this.apiKey);
 
   @override
-  Map<String, String> headers() => {'X-Api-Key': apiKey};
+  Map<String, String> headers() => {'X-API-Key': apiKey};
 
   @override
   Map<String, dynamic> queryParams() => {};
@@ -38,6 +38,26 @@ class BearerAuth implements ServiceAuth {
   Map<String, dynamic> queryParams() => {};
 }
 
+/// HTTP Basic authentication (`Authorization: Basic base64(user:pass)`).
+///
+/// Used by services whose RPC endpoint authenticates every request without a
+/// login call or session cookie (NZBGet's `POST /jsonrpc`).
+class BasicAuth implements ServiceAuth {
+  final String username;
+  final String password;
+
+  const BasicAuth(this.username, this.password);
+
+  @override
+  Map<String, String> headers() => {
+    'Authorization':
+        'Basic ${base64Encode(utf8.encode('$username:$password'))}',
+  };
+
+  @override
+  Map<String, dynamic> queryParams() => {};
+}
+
 /// SoulSync authentication: Bearer token plus optional profile scoping
 /// header, plus an opaque proxy/app session cookie value (see
 /// findSoulSyncSessionCookie: one or more `name=value` pairs).
@@ -46,11 +66,7 @@ class SoulSyncAuth implements ServiceAuth {
   final String? profileId;
   final String? proxyCookie;
 
-  const SoulSyncAuth(
-    this.token, {
-    this.profileId,
-    this.proxyCookie,
-  });
+  const SoulSyncAuth(this.token, {this.profileId, this.proxyCookie});
 
   @override
   Map<String, String> headers() {
@@ -95,7 +111,9 @@ class SubsonicAuth implements ServiceAuth {
     // Generate a random salt per request (32 hex chars from 16 bytes)
     final rng = Random();
     final saltBytes = List.generate(16, (_) => rng.nextInt(256));
-    final salt = saltBytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join('');
+    final salt = saltBytes
+        .map((b) => b.toRadixString(16).padLeft(2, '0'))
+        .join('');
 
     // Subsonic: t = md5(password + s), sending the same s as parameter s
     final passwordSalt = utf8.encode(password + salt);

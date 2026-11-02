@@ -8,6 +8,9 @@ import 'package:seekarr/core/utils/snack_bar_helper.dart';
 import 'package:seekarr/features/onboarding/data/onboarding_provider.dart';
 import 'package:seekarr/features/qbittorrent/data/qbittorrent_client.dart';
 import 'package:seekarr/features/navidrome/data/navidrome_service.dart';
+import 'package:seekarr/features/npm/data/npm_client.dart';
+import 'package:seekarr/features/nzbget/data/nzbget_client.dart';
+import 'package:seekarr/features/openmediavault/data/openmediavault_client.dart';
 import 'package:seekarr/features/settings/data/service_connection_provider.dart';
 import 'package:seekarr/features/settings/data/settings_provider.dart';
 import 'package:seekarr/features/settings/domain/service_key.dart';
@@ -33,7 +36,35 @@ const _serviceColors = {
   ServiceKey.bazarr: Color(0xFF22D3EE), // Bazarr cyan
   ServiceKey.navidrome: Color(0xFF4ADE80), // Navidrome green
   ServiceKey.soulsync: Color(0xFF8B5CF6), // SoulSync violet
+  ServiceKey.nzbget: Color(0xFF26A69A), // NZBGet teal
+  ServiceKey.npm: Color(0xFFF1583A), // NPM orange-red
+  ServiceKey.openmediavault: Color(0xFF0EA5E9), // OMV sky
+  ServiceKey.wizarr: Color(0xFF8B5CF6), // Wizarr purple
 };
+
+/// Hint under the credential fields, per service auth shape.
+String _credentialHint(ServiceKey service) {
+  switch (service) {
+    case ServiceKey.navidrome:
+      return 'Navidrome requires a username and password.';
+    case ServiceKey.nzbget:
+      return 'NZBGet requires a username and password (ControlUsername / ControlPassword).';
+    case ServiceKey.npm:
+      return 'The email and password you sign in to Nginx Proxy Manager with.';
+    case ServiceKey.qbittorrent:
+      return 'Leave credentials empty if your qBittorrent instance does not require authentication.';
+    case ServiceKey.seerr:
+    case ServiceKey.radarr:
+    case ServiceKey.sonarr:
+    case ServiceKey.lidarr:
+    case ServiceKey.prowlarr:
+    case ServiceKey.bazarr:
+    case ServiceKey.soulsync:
+    case ServiceKey.openmediavault:
+    case ServiceKey.wizarr:
+      return '';
+  }
+}
 
 // ─── Health-check helper (mirrors serviceConnectionProvider logic) ──────────
 String _healthEndpoint(ServiceKey service) {
@@ -55,6 +86,14 @@ String _healthEndpoint(ServiceKey service) {
       return '/rest/ping.view';
     case ServiceKey.soulsync:
       return '/api/v1/profiles';
+    case ServiceKey.nzbget:
+      return '/jsonrpc';
+    case ServiceKey.npm:
+      return '/api/nginx/proxy-hosts';
+    case ServiceKey.openmediavault:
+      return '/rpc.php';
+    case ServiceKey.wizarr:
+      return '/api/invitations';
   }
 }
 
@@ -65,6 +104,79 @@ Future<ServiceConnectionStatus> _verifyService(
   required String username,
   required String password,
 }) async {
+  if (service == ServiceKey.nzbget) {
+    final urlTrimmed = url.trim();
+    if (urlTrimmed.isEmpty || username.trim().isEmpty || password.isEmpty) {
+      return ServiceConnectionStatus.notConfigured;
+    }
+    final client = NzbgetClient(
+      url: urlTrimmed,
+      username: username.trim(),
+      password: password,
+    );
+    try {
+      await client.getVersion().timeout(const Duration(seconds: 5));
+      await client.call('status').timeout(const Duration(seconds: 5));
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.npm) {
+    final urlTrimmed = url.trim();
+    if (urlTrimmed.isEmpty || username.trim().isEmpty || password.isEmpty) {
+      return ServiceConnectionStatus.notConfigured;
+    }
+    final client = NpmClient(
+      url: urlTrimmed,
+      identity: username.trim(),
+      password: password,
+    );
+    try {
+      await client.ensureAuthenticated().timeout(const Duration(seconds: 5));
+      await client
+          .get('/api/nginx/proxy-hosts', query: const {'expand': 'certificate'})
+          .timeout(const Duration(seconds: 5));
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close();
+    }
+  }
+
+  if (service == ServiceKey.openmediavault) {
+    final urlTrimmed = url.trim();
+    if (urlTrimmed.isEmpty || username.trim().isEmpty || password.isEmpty) {
+      return ServiceConnectionStatus.notConfigured;
+    }
+    final client = OpenMediaVaultClient(
+      url: urlTrimmed,
+      username: username.trim(),
+      password: password,
+    );
+    try {
+      await client.login().timeout(const Duration(seconds: 5));
+      await client
+          .rpc('System', 'getInformation', const {})
+          .timeout(const Duration(seconds: 5));
+      // Non-admin sessions can read hostnames but none of the data tabs —
+      // confirming them would green-light an unusable connection (same
+      // rule as the settings connection check).
+      if (client.permissions?['role']?.toString() != 'admin') {
+        return ServiceConnectionStatus.disconnected;
+      }
+      return ServiceConnectionStatus.connected;
+    } catch (_) {
+      return ServiceConnectionStatus.disconnected;
+    } finally {
+      client.close(logout: true);
+    }
+  }
+
   if (!service.usesApiKey) {
     final urlTrimmed = url.trim();
     if (urlTrimmed.isEmpty) return ServiceConnectionStatus.notConfigured;
@@ -191,11 +303,13 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   bool _isServiceReady(ServiceKey k) {
     if (!_enabled[k]!) return false;
     if (_urlCtrl[k]!.text.trim().isEmpty) return false;
-    if (k == ServiceKey.navidrome) {
+    if (!k.usesApiKey) {
+      // qBittorrent allows anonymous instances; every other credential
+      // service requires both fields.
+      if (!k.requiresUsername) return true;
       return _usernameCtrl[k]!.text.trim().isNotEmpty &&
           _passwordCtrl[k]!.text.isNotEmpty;
     }
-    if (!k.usesApiKey) return true;
     return _apiKeyCtrl[k]!.text.trim().isNotEmpty;
   }
 
@@ -235,6 +349,24 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
             username: _usernameCtrl[k]!.text.trim(),
             password: _passwordCtrl[k]!.text,
           );
+        } else if (k == ServiceKey.nzbget) {
+          updated = updated.copyWithNzbget(
+            url: _urlCtrl[k]!.text.trim(),
+            username: _usernameCtrl[k]!.text.trim(),
+            password: _passwordCtrl[k]!.text,
+          );
+        } else if (k == ServiceKey.npm) {
+          updated = updated.copyWithNpm(
+            url: _urlCtrl[k]!.text.trim(),
+            identity: _usernameCtrl[k]!.text.trim(),
+            password: _passwordCtrl[k]!.text,
+          );
+        } else if (k == ServiceKey.openmediavault) {
+          updated = updated.copyWithOpenMediaVault(
+            url: _urlCtrl[k]!.text.trim(),
+            username: _usernameCtrl[k]!.text.trim(),
+            password: _passwordCtrl[k]!.text,
+          );
         } else {
           updated = updated.copyWithService(
             k,
@@ -243,21 +375,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
           );
         }
       } else {
-        if (k == ServiceKey.qbittorrent) {
-          updated = updated.copyWithQbittorrent(
-            url: '',
-            username: '',
-            password: '',
-          );
-        } else if (k == ServiceKey.navidrome) {
-          updated = updated.copyWithNavidrome(
-            url: '',
-            username: '',
-            password: '',
-          );
-        } else {
-          updated = updated.copyWithService(k, url: '', apiKey: '');
-        }
+        updated = updated.clearedService(k);
       }
     }
     try {
@@ -933,18 +1051,17 @@ class _ServiceConfig extends StatelessWidget {
                   controller: apiKeyCtrl,
                   isPassword: true,
                 ),
-              ] else if (serviceKey == ServiceKey.qbittorrent ||
-                  serviceKey == ServiceKey.navidrome) ...[
+              ] else if (!serviceKey.usesApiKey) ...[
                 const SizedBox(height: 10),
                 _ConfigField(
-                  label: serviceKey == ServiceKey.navidrome
-                      ? 'Username'
-                      : 'Username (optional)',
+                  label: serviceKey.requiresUsername
+                      ? serviceKey.usernameLabel
+                      : '${serviceKey.usernameLabel} (optional)',
                   controller: usernameCtrl,
                 ),
                 const SizedBox(height: 10),
                 _ConfigField(
-                  label: serviceKey == ServiceKey.navidrome
+                  label: serviceKey.requiresPassword
                       ? 'Password'
                       : 'Password (optional)',
                   controller: passwordCtrl,
@@ -952,9 +1069,7 @@ class _ServiceConfig extends StatelessWidget {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  serviceKey == ServiceKey.navidrome
-                      ? 'Navidrome requires a username and password.'
-                      : 'Leave credentials empty if your qBittorrent instance does not require authentication.',
+                  _credentialHint(serviceKey),
                   style: const TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 11,
@@ -963,8 +1078,7 @@ class _ServiceConfig extends StatelessWidget {
                   ),
                 ),
               ],
-              if ((serviceKey == ServiceKey.qbittorrent ||
-                  serviceKey == ServiceKey.navidrome) &&
+              if (!serviceKey.usesApiKey &&
                   verifyStatus == ServiceConnectionStatus.disconnected) ...[
                 const SizedBox(height: 10),
                 const Text(
@@ -978,19 +1092,35 @@ class _ServiceConfig extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 12),
-              // Verify row
-              Row(
-                children: [
-                  Expanded(
-                    child: _VerifyButton(verifying: verifying, onTap: onVerify),
+              // Verify row. NZBGet still shows the honest note (its verify row
+              // is enabled with its own PR); NPM verifies through the token
+              // exchange below.
+              if (serviceKey == ServiceKey.nzbget)
+                const Text(
+                  'Connection check arrives with support — saving works now.',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 11,
+                    color: _muted,
+                    height: 1.5,
                   ),
-                  const SizedBox(width: 10),
-                  _VerifyStatusBadge(
-                    status: verifyStatus,
-                    verifying: verifying,
-                  ),
-                ],
-              ),
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: _VerifyButton(
+                        verifying: verifying,
+                        onTap: onVerify,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    _VerifyStatusBadge(
+                      status: verifyStatus,
+                      verifying: verifying,
+                    ),
+                  ],
+                ),
             ],
           ),
         ),

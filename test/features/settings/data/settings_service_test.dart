@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:seekarr/features/settings/data/settings_service.dart';
+import 'package:seekarr/features/settings/domain/service_key.dart';
 import 'package:seekarr/features/settings/domain/settings_model.dart';
 
 import '../../../test_helpers/fake_secure_settings_store.dart';
@@ -112,6 +113,123 @@ void main() {
       expect(loaded.lidarrApiKey, settings.lidarrApiKey);
       expect(loaded.region, settings.region);
       expect(loaded.themeMode, settings.themeMode);
+    });
+
+    test('saveSettings and loadSettings round-trip Wizarr', () async {
+      const settings = SettingsModel(
+        wizarrUrl: 'https://wizarr.example.com:5691',
+        wizarrApiKey: 'wizarr-key',
+      );
+
+      await service.saveSettings(settings);
+      final loaded = await service.loadSettings();
+
+      expect(loaded.wizarrUrl, settings.wizarrUrl);
+      expect(loaded.wizarrApiKey, settings.wizarrApiKey);
+      expect(loaded.isServiceConfigured(ServiceKey.wizarr), isTrue);
+    });
+
+    test('saveSettings and loadSettings round-trip NZBGet and NPM', () async {
+      const settings = SettingsModel(
+        nzbgetUrl: 'http://nzbget:6789',
+        nzbgetUsername: 'nzuser',
+        nzbgetPassword: 'nzpass',
+        npmUrl: 'http://npm:81',
+        npmIdentity: 'admin@example.com',
+        npmPassword: 'nmpass',
+      );
+
+      await service.saveSettings(settings);
+      final loaded = await service.loadSettings();
+
+      expect(loaded.nzbgetUrl, settings.nzbgetUrl);
+      expect(loaded.nzbgetUsername, settings.nzbgetUsername);
+      expect(loaded.nzbgetPassword, settings.nzbgetPassword);
+      expect(loaded.npmUrl, settings.npmUrl);
+      expect(loaded.npmIdentity, settings.npmIdentity);
+      expect(loaded.npmPassword, settings.npmPassword);
+
+      // Storage layout: URLs + usernames in prefs, passwords in secure.
+      expect(prefs.getString('nzbget_url'), settings.nzbgetUrl);
+      expect(prefs.getString('nzbget_username'), settings.nzbgetUsername);
+      expect(prefs.getString('npm_url'), settings.npmUrl);
+      expect(prefs.getString('npm_identity'), settings.npmIdentity);
+      expect(
+        await secureStore.read(key: 'secure_nzbget_password'),
+        'nzpass',
+      );
+      expect(await secureStore.read(key: 'secure_npm_password'), 'nmpass');
+    });
+
+    test('clearAll wipes NZBGet and NPM credentials', () async {
+      const settings = SettingsModel(
+        nzbgetUrl: 'http://nzbget:6789',
+        nzbgetUsername: 'nzuser',
+        nzbgetPassword: 'nzpass',
+        npmUrl: 'http://npm:81',
+        npmIdentity: 'admin@example.com',
+        npmPassword: 'nmpass',
+      );
+      await service.saveSettings(settings);
+
+      await service.clearAll();
+
+      final loaded = await service.loadSettings();
+      expect(loaded.nzbgetUrl, isEmpty);
+      expect(loaded.nzbgetUsername, isEmpty);
+      expect(loaded.nzbgetPassword, isEmpty);
+      expect(loaded.npmUrl, isEmpty);
+      expect(loaded.npmIdentity, isEmpty);
+      expect(loaded.npmPassword, isEmpty);
+      expect(prefs.getString('nzbget_username'), isNull);
+      expect(prefs.getString('npm_identity'), isNull);
+      expect(await secureStore.read(key: 'secure_nzbget_password'), isNull);
+      expect(await secureStore.read(key: 'secure_npm_password'), isNull);
+    });
+
+    test('saveSettings and loadSettings round-trip OpenMediaVault', () async {
+      const settings = SettingsModel(
+        openmediavaultUrl: 'https://omv.local',
+        openmediavaultUsername: 'admin',
+        openmediavaultPassword: 'omvpass',
+      );
+
+      await service.saveSettings(settings);
+      final loaded = await service.loadSettings();
+
+      expect(loaded.openmediavaultUrl, settings.openmediavaultUrl);
+      expect(loaded.openmediavaultUsername, settings.openmediavaultUsername);
+      expect(loaded.openmediavaultPassword, settings.openmediavaultPassword);
+      expect(prefs.getString('openmediavault_url'), settings.openmediavaultUrl);
+      expect(
+        prefs.getString('openmediavault_username'),
+        settings.openmediavaultUsername,
+      );
+      expect(
+        await secureStore.read(key: 'secure_openmediavault_password'),
+        'omvpass',
+      );
+    });
+
+    test('clearAll wipes OpenMediaVault credentials', () async {
+      const settings = SettingsModel(
+        openmediavaultUrl: 'https://omv.local',
+        openmediavaultUsername: 'admin',
+        openmediavaultPassword: 'omvpass',
+      );
+      await service.saveSettings(settings);
+
+      await service.clearAll();
+
+      final loaded = await service.loadSettings();
+      expect(loaded.openmediavaultUrl, isEmpty);
+      expect(loaded.openmediavaultUsername, isEmpty);
+      expect(loaded.openmediavaultPassword, isEmpty);
+      expect(prefs.getString('openmediavault_username'), isNull);
+      expect(
+        await secureStore.read(key: 'secure_openmediavault_password'),
+        isNull,
+      );
     });
 
     test('loadSettings returns empty defaults on fresh storage', () async {
