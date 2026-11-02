@@ -2,7 +2,8 @@
 
 A Flutter app for managing your self-hosted media stack from anywhere.
 One client for **Seerr**, **Radarr**, **Sonarr**, **Lidarr**, **Prowlarr**,
-**Bazarr**, **Navidrome**, **SoulSync** and **qBittorrent** on Android and iOS —
+**Bazarr**, **Navidrome**, **SoulSync**, **qBittorrent**, **NZBGet**,
+**Nginx Proxy Manager**, **OpenMediaVault** and **Wizarr** on Android and iOS —
 with **Authentik single sign-on** across the *arr fleet, so one login covers
 every service instead of an API key per box.
 
@@ -100,6 +101,10 @@ every service instead of an API key per box.
 - **Bazarr** — Subtitle management for series and movies
 - **Navidrome** — Music streaming via Subsonic API
 - **SoulSync** — Requests, discovery and downloads with Authentik cookie SSO
+- **NZBGet** — Usenet queue/history monitoring plus pause/resume control
+- **Nginx Proxy Manager** — Read-only proxy-host and certificate-expiry monitoring
+- **OpenMediaVault** — Read-only server overview: disks, services and system stats
+- **Wizarr** — Guest invitations: view, create and revoke; read-only user list
 - **Single sign-on** — One Authentik login covers Sonarr, Radarr and
   Prowlarr (short-lived service tokens minted per host, refreshed and
   cached automatically), with cookie sessions for SoulSync. The
@@ -121,7 +126,7 @@ every service instead of an API key per box.
 - Flutter SDK compatible with Dart `^3.10.0` (CI uses Flutter 3.38.7)
 - For **iOS**: Xcode (latest stable) for macOS builds; Linux cross-compiles IPAs with `xcross`
 - For **Android**: Android Studio + Android SDK (compileSdk 36)
-- At least one running self-hosted service: Seerr, Radarr, Sonarr, Lidarr, Prowlarr, or qBittorrent
+- At least one running self-hosted service: Seerr, Radarr, Sonarr, Lidarr, Prowlarr, qBittorrent, NZBGet, Nginx Proxy Manager, OpenMediaVault or Wizarr
 
 ### Installation
 
@@ -147,6 +152,10 @@ Beakarr ships with no default credentials. After launching the app, open **Setti
 - **Navidrome** — Base URL + Username + Password (Subsonic auth)
 - **SoulSync** — Base URL + API key, or Authentik cookie SSO
 - **qBittorrent** — Base URL + Username + Password (uses qB's WebUI v2 form login; no API key)
+- **NZBGet** — Base URL + Username + Password (HTTP Basic Auth on JSON-RPC)
+- **Nginx Proxy Manager** — Base URL + Email + Password (token login; 2FA-enabled accounts unsupported)
+- **OpenMediaVault** — Base URL + Username + Password (session login; admin role required)
+- **Wizarr** — Base URL + API key (sent as `X-API-Key` header)
 - Region preferences (where applicable)
 
 API keys are stored securely on the device using `flutter_secure_storage` and are never transmitted outside your local network.
@@ -270,7 +279,7 @@ For setup notes, conventions, and pull request expectations, see [CONTRIBUTING.m
 
 Beakarr was born from a personal need: flawlessly managing a self-hosted *arr stack from a phone, from anywhere. It is built with a focus on getting the details right — polished interactions, honest error and empty states, and a test suite that keeps them that way — rather than on shipping fast.
 
-Beakarr started as a fork of [Seekarr by matthw-labs](https://github.com/matthw-labs/seekarr) and has since become its own product: single sign-on across the fleet, Prowlarr/Bazarr/Navidrome/SoulSync support, encrypted config backup, and its own brand. Upstream remains credited under the MIT license; none of its infrastructure is used.
+Beakarr started as a fork of [Seekarr by matthw-labs](https://github.com/matthw-labs/seekarr) and has since become its own product: single sign-on across the fleet, Prowlarr/Bazarr/Navidrome/SoulSync support, NZBGet control, Nginx Proxy Manager / OpenMediaVault / Wizarr monitoring, encrypted config backup, and its own brand. Upstream remains credited under the MIT license; none of its infrastructure is used.
 
 Beakarr is written primarily with AI coding agents under human direction — every feature is specified, device-tested, and reviewed before release. See `docs/project-log/` for the per-release record.
 
