@@ -281,7 +281,7 @@ Beakarr was born from a personal need: flawlessly managing a self-hosted *arr st
 
 Beakarr started as a fork of [Seekarr by matthw-labs](https://github.com/matthw-labs/seekarr) and has since become its own product: single sign-on across the fleet, Prowlarr/Bazarr/Navidrome/SoulSync support, NZBGet control, Nginx Proxy Manager / OpenMediaVault / Wizarr monitoring, encrypted config backup, and its own brand. Upstream remains credited under the MIT license; none of its infrastructure is used.
 
-Beakarr is written primarily with AI coding agents under human direction — every feature is specified, device-tested, and reviewed before release. See `docs/project-log/` for the per-release record.
+Beakarr is written primarily under human direction with AI tools used for code review and some testing — every feature is specified, device-tested, and reviewed before release. See `docs/project-log/` for the per-release record.
 
 ---
 
